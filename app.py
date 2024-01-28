@@ -1,12 +1,19 @@
 from flask import Flask
 
 app = Flask(__name__)
+game_manager = None
 
 @app.route('/button_pressed', methods=['GET'])
 def button_pressed():
-    print("Button was pressed!")
-    # You can add any action you want to perform here.
+    game_manager.button_is_pressed = True
     return "Button press acknowledged", 200
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+
+@app.route('/button_unpressed', methods=['GET'])
+def button_unpressed():
+    game_manager.button_is_pressed = False
+    return "Button unpress acknowledged", 200
+
+
+def run_flask_app():
+    app.run(host='0.0.0.0', port=5000, threaded=True)
