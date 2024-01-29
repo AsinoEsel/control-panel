@@ -47,8 +47,10 @@ class Widget:
     def __init__(self, x, y, w, h) -> None:
         self.position = (x, y)
         self.surface = pg.Surface((w, h))
+        self.surface.fill(DEBUG_COLOR)
         self.active = False
         self.color = COLOR_INACTIVE
+        self.accent_color = ACCENT_COLOR_INACTIVE
     
     def handle_event(self, event: pg.event.Event):
         self.render()
@@ -56,10 +58,12 @@ class Widget:
     def activate(self) -> None:
         self.active = True
         self.color = COLOR_ACTIVE
+        self.accent_color = ACCENT_COLOR_ACTIVE
     
     def deactivate(self) -> None:
         self.active = False
         self.color = COLOR_INACTIVE
+        self.accent_color = ACCENT_COLOR_INACTIVE
     
     def render(self) -> None:
         pass
@@ -92,9 +96,10 @@ class Window(Widget):
         self.window_manager.close_window(self)
     
     def render(self):
-        self.surface.fill(BACKGROUND_COLOR)
+        self.surface.fill(self.accent_color)
         self.surface.blit(self.title_surface, (DEFAULT_GAP, DEFAULT_GAP))
         pg.draw.rect(self.surface, self.color, pg.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), LINE_THICKNESS_THIN)
+        pg.draw.rect(self.surface, ACCENT_COLOR_INACTIVE, self.inner_rect)
         pg.draw.rect(self.surface, self.color, self.inner_rect, LINE_THICKNESS_THIN)
     
 
@@ -112,7 +117,6 @@ class InputBox:
         self.color = COLOR_INACTIVE
         self.font = font
         self.text = ''
-        self.text_surface = font.render(self.text, True, self.color)
         self.max_chars = w // CHAR_WIDTH[font]
         self.caret_position = 0
 
@@ -123,16 +127,13 @@ class InputBox:
                     self.parent.handle_text(self.text)
                 self.text = ''
                 self.caret_position = 0
-                self.render_text()
             elif event.key == pg.K_BACKSPACE:
                 if self.caret_position > 0:
                     self.text = self.text[0:self.caret_position-1] + self.text[self.caret_position:]
                     self.caret_position -= 1
-                    self.render_text()
             elif event.key == pg.K_DELETE:
                 if self.caret_position < len(self.text):
                     self.text = self.text[0:self.caret_position] + self.text[self.caret_position+1:]
-                    self.render_text()
             elif event.key == pg.K_LEFT:
                 if self.caret_position > 0:
                     self.caret_position -= 1
@@ -143,17 +144,20 @@ class InputBox:
                 if not (event.mod & pg.KMOD_CTRL) and is_allowed_character(event.unicode) and len(self.text) < self.max_chars:
                     self.text = self.text[0:self.caret_position] + event.unicode + self.text[self.caret_position:]
                     self.caret_position += 1
-                    self.render_text()
         self.render()
     
     def render_text(self):
-        self.text_surface = self.font.render(self.text, True, self.color)
+        text_surface = self.font.render(self.text, True, self.color)
+        self.parent.surface.blit(text_surface, (self.rect.left + CHAR_WIDTH[self.font]//3, self.rect.top + 5))
     
-    def render(self):
-        self.parent.surface.blit(self.text_surface, (self.rect.left + CHAR_WIDTH[self.font]//3, self.rect.top + 5))
+    def render_caret(self):
         x = self.rect.left + CHAR_WIDTH[self.font]*(self.caret_position+1/3)
         pg.draw.line(self.parent.surface, self.color, (x, self.rect.top + CHAR_HEIGHT[self.font]//4),
                                                       (x, self.rect.bottom - CHAR_HEIGHT[self.font]//4), LINE_THICKNESS_THIN)
+    
+    def render(self):
+        self.render_text()
+        self.render_caret()
         pg.draw.rect(self.parent.surface, self.color, self.rect, 2)
 
 
@@ -200,11 +204,14 @@ class Terminal(Widget):
         font_render_surface = self.font.render(text, True, color, BACKGROUND_COLOR)
         
         dy = font_render_surface.get_height()
+        # for removing (overwriting) the green line, ugly solution:
+        pg.draw.line(self.log_surface, BACKGROUND_COLOR, (0, self.log_surface.get_height()),
+                     (self.log_surface.get_width(), self.log_surface.get_height()), 2*LINE_THICKNESS_THICK)
         self.log_surface.scroll(0, -dy)
         override_rect = pg.Rect(0, self.log_surface.get_height()-dy, self.log_surface.get_width(), dy)
         pg.draw.rect(self.log_surface, BACKGROUND_COLOR, override_rect)
         
-        self.log_surface.blit(font_render_surface, (0, self.log_surface.get_height() - dy))
+        self.log_surface.blit(font_render_surface, (CHAR_WIDTH[self.font]//3, self.log_surface.get_height() - dy))
             
     def update(self) -> None:
         pass
@@ -218,6 +225,8 @@ class Terminal(Widget):
         return super().deactivate()
     
     def render(self) -> None:
+        self.surface.fill(self.accent_color)
+        pg.draw.rect(self.log_surface, self.color, pg.Rect(0, 0, self.log_surface.get_width(), self.log_surface.get_height()), LINE_THICKNESS_THIN)
         self.surface.blit(self.log_surface, (DEFAULT_GAP, DEFAULT_GAP))
         pg.draw.rect(self.surface, self.color, self.outline_rect, LINE_THICKNESS_THIN)
         pg.draw.rect(self.surface, BACKGROUND_COLOR, self.input_box.rect)
