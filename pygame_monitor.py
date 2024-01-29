@@ -1,7 +1,6 @@
 import pygame as pg
 from video_player import play_video
 from utils import *
-
 from setup import *
 game_manager = None
 window_manager = None
@@ -45,9 +44,14 @@ class WindowManager:
 
 
 class Widget:
-    def __init__(self) -> None:
+    def __init__(self, x, y, w, h) -> None:
+        self.position = (x, y)
+        self.surface = pg.Surface((w, h))
         self.active = False
         self.color = COLOR_INACTIVE
+    
+    def handle_event(self, event: pg.event.Event):
+        self.render()
     
     def activate(self) -> None:
         self.active = True
@@ -57,38 +61,42 @@ class Widget:
         self.active = False
         self.color = COLOR_INACTIVE
     
-    def draw(self) -> None:
+    def render(self) -> None:
         pass
+    
+    def draw(self, screen) -> None:
+        screen.blit(self.surface, self.position)
     
 
 class Window(Widget):
-    def __init__(self, window_manager: 'WindowManager', title: str, w: int, h: int) -> None:
-        super().__init__()
+    def __init__(self, window_manager: 'WindowManager', title: str, w: int, h: int, font=DEFAULT_FONT) -> None:
+        super().__init__(SCREEN_WIDTH/2 - w/2, SCREEN_HEIGHT/2 - h/2, w, h)
         self.window_manager = window_manager
-        self.rect = pg.Rect(SCREEN_WIDTH/2 - w/2, SCREEN_HEIGHT/2 - h/2, w, h)
-        self.inner_rect = pg.Rect(self.rect.left + DEFAULT_GAP, self.rect.top + CHAR_HEIGHT + DEFAULT_GAP,
-                                  self.rect.width - 2*DEFAULT_GAP, self.rect.height - CHAR_HEIGHT - 2*DEFAULT_GAP)
+        self.inner_rect = pg.Rect(DEFAULT_GAP, CHAR_HEIGHT[font] + DEFAULT_GAP,
+                                  w - 2*DEFAULT_GAP, h - CHAR_HEIGHT[font] - 2*DEFAULT_GAP)
+        self.font = font
         self.title = title
-        self.title_surface = FONT.render(self.title, True, self.color)
+        self.title_surface = font.render(self.title, True, self.color)
     
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 self.close()
+        super().handle_event(event)
     
     def activate(self) -> None:
         super().activate()
-        self.title_surface = FONT.render(self.title, True, self.color)
+        self.title_surface = self.font.render(self.title, True, self.color)
     
     def close(self):
         self.window_manager.close_window(self)
     
-    def draw(self, screen):
-        pg.draw.rect(screen, BACKGROUND_COLOR, self.rect)
-        screen.blit(self.title_surface, (self.rect.left + DEFAULT_GAP, self.rect.top + DEFAULT_GAP))
-        pg.draw.rect(screen, self.color, self.rect, LINE_THICKNESS_THIN)
-        pg.draw.rect(screen, self.color, self.inner_rect, LINE_THICKNESS_THIN)
-
+    def render(self):
+        self.surface.fill(BACKGROUND_COLOR)
+        self.surface.blit(self.title_surface, (DEFAULT_GAP, DEFAULT_GAP))
+        pg.draw.rect(self.surface, self.color, pg.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), LINE_THICKNESS_THIN)
+        pg.draw.rect(self.surface, self.color, self.inner_rect, LINE_THICKNESS_THIN)
+    
 
 class Button:
     def __init__(self, parent: 'Widget', text: str) -> None:
@@ -98,13 +106,14 @@ class Button:
 
 
 class InputBox:
-    def __init__(self, parent: 'Widget', x: int, y: int, w: int, h: int) -> None:
+    def __init__(self, parent: 'Widget', x: int, y: int, w: int, h: int, font = DEFAULT_FONT) -> None:
         self.parent = parent
         self.rect = pg.Rect(x, y, w, h)
         self.color = COLOR_INACTIVE
+        self.font = font
         self.text = ''
-        self.text_surface = FONT.render(self.text, True, self.color)
-        self.max_chars = self.rect.width // CHAR_WIDTH
+        self.text_surface = font.render(self.text, True, self.color)
+        self.max_chars = w // CHAR_WIDTH[font]
         self.caret_position = 0
 
     def handle_event(self, event: pg.event.Event):
@@ -132,34 +141,37 @@ class InputBox:
                     self.caret_position += 1
             else:
                 if not (event.mod & pg.KMOD_CTRL) and is_allowed_character(event.unicode) and len(self.text) < self.max_chars:
-                    self.text += event.unicode
+                    self.text = self.text[0:self.caret_position] + event.unicode + self.text[self.caret_position:]
                     self.caret_position += 1
                     self.render_text()
+        self.render()
     
     def render_text(self):
-        self.text_surface = FONT.render(self.text, True, self.color)
-
-    def draw(self, screen):
-        screen.blit(self.text_surface, (self.rect.x+5, self.rect.y+5))
-        x = self.rect.left + self.caret_position*CHAR_WIDTH+CHAR_WIDTH//3
-        pg.draw.line(screen, self.color, (x, self.rect.top + CHAR_WIDTH//3), (x, self.rect.bottom - CHAR_WIDTH//3), LINE_THICKNESS_THIN)
-        pg.draw.rect(screen, self.color, self.rect, 2)
+        self.text_surface = self.font.render(self.text, True, self.color)
+    
+    def render(self):
+        self.parent.surface.blit(self.text_surface, (self.rect.left + CHAR_WIDTH[self.font]//3, self.rect.top + 5))
+        x = self.rect.left + CHAR_WIDTH[self.font]*(self.caret_position+1/3)
+        pg.draw.line(self.parent.surface, self.color, (x, self.rect.top + CHAR_HEIGHT[self.font]//4),
+                                                      (x, self.rect.bottom - CHAR_HEIGHT[self.font]//4), LINE_THICKNESS_THIN)
+        pg.draw.rect(self.parent.surface, self.color, self.rect, 2)
 
 
 class Terminal(Widget):
-    def __init__(self) -> None:
-        super().__init__()
-        # self.rect = pg.Rect(0, 0, SCREEN_WIDTH/2, SCREEN_HEIGHT)
-        # self.surface = pg.Surface(self.rect)
-        self.outline_rect = pg.Rect(DEFAULT_GAP, DEFAULT_GAP, SCREEN_WIDTH/2-2*DEFAULT_GAP, SCREEN_HEIGHT-2*DEFAULT_GAP)
-        self.log_surface = pg.Surface((self.outline_rect.width-2*DEFAULT_GAP, self.outline_rect.height-50-2*DEFAULT_GAP))
+    def __init__(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH/2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP, font=DEFAULT_FONT) -> None:
+        super().__init__(x, y, w, h)
+        self.outline_rect = pg.Rect(0, 0, w, h)
+        self.log_surface = pg.Surface((w-2*DEFAULT_GAP, h-CHAR_HEIGHT[font]*1.3-3*DEFAULT_GAP))
         self.log_surface.fill(BACKGROUND_COLOR)
-        self.input_box = InputBox(self, 2*DEFAULT_GAP, SCREEN_HEIGHT-2*DEFAULT_GAP-CHAR_HEIGHT*1.3, self.outline_rect.width-2*DEFAULT_GAP, CHAR_HEIGHT*1.3)
-        self.max_chars = int(self.outline_rect.width / FONT.render("A", False, (0, 0, 0)).get_width())
+        self.font = font
+        self.input_box = InputBox(self, DEFAULT_GAP, h-DEFAULT_GAP-CHAR_HEIGHT[font]*1.3, w-2*DEFAULT_GAP, CHAR_HEIGHT[font]*1.3)
+        self.max_chars = int(w / CHAR_WIDTH[font])
         # self.log = []
+        self.render()
     
     def handle_event(self, event: pg.event.Event):
         self.input_box.handle_event(event)
+        self.render()
     
     def handle_text(self, text):
         self.print_to_log('> ' + text)
@@ -185,7 +197,7 @@ class Terminal(Widget):
             self.print_to_log(' ' + second_half, color)
             return
         
-        font_render_surface = FONT.render(text, True, color, BACKGROUND_COLOR)
+        font_render_surface = self.font.render(text, True, color, BACKGROUND_COLOR)
         
         dy = font_render_surface.get_height()
         self.log_surface.scroll(0, -dy)
@@ -204,11 +216,12 @@ class Terminal(Widget):
     def deactivate(self) -> None:
         self.input_box.color = COLOR_INACTIVE
         return super().deactivate()
-        
-    def draw(self, screen) -> None:
-        screen.blit(self.log_surface, (self.outline_rect.left+DEFAULT_GAP, self.outline_rect.top+DEFAULT_GAP))
-        pg.draw.rect(screen, self.color, self.outline_rect, LINE_THICKNESS_THIN)
-        self.input_box.draw(screen)
+    
+    def render(self) -> None:
+        self.surface.blit(self.log_surface, (DEFAULT_GAP, DEFAULT_GAP))
+        pg.draw.rect(self.surface, self.color, self.outline_rect, LINE_THICKNESS_THIN)
+        pg.draw.rect(self.surface, BACKGROUND_COLOR, self.input_box.rect)
+        self.input_box.render()
 
 
 def run(display_flags=0):
