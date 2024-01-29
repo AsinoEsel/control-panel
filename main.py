@@ -17,6 +17,6 @@ if __name__ == "__main__":
     flask_thread.start()
     
     pygame_monitor.game_manager = game_manager
-    pygame_monitor.terminal = pygame_monitor.Terminal()
-    pygame_monitor.run()
+    pygame_monitor.window_manager = pygame_monitor.WindowManager()
+    pygame_monitor.run(pg.FULLSCREEN)
     

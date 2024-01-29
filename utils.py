@@ -19,4 +19,4 @@ def is_allowed_character(character):
     if character in ("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü", "ẞ"):
         return True
     unicode_value = ord(character)
-    return unicode_value < 128
+    return 32 <= unicode_value < 128
