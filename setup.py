@@ -17,7 +17,7 @@ CHAR_WIDTH = {
 }
 
 CHAR_HEIGHT = {
-    DEFAULT_FONT: DEFAULT_FONT.render("|", False, (0, 0, 0)).get_height()
+    DEFAULT_FONT: DEFAULT_FONT.render("Ög", False, (0, 0, 0)).get_height()
 }
 
 DEFAULT_GAP = 6

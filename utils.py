@@ -1,17 +1,12 @@
-def break_up_string(input_string, max_chars):
+def break_up_string(input_string: str, max_chars: int):
     # Find the last space before or at the nth character
     last_space_index = input_string.rfind(' ', 0, max_chars)
     
-    # If no space is found, or if the last space is at index 0, return the entire string
-    if last_space_index <= 0:
-        return input_string, ""
+    if last_space_index < 2:
+        return input_string[0:max_chars], input_string[max_chars:]
     
     # Split the string into two parts
-    first_part = input_string[:last_space_index]
-    second_part = input_string[last_space_index + 1:]
-    
-    return first_part, second_part
-
+    return input_string[:last_space_index], input_string[last_space_index:]
 
 def is_allowed_character(character):
     if len(character) == 0:
