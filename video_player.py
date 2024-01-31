@@ -94,4 +94,4 @@ def play_video(path: str, window_size: tuple[int, int]|None = None, repeats: int
 
 if __name__ == "__main__":
     pg.init()
-    play_video("media/video.mov", repeats=-1)
+    play_video("media/video.mov", window_size=(1920,1080), repeats=-1)
