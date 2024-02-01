@@ -16,8 +16,9 @@ class WindowManager:
         self.parent = None
         self.widgets = [Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP),
                         Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP),
-                        Image(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
-                              image_path=os.path.join('media', 'robot36.png'))]
+                        Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)]
+                        #Image(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+                        #      image_path=os.path.join('media', 'robot36.png'))]
                         # TextField(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
                         #           text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)]
         self.widgets[1].print_to_log("STORAGE/VHS:", (255, 255, 0))
@@ -29,6 +30,10 @@ class WindowManager:
         self.widgets[1].print_to_log("VHS14: READY", (0, 255, 0))
         self.widgets[1].print_to_log("VHS17: DELETED", (255, 0, 0))
         self.widgets[1].print_to_log("VHS18: MISSING DATA", (255, 0, 0))
+        self.widgets[2].elements.append(Window(self.widgets[2], "cooltitle", 300, 100, "cooltext"))
+        self.widgets[2].elements.append(Window(self.widgets[2], "coolertitle", 400, 100, "coolertext"))
+        self.widgets[2].elements.append(Window(self.widgets[2], "coolesttitle", 300, 150, "coolesttext"))
+        self.widgets[2].active_element = self.widgets[2].elements[0]
         window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
         window.elements.append(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
         window.elements.append(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
@@ -87,7 +92,7 @@ class Widget:
         if elements is None:
             elements = []
         self.parent = parent
-        self.position = (x, y)
+        self.position = pg.Vector2(x, y)
         self.rect = pg.Rect(0, 0, w, h)
         self.surface = pg.Surface((w, h))
         self.surface.fill(DEBUG_COLOR)
@@ -98,10 +103,9 @@ class Widget:
         self.active_element = elements[0] if elements else None
         self.needs_updating = True
     
-    @property
-    def window_manager(self):
+    def get_root(self):
         current_parent = self.parent
-        while not isinstance(current_parent, WindowManager):
+        while self.parent:
             current_parent = current_parent.parent
         return current_parent
     
@@ -134,11 +138,13 @@ class Widget:
             event.pos = (event.pos[0] - self.position[0], event.pos[1] - self.position[1])
             for element in reversed(self.elements):
                 if pg.Rect(element.position, element.rect.size).collidepoint(event.pos):
+                    if not self.active_element:
+                        return
                     self.active_element.deactivate()
                     self.active_element = element
                     self.active_element.activate()
                     element.handle_event(event)
-                    break
+                    return
             return
         if self.active_element:
             self.active_element.handle_event(event)
@@ -172,28 +178,42 @@ class Widget:
     def blit_to_parent(self):
         self.parent.surface.blit(self.surface, self.position)
     
+    def blit_from_children(self):
+        for element in self.elements:
+            element.blit_to_parent()
+    
     def render_border(self, thickness=LINE_THICKNESS_THIN):
         pg.draw.rect(self.surface, self.color, self.rect, thickness)
     
     def render(self) -> None:
-        # self.surface.fill(self.accent_color)
-        for element in self.elements:
-            element.blit_to_parent()
-        # pg.draw.rect(self.surface, self.color, self.rect, LINE_THICKNESS_THIN)
+        self.surface.fill(self.accent_color)
+        pg.draw.rect(self.surface, self.color, self.rect, LINE_THICKNESS_THIN)
+        self.blit_from_children()
             
 
 class Window(Widget):
-    def __init__(self, parent, title: str, w: int, h: int, text: str, font=DEFAULT_FONT) -> None:
-        super().__init__(parent, SCREEN_WIDTH//2 - w//2, SCREEN_HEIGHT//2 - h//2, w, h)
+    def __init__(self, parent, title: str, w: int, h: int, text: str|None = None, x: int|None = None, y: int|None = None, font=DEFAULT_FONT) -> None:
+        x = parent.surface.get_width()//2 - w//2 if x is None else x
+        y = parent.surface.get_height()//2 - h//2 if y is None else y
+        super().__init__(parent, x, y, w, h)
         self.inner_rect = pg.Rect(DEFAULT_GAP, CHAR_HEIGHT[font] + DEFAULT_GAP,
                                   w - 2*DEFAULT_GAP, h - CHAR_HEIGHT[font] - 2*DEFAULT_GAP)
         self.font = font
         self.title = title
-        self.elements.append(TextField(self, self.inner_rect.left + DEFAULT_GAP, self.inner_rect.top + DEFAULT_GAP, 
-                                             self.inner_rect.width - 2*DEFAULT_GAP, self.inner_rect.height//2, text, True))
+        if text:
+            self.elements.append(TextField(self, self.inner_rect.left + DEFAULT_GAP, self.inner_rect.top + DEFAULT_GAP, 
+                                           self.inner_rect.width - 2*DEFAULT_GAP, self.inner_rect.height//2, text, True))
 
     
     def handle_event(self, event: pg.event.Event):
+        if event.type == pg.MOUSEMOTION:
+            if event.buttons[0]:
+                self.position += pg.Vector2(event.rel)
+                self.position.x = max(0, self.position.x)
+                self.position.x = min(self.parent.surface.get_width()-self.rect.w, self.position.x)
+                self.position.y = max(0, self.position.y)
+                self.position.y = min(self.parent.surface.get_height()-self.rect.h, self.position.y)
+                self.parent.flag_as_needs_updating()
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 self.close()
@@ -211,7 +231,7 @@ class Window(Widget):
         pg.draw.rect(self.surface, self.color, self.rect, LINE_THICKNESS_THIN)
         pg.draw.rect(self.surface, ACCENT_COLOR_INACTIVE, self.inner_rect)
         pg.draw.rect(self.surface, self.color, self.inner_rect, LINE_THICKNESS_THIN)
-        super().render()
+        self.blit_from_children()
     
 
 class Button(Widget):
@@ -240,8 +260,8 @@ class Button(Widget):
     def render(self):
         self.surface.fill(self.accent_color)
         self.render_text()
-        super().render()
         self.render_border()
+        super().blit_from_children()
 
 
 class TextField(Widget):
@@ -272,7 +292,7 @@ class TextField(Widget):
             self.surface.fill(BACKGROUND_COLOR)
             self.render_border()
         self.render_text()
-        super().render()
+        self.blit_from_children()
 
 
 class Image(Widget):
@@ -283,6 +303,7 @@ class Image(Widget):
     
     def render(self):
         self.render_border()
+        self.blit_from_children()
 
 
 class InputBox(Widget):
@@ -339,7 +360,7 @@ class InputBox(Widget):
         self.render_text()
         self.render_caret()
         self.render_border()
-        super().render()
+        self.blit_from_children()
 
 
 class Log(Widget):
@@ -371,7 +392,7 @@ class Log(Widget):
     
     def render(self):
         self.render_border()
-        super().render()
+        self.blit_from_children()
 
 
 class Terminal(Widget):
@@ -401,7 +422,7 @@ class Terminal(Widget):
     def render(self):
         self.surface.fill(self.accent_color)
         self.render_border()
-        super().render()
+        self.blit_from_children()
 
 
 def run(display_flags=0):
