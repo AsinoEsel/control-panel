@@ -9,86 +9,8 @@ game_manager = None
 terminal = None
 
 
-class WindowManager:
-    def __init__(self, w: int = SCREEN_WIDTH, h: int = SCREEN_HEIGHT) -> None:
-        self.surface = pg.Surface((w, h))
-        self.surface.fill(BACKGROUND_COLOR)
-        self.parent = None
-        self.widgets = [Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP),
-                        Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP),
-                        Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)]
-                        #Image(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
-                        #      image_path=os.path.join('media', 'robot36.png'))]
-                        # TextField(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
-                        #           text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)]
-        self.widgets[1].print_to_log("STORAGE/VHS:", (255, 255, 0))
-        self.widgets[1].print_to_log("VHS1: MISSING DATA", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS2: □□□□□□□ □□□□", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS4: DATA CORRUPTED", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS9: DATA CORRUPTED", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS10: MISSING DATA", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS14: READY", (0, 255, 0))
-        self.widgets[1].print_to_log("VHS17: DELETED", (255, 0, 0))
-        self.widgets[1].print_to_log("VHS18: MISSING DATA", (255, 0, 0))
-        self.widgets[2].elements.append(Window(self.widgets[2], "cooltitle", 300, 100, "cooltext"))
-        self.widgets[2].elements.append(Window(self.widgets[2], "coolertitle", 400, 100, "coolertext"))
-        self.widgets[2].elements.append(Window(self.widgets[2], "coolesttitle", 300, 150, "coolesttext"))
-        self.widgets[2].active_element = self.widgets[2].elements[0]
-        window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
-        window.elements.append(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
-        window.elements.append(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
-        # window2 = Window(self, "WHAT THE DOG DOIN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "WHAT HE DOIN MAN")
-        window.active_element = window.elements[0]
-        self.windows = [window, ]
-        self.elements = self.widgets + self.windows
-        self.active_element = self.windows[0]
-        self.active_element.activate()
-        self.needs_updating = False
-            
-    def smart_update(self):
-        for element in self.elements:
-            element.smart_update()
-    
-    def render(self):
-        self.surface.fill(BACKGROUND_COLOR)
-        for element in self.elements:
-            element.blit_to_parent()
-    
-    def draw(self, screen):
-        screen.blit(self.surface, (0,0))
-    
-    def handle_event(self, event: pg.event.Event):
-        if event.type == pg.MOUSEBUTTONDOWN:
-            for element in reversed(self.widgets + self.elements):
-                if pg.Rect(element.position, element.rect.size).collidepoint(event.pos):
-                    self.active_element.deactivate()
-                    self.active_element = element
-                    self.active_element.activate()
-                    element.handle_event(event)
-                    break
-            return
-        self.active_element.handle_event(event)
-        
-    def close_window(self, window: 'Window'):
-        self.windows.remove(window)
-        self.elements.remove(window)
-        if self.active_element is window:
-            self.active_element = self.windows[-1] if self.windows else self.widgets[0]
-            self.active_element.activate()
-        self.needs_updating = True
-    
-    def next_element(self):
-        self.active_element.deactivate()
-        index = self.elements.index(self.active_element)
-        index += 1
-        if index >= len(self.elements):
-            index = 0
-        self.active_element = self.elements[index]
-        self.active_element.activate()
-
-
 class Widget:
-    def __init__(self, parent: 'Widget', x, y, w, h, elements: list['Widget']|None = None) -> None:
+    def __init__(self, parent, x, y, w, h, elements: list['Widget']|None = None) -> None:
         if elements is None:
             elements = []
         self.parent = parent
@@ -110,8 +32,8 @@ class Widget:
         return current_parent
     
     def update(self):
-        if self.parent is not None:
-            self.render()
+        self.render()
+        if self.parent:
             self.blit_to_parent()
         self.needs_updating = False
 
@@ -189,6 +111,77 @@ class Widget:
         self.surface.fill(self.accent_color)
         pg.draw.rect(self.surface, self.color, self.rect, LINE_THICKNESS_THIN)
         self.blit_from_children()
+
+
+class WindowManager(Widget):
+    def __init__(self) -> None:
+        terminal = Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP)
+        log = Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+        empty_widget = Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+        image = Image(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+                      image_path=os.path.join('media', 'robot36.png'))
+        text_field = TextField(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+                               text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
+        super().__init__(None, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, [terminal, log, empty_widget])
+        # self.surface.fill(BACKGROUND_COLOR)
+        log.print_to_log("STORAGE/VHS:", (255, 255, 0))
+        log.print_to_log("VHS1: MISSING DATA", (255, 0, 0))
+        log.print_to_log("VHS2: □□□□□□□ □□□□", (255, 0, 0))
+        log.print_to_log("VHS4: DATA CORRUPTED", (255, 0, 0))
+        log.print_to_log("VHS9: DATA CORRUPTED", (255, 0, 0))
+        log.print_to_log("VHS10: MISSING DATA", (255, 0, 0))
+        log.print_to_log("VHS14: READY", (0, 255, 0))
+        log.print_to_log("VHS17: DELETED", (255, 0, 0))
+        log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
+        empty_widget.elements.append(Window(empty_widget, "cooltitle", 300, 100, "cooltext"))
+        empty_widget.elements.append(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
+        empty_widget.elements.append(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"))
+        empty_widget.active_element = empty_widget.elements[0]
+        window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
+        window.elements.append(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
+        window.elements.append(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
+        self.elements.append(window)
+        window.active_element = window.elements[0]
+        # self.active_element.activate()
+            
+    """def smart_update(self):
+        for element in self.elements:
+            element.smart_update()"""
+    
+    def render(self):
+        self.surface.fill(BACKGROUND_COLOR)
+        self.blit_from_children()
+    
+    def draw(self, screen):
+        screen.blit(self.surface, (0,0))
+    
+    def handle_event(self, event: pg.event.Event):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            for element in reversed(self.elements):
+                if pg.Rect(element.position, element.rect.size).collidepoint(event.pos):
+                    self.active_element.deactivate()
+                    self.active_element = element
+                    self.active_element.activate()
+                    element.handle_event(event)
+                    break
+            return
+        self.active_element.handle_event(event)
+        
+    def close_window(self, window: 'Window'):
+        self.elements.remove(window)
+        if self.active_element is window:
+            self.active_element = self.elements[0]
+            self.active_element.activate()
+        self.needs_updating = True
+    
+    def next_element(self):
+        self.active_element.deactivate()
+        index = self.elements.index(self.active_element)
+        index += 1
+        if index >= len(self.elements):
+            index = 0
+        self.active_element = self.elements[index]
+        self.active_element.activate()
             
 
 class Window(Widget):
@@ -218,6 +211,11 @@ class Window(Widget):
             if event.key == pg.K_ESCAPE:
                 self.close()
         super().handle_event(event)
+    
+    def activate(self):
+        super().activate()
+        self.parent.elements.remove(self)
+        self.parent.elements.append(self)
     
     def close(self):
         self.parent.close_window(self)
@@ -429,6 +427,7 @@ def run(display_flags=0):
     pg.init()
     screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), display_flags)
     window_manager = WindowManager()
+    window_manager.surface = screen
     clock = pg.time.Clock()
     running = True
     while running:
@@ -437,19 +436,15 @@ def run(display_flags=0):
                 case pg.QUIT:
                     running = False
             window_manager.handle_event(event)
-            
-        window_manager.smart_update()
-        window_manager.render()
-        window_manager.draw(screen)
         
-        # print(debug_util.get_children_needs_updating(window_manager))
+        window_manager.smart_update()
         
         if game_manager.button_is_pressed:
             pg.draw.circle(screen, (255,255,255), (screen.get_width()/2, screen.get_height()/2), 50)
         
         pg.event.pump()
         pg.display.flip()
-        clock.tick(30)
+        clock.tick(60)
         
 if __name__ == "__main__":
     from main import GameManager
