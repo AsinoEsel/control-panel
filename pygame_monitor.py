@@ -26,10 +26,10 @@ class Widget:
         self.needs_updating = True
     
     def get_root(self):
-        current_parent = self.parent
-        while self.parent:
-            current_parent = current_parent.parent
-        return current_parent
+        current = self
+        while current.parent:
+            current = self.parent
+        return current
     
     def update(self):
         self.render()
