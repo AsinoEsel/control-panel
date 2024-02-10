@@ -7,6 +7,10 @@ import pygame_monitor
 class GameManager:
     def __init__(self) -> None:
         self.button_is_pressed = False
+        self.button_press_acknowledged = False
+    
+    def press_button():
+        pass
 
 
 if __name__ == "__main__":
@@ -17,6 +21,5 @@ if __name__ == "__main__":
     flask_thread.start()
     
     pygame_monitor.game_manager = game_manager
-    pygame_monitor.window_manager = pygame_monitor.WindowManager()
     pygame_monitor.run(pg.FULLSCREEN)
     

@@ -1,10 +1,9 @@
-from pygame_monitor import Widget
 import pygame as pg
 import cv2
 import numpy as np
 
 
-def find_all_children(root: Widget) -> list[Widget]:
+def find_all_children(root) -> list:
         visited = set()  # Set to keep track of visited nodes
         unique_children = []  # List to store unique children
 
@@ -19,7 +18,7 @@ def find_all_children(root: Widget) -> list[Widget]:
         dfs(root)
         return unique_children
 
-def get_children_needs_updating(root) -> list[Widget]:
+def get_children_needs_updating(root) -> list:
     needs_updating = []
     children = find_all_children(root)
     for child in children:

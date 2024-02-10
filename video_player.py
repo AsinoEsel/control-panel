@@ -48,7 +48,7 @@ def play_video(path: str, window_size: tuple[int, int]|None = None, repeats: int
     if window_size is None:
         window_size = video_image.shape[1::-1]
     
-    window = pg.display.set_mode(window_size)
+    window = pg.display.set_mode(window_size, pg.FULLSCREEN)
     clock = pg.time.Clock()
 
     run = playing

@@ -6,6 +6,7 @@ game_manager = None
 @app.route('/button_pressed', methods=['GET'])
 def button_pressed():
     game_manager.button_is_pressed = True
+    game_manager.button_press_acknowledged = False
     return "Button press acknowledged", 200
 
 
