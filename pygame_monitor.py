@@ -6,6 +6,7 @@ from setup import DEFAULT_FONT
 from utils import DEFAULT_FONT
 from utils import *
 from setup import *
+from console_commands import cmd_dict, handle_user_input
 import debug_util
 
 from esp_requests import ESP_seven_segment
@@ -180,6 +181,13 @@ class WindowManager(Widget):
     def blit_to_parent(self):
         pass
     
+    def add_video_window(self, video_path: str, window_title: str = "Video"):
+        video_window = Window(self, window_title, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+        video = Video(video_window, x=video_window.inner_rect.left, y=video_window.inner_rect.top, w=video_window.inner_rect.w, h=video_window.inner_rect.h,
+                      video_path=video_path)
+        video_window.add_element(video)
+        self.add_element(video_window)
+    
     def run(self):
         pg.init()
         clock = pg.time.Clock()
@@ -258,10 +266,7 @@ class Window(Widget):
     def go_to_foreground(self):
         self.parent.elements.remove(self)
         self.parent.elements.append(self)
-    
-    def activate(self):
-        super().activate()
-    
+        
     def close(self):
         self.parent.close_window(self)
     
@@ -289,7 +294,7 @@ class LoginWindow(Window):
         self.add_element(password_text)
         self.add_element(self.password_input)
     
-    def handle_event(self, event: Event):
+    def handle_event(self, event: pg.event.Event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_RETURN:
                 self.close()
@@ -309,7 +314,7 @@ class Button(Widget):
         self.text = text
         self.font = font
     
-    def handle_event(self, event: Event):
+    def handle_event(self, event: pg.event.Event):
         if event.type == pg.MOUSEBUTTONDOWN:
             self.hit_button()
             return
@@ -384,7 +389,7 @@ class Video(Widget):
         self.fps = self.video.get(cv2.CAP_PROP_FPS)
         self.current_frame = 0
     
-    def handle_event(self, event: Event):
+    def handle_event(self, event: pg.event.Event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_SPACE:
                 self.paused = not self.paused
@@ -594,33 +599,7 @@ class Terminal(Widget):
     
     def handle_text(self, text):
         self.log.print_to_log('> ' + text)
-        if text == "/help":
-            self.log.print_to_log("List of recognized commands:", (255,255,0))
-            self.log.print_to_log("/help       - See this text", (255,255,0))
-            self.log.print_to_log("/play <ID>  - Play a video file", (255,255,0))
-        elif text.startswith("/login"):
-            split = text[7:].split()
-            if not split or len(split) != 2:
-                return
-            if value:= self.get_root().control_panel.account_manager.attempt_login(split[0], split[1]):
-                self.log.print_to_log(f"Logged in as {value.username}", (255,255,0))
-            else:
-                self.log.print_to_log(f"Could not log in as {split[0]}", (255,0,0))
-        elif text.startswith("/display"):
-            self.get_root().control_panel.schedule_async_task(ESP_seven_segment, "send", text[9:])
-        elif text.startswith("/play"):
-            if text[6:] in ("VHS14", "14"):
-                self.log.print_to_log("Playing VHS14...", (255, 255, 0))
-                video_window = Window(self.get_root(), "Video", w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-                video = Video(video_window, x=video_window.inner_rect.left, y=video_window.inner_rect.top, w=video_window.inner_rect.w, h=video_window.inner_rect.h,
-                            video_path=os.path.join('media', 'video.mov'))
-                video_window.add_element(video)
-                self.get_root().add_element(video_window)
-                # play_video("media/video.mov")
-            else:
-                self.log.print_to_log(f"Could not find video {text[6:]}", (255, 255, 0))
-        else:
-            self.log.print_to_log(f"{text} is not a recognized command. Try /help for help.", (255, 0, 0))
+        handle_user_input(self, text)
     
     def render(self):
         self.surface.fill(self.accent_color)
