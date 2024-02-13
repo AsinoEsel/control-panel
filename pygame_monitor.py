@@ -197,9 +197,8 @@ class WindowManager(Widget):
             tick += 1
             
             for event in pg.event.get():
-                match event.type:
-                    case pg.QUIT:
-                        running = False
+                if event.type and event.key == pg.K_ESCAPE:
+                    running = False
                 self.handle_event(event)
             
             for future in self.control_panel.futures:
