@@ -4,12 +4,12 @@ import cv2
 from pygame.event import Event
 from setup import DEFAULT_FONT
 from utils import DEFAULT_FONT
-from video_player import play_video
 from utils import *
 from setup import *
 import debug_util
-game_manager = None
-terminal = None
+
+from esp_requests import ESP_seven_segment
+from requests.exceptions import ConnectTimeout
 
 
 class Widget:
@@ -26,7 +26,7 @@ class Widget:
         self.accent_color = ACCENT_COLOR_INACTIVE
         self.elements = elements if elements else []
         self.active_element = elements[0] if elements else None
-        self.needs_blit_to_parent = True
+        self.needs_reblit = True
         self.needs_rerender = True
     
     def add_element(self, element: 'Widget', make_active_element: bool = False):
@@ -44,21 +44,21 @@ class Widget:
                 self.active_element = None
         self.flag_as_needing_rerender()
     
-    def get_root(self):
+    def get_root(self) -> 'WindowManager':
         current = self
         while current.parent:
             current = current.parent
         return current
     
-    def update(self, tick):
+    def update(self, tick: int):
         for element in self.elements:
             element.update(tick)
         if self.needs_rerender:
             self.render()
             self.needs_rerender = False
-        if self.needs_blit_to_parent:
-            self.blit_to_parent()
-            self.needs_blit_to_parent = False
+        if self.needs_reblit:
+            self.blit_from_children()
+            self.needs_reblit = False
     
     def next_element(self):
         self.active_element.deactivate()
@@ -117,9 +117,9 @@ class Widget:
     
     def flag_as_needing_rerender(self):
         self.needs_rerender = True
-        node = self
+        node = self.parent
         while node:
-            node.needs_blit_to_parent = True
+            node.needs_reblit = True
             node = node.parent
     
     def blit_to_parent(self):
@@ -139,8 +139,10 @@ class Widget:
 
 
 class WindowManager(Widget):
-    def __init__(self) -> None:
+    def __init__(self, control_panel, screen: pg.Surface) -> None:
+        self.control_panel: ControlPanel = control_panel
         super().__init__(None, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.surface = screen
         self.terminal = Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP)
         log = Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
         empty_widget = Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
@@ -177,6 +179,43 @@ class WindowManager(Widget):
     
     def blit_to_parent(self):
         pass
+    
+    def run(self):
+        pg.init()
+        clock = pg.time.Clock()
+        running = True
+        tick = 0
+        while running:
+            tick += 1
+            
+            for event in pg.event.get():
+                match event.type:
+                    case pg.QUIT:
+                        running = False
+                self.handle_event(event)
+            
+            for future in self.control_panel.futures:
+                if future.done():
+                    try:
+                        print(future.result())
+                    except ConnectTimeout as e:
+                        self.terminal.log.print_to_log(str(e), (255,0,0))
+                    self.control_panel.futures.remove(future)
+                
+            self.update(tick)
+            
+            if self.control_panel.button_is_pressed and not self.control_panel.button_press_acknowledged:
+                self.control_panel.button_press_acknowledged = True
+                success_window = Window(self, "Task accomplished", 3*SCREEN_WIDTH//4, 3*SCREEN_HEIGHT//4)
+                self.elements.append(success_window)
+                image = Image(success_window, x=success_window.inner_rect.left, y=success_window.inner_rect.top, w=success_window.inner_rect.w, h=success_window.inner_rect.h,
+                            image_path=os.path.join('media', 'robot36.png'))
+                success_window.elements.append(image)
+                image.flag_as_needing_rerender()
+            
+            pg.event.pump()
+            pg.display.flip()
+            clock.tick(FRAME_RATE)
             
 
 class Window(Widget):
@@ -254,7 +293,10 @@ class LoginWindow(Window):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_RETURN:
                 self.close()
-                self.get_root().terminal.log.print_to_log(f"Logged in as {self.username_input.text}", (255,255,0))
+                if value := self.get_root().control_panel.account_manager.attempt_login(username=self.username_input.text, password=self.password_input.text):
+                    self.get_root().terminal.log.print_to_log(f"Logged in as {value.username}", (255,255,0))
+                else:
+                    self.get_root().terminal.log.print_to_log(f"Could not log in as {self.username_input.text}", (255,0,0))
                 return
             if event.key == pg.K_ESCAPE:
                 return
@@ -552,64 +594,41 @@ class Terminal(Widget):
     
     def handle_text(self, text):
         self.log.print_to_log('> ' + text)
-        match text:
-            case "/help":
-                self.log.print_to_log("List of recognized commands:", (255,255,0))
-                self.log.print_to_log("/help       - See this text", (255,255,0))
-                self.log.print_to_log("/play <ID>  - Play a video file", (255,255,0))
-            case _ if text.startswith("/play"):
-                match text[6:]:
-                    case "VHS14" | "14":
-                        self.log.print_to_log("Playing VHS14...", (255, 255, 0))
-                        video_window = Window(self.get_root(), "Video", w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-                        video = Video(video_window, x=video_window.inner_rect.left, y=video_window.inner_rect.top, w=video_window.inner_rect.w, h=video_window.inner_rect.h,
-                                    video_path=os.path.join('media', 'video.mov'))
-                        video_window.add_element(video)
-                        self.get_root().add_element(video_window)
-                        # play_video("media/video.mov")
-                    case _:
-                        self.log.print_to_log(f"Could not find video {text[6:]}", (255, 255, 0))
-            case _:
-                self.log.print_to_log(f"{text} is not a recognized command. Try /help for help.", (255, 0, 0))
+        if text == "/help":
+            self.log.print_to_log("List of recognized commands:", (255,255,0))
+            self.log.print_to_log("/help       - See this text", (255,255,0))
+            self.log.print_to_log("/play <ID>  - Play a video file", (255,255,0))
+        elif text.startswith("/login"):
+            split = text[7:].split()
+            if not split or len(split) != 2:
+                return
+            if value:= self.get_root().control_panel.account_manager.attempt_login(split[0], split[1]):
+                self.log.print_to_log(f"Logged in as {value.username}", (255,255,0))
+            else:
+                self.log.print_to_log(f"Could not log in as {split[0]}", (255,0,0))
+        elif text.startswith("/display"):
+            self.get_root().control_panel.schedule_async_task(ESP_seven_segment, "send", text[9:])
+        elif text.startswith("/play"):
+            if text[6:] in ("VHS14", "14"):
+                self.log.print_to_log("Playing VHS14...", (255, 255, 0))
+                video_window = Window(self.get_root(), "Video", w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+                video = Video(video_window, x=video_window.inner_rect.left, y=video_window.inner_rect.top, w=video_window.inner_rect.w, h=video_window.inner_rect.h,
+                            video_path=os.path.join('media', 'video.mov'))
+                video_window.add_element(video)
+                self.get_root().add_element(video_window)
+                # play_video("media/video.mov")
+            else:
+                self.log.print_to_log(f"Could not find video {text[6:]}", (255, 255, 0))
+        else:
+            self.log.print_to_log(f"{text} is not a recognized command. Try /help for help.", (255, 0, 0))
     
     def render(self):
         self.surface.fill(self.accent_color)
         self.render_border()
         self.blit_from_children()
 
-
-def run(display_flags=0):
-    pg.init()
-    screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=display_flags)
-    window_manager = WindowManager()
-    window_manager.surface = screen
-    clock = pg.time.Clock()
-    running = True
-    tick = 0
-    while running:
-        tick += 1
-        for event in pg.event.get():
-            match event.type:
-                case pg.QUIT:
-                    running = False
-            window_manager.handle_event(event)
-            
-        window_manager.update(tick)
         
-        if game_manager.button_is_pressed and not game_manager.button_press_acknowledged:
-            game_manager.button_press_acknowledged = True
-            success_window = Window(window_manager, "Task accomplished", 3*SCREEN_WIDTH//4, 3*SCREEN_HEIGHT//4)
-            window_manager.elements.append(success_window)
-            image = Image(success_window, x=success_window.inner_rect.left, y=success_window.inner_rect.top, w=success_window.inner_rect.w, h=success_window.inner_rect.h,
-                          image_path=os.path.join('media', 'robot36.png'))
-            success_window.elements.append(image)
-            image.flag_as_needing_rerender()
-        
-        pg.event.pump()
-        pg.display.flip()
-        clock.tick(FRAME_RATE)
-        
-if __name__ == "__main__":
-    from main import GameManager
-    game_manager = GameManager()
-    run(display_flags=0)
+if __name__ == "__main__":   
+    from main import ControlPanel
+    control_panel = ControlPanel()
+    control_panel.window_manager.run()
