@@ -197,14 +197,15 @@ class WindowManager(Widget):
             tick += 1
             
             for event in pg.event.get():
-                if event.type and event.key == pg.K_ESCAPE:
+                if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     running = False
                 self.handle_event(event)
             
             for future in self.control_panel.futures:
                 if future.done():
                     try:
-                        print(future.result())
+                        json = future.result().json()
+                        self.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
                     except ConnectTimeout as e:
                         self.terminal.log.print_to_log(str(e), (255,0,0))
                     self.control_panel.futures.remove(future)
@@ -459,6 +460,8 @@ class InputBox(Widget):
                 self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
             elif event.key == pg.K_RIGHT:
                 self.move_caret(1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
+            elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
+                self.selection_range = [0, len(self.text)]
             elif event.key == pg.K_c and event.mod & pg.KMOD_CTRL:
                 if self.selection_range and self.selection_range[0] != self.selection_range[1]:
                     self.get_root().clipboard = self.text[min(self.selection_range):max(self.selection_range)]
@@ -501,8 +504,16 @@ class InputBox(Widget):
             elif amount < 0:
                 space_index = self.text.rfind(' ', 0, max(0, self.caret_position-1))
             amount = space_index - self.caret_position + 1
-        self.caret_position += amount
-        self.caret_position = min(max(0, self.caret_position), len(self.text))
+            
+        if not holding_shift and self.selection_range:
+            if amount > 0:
+                self.caret_position = max(self.selection_range)
+            elif amount < 0:
+                self.caret_position = min(self.selection_range)
+        else:
+            self.caret_position += amount
+            self.caret_position = min(max(0, self.caret_position), len(self.text))
+        
         if delete:
             self.text = self.text[:min(self.caret_position, original_position)] + self.text[max(self.caret_position,original_position):]
             self.caret_position = min(self.caret_position, original_position)
@@ -524,8 +535,7 @@ class InputBox(Widget):
     
     def render_caret(self):
         x = CHAR_WIDTH[self.font]*(self.caret_position+1/3)
-        color = self.color if not self.selection_range or self.selection_range[0] == self.selection_range[1] else (255,255,255)
-        pg.draw.line(self.surface, color, (x, CHAR_HEIGHT[self.font]//6),
+        pg.draw.line(self.surface, self.color, (x, CHAR_HEIGHT[self.font]//6),
                                                (x, self.rect.height - CHAR_HEIGHT[self.font]//6), LINE_THICKNESS_THIN)
     
     def render_selection(self):
@@ -541,7 +551,7 @@ class InputBox(Widget):
         self.render_text()
         if self.selection_range:
             self.render_selection()
-        if self.draw_caret:
+        if self.draw_caret and not self.selection_range:
             self.render_caret()
         self.render_border()
         self.blit_from_children()

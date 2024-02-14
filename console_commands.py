@@ -25,7 +25,7 @@ class Help(ConsoleCommand):
                 print_to_log(f"{cmd.command_string: <15}- {cmd.description}", (255,255,0))
             return
         if not (cmd := cmd_dict.get(args[0])):
-            print_to_log(f"Could not find command {args[0]}", (255,0,0))
+            print_to_log(f'Could not find command "{args[0]}"', (255,0,0))
             return
         if len(args) not in self.expected_args:
             print_to_log(self.usage_string, (255,0,0))
@@ -74,7 +74,7 @@ class PlayVideo(ConsoleCommand):
             print_to_log("Playing VHS14...", (255, 255, 0))
             terminal.get_root().add_video_window(os.path.join('media', 'video.mov'))
             return
-        print_to_log(f"Could not find video {args[0]}", (255, 0, 0))
+        print_to_log(f'Could not find video "{args[0]}"', (255, 0, 0))
 
 
 def handle_user_input(terminal, user_input: str):
@@ -84,7 +84,7 @@ def handle_user_input(terminal, user_input: str):
     if not split:
         return
     if not (cmd := cmd_dict.get(split[0])):
-        print_to_log(f"{split[0]} is not a recognized command. Try /help for help.", (255, 0, 0))
+        print_to_log(f"{split[0]} is not a recognized command. Try help for help.", (255, 0, 0))
         return
     cmd.execute(terminal, *split[1:])
     return
