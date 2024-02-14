@@ -197,7 +197,7 @@ class WindowManager(Widget):
             tick += 1
             
             for event in pg.event.get():
-                if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+                if event.type == pg.QUIT:
                     running = False
                 self.handle_event(event)
             
@@ -513,7 +513,7 @@ class InputBox(Widget):
         else:
             self.caret_position += amount
             self.caret_position = min(max(0, self.caret_position), len(self.text))
-        
+
         if delete:
             self.text = self.text[:min(self.caret_position, original_position)] + self.text[max(self.caret_position,original_position):]
             self.caret_position = min(self.caret_position, original_position)
