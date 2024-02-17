@@ -37,7 +37,7 @@ def debug_send_request(esp, max_tries=10, interval=1):
 if __name__ == "__main__":
     # Test an esp
     
-    from main import ControlPanel
+    from control_panel import ControlPanel
     from time import sleep
     control_panel = ControlPanel()
     

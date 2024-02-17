@@ -31,3 +31,4 @@ def is_allowed_character(character):
 
 if __name__ == "__main__":
     print(break_up_string_into_lines(DEBUG_LONG_TEXT, 59))
+    

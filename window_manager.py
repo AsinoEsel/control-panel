@@ -1,15 +1,12 @@
 import pygame as pg
 import os
 import cv2
-from pygame.event import Event
 from setup import DEFAULT_FONT
-from utils import DEFAULT_FONT
 from utils import *
 from setup import *
-from console_commands import cmd_dict, handle_user_input
+from console_commands import handle_user_input
 import debug_util
 
-from esp_requests import ESP_seven_segment
 from requests.exceptions import ConnectTimeout
 
 
@@ -431,6 +428,8 @@ class InputBox(Widget):
         self.caret_position = 0
         self.draw_caret = False
         self.selection_range = None
+        self.history: list[str] = []
+        self.history_index = 0
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
@@ -443,9 +442,13 @@ class InputBox(Widget):
             if event.key == pg.K_RETURN:
                 if self.text:
                     self.parent.handle_text(self.text)
+                    if self.text in self.history:
+                        self.history.remove(self.text)
+                    self.history.append(self.text)
                 self.text = ''
                 self.caret_position = 0
                 self.selection_range = None
+                self.history_index = 0
             elif event.key == pg.K_BACKSPACE:
                 if self.selection_range:
                     self.erase_selection_range()
@@ -460,6 +463,16 @@ class InputBox(Widget):
                 self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
             elif event.key == pg.K_RIGHT:
                 self.move_caret(1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
+            elif event.key == pg.K_UP:
+                if self.history_index > -len(self.history):
+                    self.history_index -= 1
+                self.text = self.history[self.history_index]
+                self.caret_position = len(self.text)
+            elif event.key == pg.K_DOWN:
+                if self.history_index < -1:
+                    self.history_index += 1
+                self.text = self.history[self.history_index]
+                self.caret_position = len(self.text)
             elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
                 self.selection_range = [0, len(self.text)]
             elif event.key == pg.K_c and event.mod & pg.KMOD_CTRL:
@@ -617,6 +630,6 @@ class Terminal(Widget):
 
         
 if __name__ == "__main__":   
-    from main import ControlPanel
+    from control_panel import ControlPanel
     control_panel = ControlPanel()
     control_panel.window_manager.run()

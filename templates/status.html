@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Status Page</title>
+        <!-- Favicon reference -->
+        <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    </head>
+    <body>
+        <h1>Status</h1>
+        <ul>
+        {% for key, value in dict.items() %}
+            <li>{{ key }}: {{ value }}</li>
+        {% endfor %}
+        </ul>
+    </body>
+    </html>

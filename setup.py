@@ -1,6 +1,6 @@
 import pygame as pg
 import os
-pg.init()
+pg.font.init()
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080

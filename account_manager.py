@@ -1,7 +1,8 @@
 class AccountManager:
     def __init__(self):
         self.users = {
-            "admin": User("admin", "password")
+            "admin": User("admin", "password"),
+            "horse" : User("horse", "hay"),
         }
     
     def attempt_login(self, username: str, password: str):
@@ -16,7 +17,14 @@ class User:
     def __init__(self, username: str, password: str) -> None:
         self.username = username
         self.password = password
-        self.progress = None
+        self.progress = {level: False for level in ["Maschinenraum", "Cockpit", "Treibstofftank"]}
+    
+    def serialize(self):
+        return {
+            'username': self.username,
+            'password': self.password,
+            'progress': self.progress,
+        }
 
 
 if __name__ == "__main__":
