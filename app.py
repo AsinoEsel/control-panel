@@ -19,10 +19,7 @@ def button_unpressed():
 
 @app.route('/status.html')
 def status():
-    # Render the template with the dictionary
-    users_dict = control_panel.account_manager.users
-    data_dict = {key: value.serialize() for key, value in users_dict.items()}
-    return render_template("status.html", dict=data_dict)
+    return render_template('status.html', users=control_panel.account_manager.users)
 
 
 def run_flask_app():

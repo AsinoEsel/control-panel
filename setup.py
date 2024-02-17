@@ -29,3 +29,5 @@ CHAR_HEIGHT = {
 DEFAULT_GAP = 6
 LINE_THICKNESS_THIN = 2
 LINE_THICKNESS_THICK = 4
+
+LEVEL_LIST = ["Maschinenraum", "Cockpit", "Treibstofftank", "Dekontamination"]
