@@ -112,6 +112,37 @@ class UnlockAll(ConsoleCommand):
                 unlocked_levels.append(level)
         print_to_log(f"Unlocked the following levels: {", ".join(unlocked_levels)}", (255,255,0))
 
+
+class SaveProgress(ConsoleCommand):
+    def execute(self, terminal, *args) -> None:
+        print_to_log = terminal.log.print_to_log if terminal else print
+        account_manager = terminal.get_root().control_panel.account_manager
+        if not args:
+            success, message = account_manager.save_user_progress()
+            print_to_log(message, (0,255,0,) if success else (255,0,0))
+            return
+        if not (user := account_manager.users.get(args[0])):
+            print_to_log(f'Could not find user "{args[0]}".', (255,0,0))
+            return
+        success, message = account_manager.save_user_progress(user)
+        print_to_log(message, (0,255,0,) if success else (255,0,0))
+
+
+class LoadProgress(ConsoleCommand):
+    def execute(self, terminal, *args) -> None:
+        print_to_log = terminal.log.print_to_log if terminal else print
+        account_manager = terminal.get_root().control_panel.account_manager
+        if not args:
+            success, message = account_manager.load_user_progress()
+            print_to_log(message, (0,255,0,) if success else (255,0,0))
+            return
+        if not (user := account_manager.users.get(args[0])):
+            print_to_log(f'Could not find user "{args[0]}".', (255,0,0))
+            return
+        success, message = account_manager.load_user_progress(user)
+        print_to_log(message, (0,255,0,) if success else (255,0,0))
+        
+
 def handle_user_input(terminal, user_input: str):
     print_to_log = terminal.log.print_to_log if terminal else print
     
@@ -133,8 +164,10 @@ cmds = (Help("help", "Display this text.", "<command>", (0,1)),
         Logout("logout", "Log out of an account.", "", 0),
         Display("display", "Display a text.", "<text>", 1),
         PlayVideo("play", "Play a video file.", "<video_file>", 1),
-        UnlockLevel("unlock", "Unlocks a level for the current user.", "<level>", 1, requires_login=True),
-        UnlockAll("unlockall", "Unlocks all levels for the current user.", "", 0, requires_login=True),)
+        UnlockLevel("unlock", "Unlock a level for the current user.", "<level>", 1, requires_login=True),
+        UnlockAll("unlockall", "Unlock all levels for the current user.", "", 0, requires_login=True),
+        SaveProgress("save", "Save progress for the specified user or all users.", "<username>", (0,1)),
+        LoadProgress("load", "Load progress for the specified user or all users.", "<username>", (0,1)),)
 cmd_dict = {cmd.command_string: cmd for cmd in cmds}
 
 if __name__ == "__main__":
