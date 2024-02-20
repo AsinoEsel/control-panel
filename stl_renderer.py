@@ -1,50 +1,67 @@
 import numpy as np
-from stl import mesh
+import quaternion
+from stl import mesh, Dimension
 from itertools import combinations
-from math import sin, cos, pi
-import quaternion  # This library extends numpy with quaternion operations
 
-
-"""class Camera:
-    def __init__(self, phi: float = 0, theta: float = pi/2, zoom: float = 1, shift: tuple[int,int] = (0,0)) -> None:
-        self.phi = phi
-        self.theta = theta
-        self.zoom = zoom
-        self.shift = shift
-    
-    def get_cartesian_coordinates(self) -> np.array:
-        return np.array([sin(self.theta)*cos(self.phi),
-                         sin(self.theta)*sin(self.phi),
-                         cos(self.theta)])"""
 
 class Camera:
-    def __init__(self, zoom: float = 1, shift: tuple[int, int] = (0, 0)) -> None:
-        self.orientation = quaternion.quaternion(1, 0, 0, 0)  # No rotation
+    def __init__(self, zoom: float = 1, shift: tuple[int, int] = (0, 0)):
+        # Initial orientation facing 'forward' along the negative Z-axis
+        self.orientation = quaternion.from_float_array([0, 0, 0, 1])
         self.zoom = zoom
         self.shift = shift
+        self.pitch_angle = 0.0
+        self.rotate_up_down(90)
 
-    def get_cartesian_coordinates(self) -> np.array:
-        forward_vector = np.array([-1, 0, 0])  # Default forward vector
-        rotated_vector = self.orientation * quaternion.quaternion(0, *forward_vector) * self.orientation.conjugate()
-        return quaternion.as_float_array(rotated_vector)[1:]
+    def get_cartesian_orientation_vector(self):
+        # Convert quaternion to a direction vector
+        forward_vector = quaternion.rotate_vectors(self.orientation, np.array([0, 0, -1]))
+        return forward_vector
 
-    def rotate(self, axis: np.array, angle: float) -> None:
-        q_rotation = quaternion.from_rotation_vector(axis * angle)
-        self.orientation = q_rotation * self.orientation
+    def rotate_left_right(self, angle: float):
+        # Convert angle from degrees to radians
+        angle_rad = np.radians(angle)
+        # Rotate around Z-axis
+        z_axis = np.array([0, 0, 1])
+        rotation = quaternion.from_rotation_vector(z_axis * angle_rad)
+        self.orientation = rotation * self.orientation
 
-    def rotate_left_right(self, angle: float) -> None:
-        # Rotate around global Z-axis
-        self.rotate(np.array([0, 0, 1]), angle)
+    def rotate_up_down(self, angle: float):
+        angle_rad = np.radians(angle)
+        # Clamp the pitch angle to prevent flipping
+        # Assuming epsilon is a small angle to prevent reaching the exact up or down
+        epsilon = np.radians(1)  # For example, 5 degrees from the poles
+        max_pitch = np.pi - epsilon  # Maximum pitch angle
+        
+        # Calculate new pitch angle and clamp it
+        new_pitch = self.pitch_angle + angle_rad
+        if new_pitch < epsilon:
+            new_pitch = epsilon
+        elif new_pitch > max_pitch:
+            new_pitch = max_pitch
 
-    def rotate_up_down(self, angle: float) -> None:
-        # Calculate camera's local X-axis for pitch rotation
-        local_x_axis = quaternion.as_float_array(self.orientation * quaternion.quaternion(0, 1, 0, 0) * self.orientation.conjugate())[1:]
-        self.rotate(local_x_axis, angle)
+        # Calculate the angle difference to rotate
+        delta_angle = new_pitch - self.pitch_angle
+        self.pitch_angle = new_pitch  # Update the stored pitch angle
+
+        # Rotate around X-axis
+        x_axis = np.array([1, 0, 0])
+        rotation = quaternion.from_rotation_vector(x_axis * delta_angle)
+        self.orientation = self.orientation * rotation
+
+
+def convert_stl_to_wireframe(file_path, camera: Camera):
+    your_mesh = read_stl(file_path)
+    unique_edges = extract_unique_edges(your_mesh)
+    wireframe = project_to_2d(unique_edges, camera)
+    return wireframe
+
 
 def read_stl(file_path):
     # Load STL file
     your_mesh = mesh.Mesh.from_file(file_path)
     return your_mesh
+
 
 def extract_unique_edges(your_mesh):
     # Extract unique edges from the mesh
@@ -56,29 +73,9 @@ def extract_unique_edges(your_mesh):
             edges.append(sorted_edge)
     return list(edges)
 
-def convert_stl_to_wireframe(file_path, camera: Camera):
-    your_mesh = read_stl(file_path)
-    unique_edges = extract_unique_edges(your_mesh)
-    wireframe = project_to_2d(unique_edges, camera)
-    return wireframe
-
-def normalize_vector(v):
-    norm = np.linalg.norm(v)
-    return v / norm if norm > 0 else v
-
-def find_orthogonal_vectors(normal):
-    # Find a vector that is not parallel to the normal
-    if abs(normal[0]) < abs(normal[2]):
-        not_parallel = np.array([1, 0, 0])
-    else:
-        not_parallel = np.array([0, 0, 1])
-    # Use the cross product to find two orthogonal vectors
-    v1 = np.cross(normal, not_parallel)
-    v2 = np.cross(normal, v1)
-    return normalize_vector(v1), normalize_vector(v2)
 
 def project_to_2d(edges, camera: Camera):
-    camera_position = camera.get_cartesian_coordinates()
+    camera_position = camera.get_cartesian_orientation_vector()
     # Normalize the camera angle vector to ensure it's a unit vector
     camera_angle = normalize_vector(-camera_position)
     # Find two orthogonal vectors that are orthogonal to the camera angle
@@ -99,6 +96,10 @@ def project_to_2d(edges, camera: Camera):
         projected_edges.append(projected_edge)
     return projected_edges
 
+
+def normalize_vector(v):
+    norm = np.linalg.norm(v)
+    return v / norm if norm > 0 else v
 
 
 def find_basis_vectors(normal):
@@ -135,12 +136,35 @@ def find_basis_vectors(normal):
     return U, V
 
 
+# find the max dimensions, so we can know the bounding box, getting the height,
+# width, length (because these are the step size)...
+def find_mins_maxs(obj):
+    minx = maxx = miny = maxy = minz = maxz = None
+    for p in obj.points:
+        # p contains (x, y, z)
+        if minx is None:
+            minx = p[Dimension.X]
+            maxx = p[Dimension.X]
+            miny = p[Dimension.Y]
+            minz = p[Dimension.Z]
+            maxz = p[Dimension.Z]
+            maxy = p[Dimension.Y]
+        else:
+            maxx = max(p[Dimension.X], maxx)
+            minx = min(p[Dimension.X], minx)
+            maxy = max(p[Dimension.Y], maxy)
+            miny = min(p[Dimension.Y], miny)
+            maxz = max(p[Dimension.Z], maxz)
+            minz = min(p[Dimension.Z], minz)
+    return minx, maxx, miny, maxy, minz, maxz
+
+
 if __name__ == "__main__":
     import pygame as pg
-    from setup import SCREEN_WIDTH, SCREEN_HEIGHT
+    from window_manager_setup import SCREEN_WIDTH, SCREEN_HEIGHT
     
     file_path = 'media/fox_centered.stl'
-    # camera = Camera(phi=0, theta=pi/2, zoom=4, shift=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+    
     camera = Camera(zoom=4, shift=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
         
     pg.init()
@@ -155,13 +179,13 @@ if __name__ == "__main__":
         
         keys = pg.key.get_pressed()
         if keys[pg.K_LEFT]:
-            camera.rotate_left_right(np.pi / 100)
+            camera.rotate_left_right(np.pi)
         if keys[pg.K_RIGHT]:
-            camera.rotate_left_right(- np.pi / 100)
+            camera.rotate_left_right(- np.pi)
         if keys[pg.K_UP]:
-            camera.rotate_up_down(- np.pi / 100)
+            camera.rotate_up_down(- np.pi)
         if keys[pg.K_DOWN]:
-            camera.rotate_up_down(np.pi / 100)
+            camera.rotate_up_down(np.pi)
 
         
         wireframe = convert_stl_to_wireframe(file_path, camera)
@@ -169,9 +193,7 @@ if __name__ == "__main__":
         screen.fill((16,16,16))        
         for line_segment in wireframe:
             pg.draw.line(screen, (0,255,0), line_segment[0], line_segment[1])
-        
-        # print(camera.orientation)
-                        
+                                
         pg.display.flip()
         pg.event.pump()
         clock.tick(60)

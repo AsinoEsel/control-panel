@@ -1,11 +1,14 @@
 import pygame as pg
 import os
 import cv2
-from setup import DEFAULT_FONT
+from pygame.event import Event
+from window_manager_setup import DEFAULT_FONT
 from utils import *
-from setup import *
+from window_manager_setup import *
+import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
+import time
 
 from requests.exceptions import ConnectTimeout
 
@@ -48,9 +51,9 @@ class Widget:
             current = current.parent
         return current
     
-    def update(self, tick: int):
+    def update(self, tick: int, dt: float):
         for element in self.elements:
-            element.update(tick)
+            element.update(tick, dt)
         if self.needs_rerender:
             self.render()
             self.needs_rerender = False
@@ -72,7 +75,7 @@ class Widget:
             self.active_element = self.elements[index]
             self.active_element.activate()
     
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.MOUSEBUTTONDOWN:
             #  print(f"Handling event in {self}: {[element.title for element in self.elements if isinstance(element, Window)]}")
             event.pos = event.pos - self.position
@@ -148,6 +151,8 @@ class WindowManager(Widget):
                       image_path=os.path.join('media', 'robot36.png'))
         text_field = TextField(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
                                text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
+        stl_renderer = STLRenderer(self, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
+                                   w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
         self.add_element(self.terminal)
         self.add_element(log)
         log.print_to_log("STORAGE/VIDEOS/VHS:", (255, 255, 0))
@@ -159,10 +164,11 @@ class WindowManager(Widget):
         log.print_to_log("VHS14: READY", (0, 255, 0))
         log.print_to_log("VHS17: DELETED", (255, 0, 0))
         log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
-        self.add_element(empty_widget)
-        empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
-        empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
-        empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
+        self.add_element(stl_renderer)
+        #self.add_element(empty_widget)
+        #empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
+        #empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
+        #empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
         self.add_element(LoginWindow(self))
         """window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
         window.add_element(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
@@ -190,6 +196,7 @@ class WindowManager(Widget):
         clock = pg.time.Clock()
         running = True
         tick = 0
+        previous_time = time.time()
         while running:
             tick += 1
             
@@ -200,14 +207,20 @@ class WindowManager(Widget):
             
             for future in self.control_panel.futures:
                 if future.done():
+                    if isinstance((error := future.result()), Exception):
+                        self.terminal.log.print_to_log(str(error), (255,0,0))
+                        self.control_panel.futures.remove(future)
+                        continue
                     try:
                         json = future.result().json()
                         self.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
                     except ConnectTimeout as e:
                         self.terminal.log.print_to_log(str(e), (255,0,0))
                     self.control_panel.futures.remove(future)
-                
-            self.update(tick)
+            
+            current_time = time.time()
+            self.update(tick, dt=current_time-previous_time)
+            previous_time=current_time
             
             if self.control_panel.button_is_pressed and not self.control_panel.button_press_acknowledged:
                 self.control_panel.button_press_acknowledged = True
@@ -237,7 +250,7 @@ class Window(Widget):
                                            self.inner_rect.width - 2*DEFAULT_GAP, self.inner_rect.height//2, text, True))
 
     
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.MOUSEMOTION:
             if event.buttons[0] and self.rect.collidepoint(self.global_to_local_position((event.pos[0]-event.rel[0], event.pos[1]-event.rel[1]))):
                 self.position += pg.Vector2(event.rel)
@@ -291,7 +304,7 @@ class LoginWindow(Window):
         self.add_element(password_text)
         self.add_element(self.password_input)
     
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_RETURN:
                 self.close()
@@ -311,7 +324,7 @@ class Button(Widget):
         self.text = text
         self.font = font
     
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.MOUSEBUTTONDOWN:
             self.hit_button()
             return
@@ -386,7 +399,7 @@ class Video(Widget):
         self.fps = self.video.get(cv2.CAP_PROP_FPS)
         self.current_frame = 0
     
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_SPACE:
                 self.paused = not self.paused
@@ -405,7 +418,7 @@ class Video(Widget):
             return
         self.flag_as_needing_rerender()
     
-    def update(self, tick):
+    def update(self, tick: int, dt: float):
         if not self.playing:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.advance_video()
@@ -414,7 +427,57 @@ class Video(Widget):
         if frame > self.current_frame and not self.paused:
             self.advance_video()
             self.current_frame = frame
-        super().update(tick)
+        super().update(tick, dt)
+
+class STLRenderer(Widget):
+    def __init__(self, parent, stl_path, x, y, w, h) -> None:
+        super().__init__(parent, x, y, w, h)
+        self.stl_path = stl_path
+        self.camera = stlr.Camera(shift=(w//2,h//2))
+        self.set_model(stl_path=stl_path)
+    
+    def set_model(self, stl_path: str):
+        self.stl_path = stl_path
+        self.unique_edges = stlr.extract_unique_edges(mesh := stlr.read_stl(stl_path))
+        min_x, max_x, min_y, max_y, min_z, max_z = stlr.find_mins_maxs(mesh)
+        max_bounding_box = max((max_x-min_x), (max_y-min_y), (max_z-min_z))
+        self.camera.zoom = 0.9 * min(self.surface.get_width(), self.surface.get_height()) / max_bounding_box
+        self.flag_as_needing_rerender()
+    
+    def handle_event(self, event: Event):
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_d:
+                self.set_model("media/roboter.stl")
+                self.camera.zoom = self.surface.get_height()
+        return super().handle_event(event)
+    
+    def update(self, tick: int, dt: float):
+        degrees_per_second = 45
+        if self.active:
+            degrees = degrees_per_second*dt
+            keys = pg.key.get_pressed()
+            if keys[pg.K_LEFT]:
+                self.camera.rotate_left_right(-degrees)
+            if keys[pg.K_RIGHT]:
+                self.camera.rotate_left_right(degrees)
+            if keys[pg.K_UP]:
+                self.camera.rotate_up_down(degrees)
+            if keys[pg.K_DOWN]:
+                self.camera.rotate_up_down(-degrees)
+            if any((keys[pg.K_LEFT], keys[pg.K_RIGHT], keys[pg.K_UP], keys[pg.K_DOWN])):
+                self.flag_as_needing_rerender()
+        super().update(tick, dt)
+    
+    def render_wireframe(self):
+        wireframe = stlr.project_to_2d(self.unique_edges, self.camera)
+        color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
+        for line_segment in wireframe:
+            pg.draw.line(self.surface, color, line_segment[0], line_segment[1])
+    
+    def render(self):
+        self.surface.fill(BACKGROUND_COLOR)
+        self.render_wireframe()
+        self.render_border()
 
 class InputBox(Widget):
     def __init__(self, parent: 'Widget', x: int, y: int, w: int, h: int = None, font = DEFAULT_FONT) -> None:
@@ -431,7 +494,7 @@ class InputBox(Widget):
         self.history: list[str] = []
         self.history_index = 0
 
-    def handle_event(self, event: pg.event.Event):
+    def handle_event(self, event: Event):
         if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
             if self.selection_range:
                 self.erase_selection_range()
@@ -466,12 +529,12 @@ class InputBox(Widget):
             elif event.key == pg.K_UP:
                 if self.history_index > -len(self.history):
                     self.history_index -= 1
-                self.text = self.history[self.history_index]
+                    self.text = self.history[self.history_index]
                 self.caret_position = len(self.text)
             elif event.key == pg.K_DOWN:
                 if self.history_index < -1:
                     self.history_index += 1
-                self.text = self.history[self.history_index]
+                    self.text = self.history[self.history_index]
                 self.caret_position = len(self.text)
             elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
                 self.selection_range = [0, len(self.text)]
@@ -493,10 +556,10 @@ class InputBox(Widget):
         self.draw_caret = False
         super().deactivate()
     
-    def update(self, tick: int):
+    def update(self, tick: int, dt: float):
         if self.active:
             self.blink_caret(tick)
-        super().update(tick)
+        super().update(tick, dt)
     
     def blink_caret(self, tick):
         blinks_per_second = 1

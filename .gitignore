@@ -1,7 +1,7 @@
 .venv/
 __pycache__/
 .vscode/
-localmedia/
+.localmedia/
 user_progress.db.bak
 user_progress.db.dat
 user_progress.db.dir

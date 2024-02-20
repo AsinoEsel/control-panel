@@ -1,4 +1,4 @@
-from setup import *
+from window_manager_setup import *
 
 def break_up_string(input_string: str, max_chars: int):
     # Find the last space before or at the nth character

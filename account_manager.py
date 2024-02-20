@@ -1,30 +1,32 @@
-from setup import LEVEL_LIST
+from window_manager_setup import LEVEL_LIST
 import shelve
 
 
 class User:
-    def __init__(self, username: str, password: str) -> None:
-        self.username = username
-        self.password = password
-        self.progress = {level: False for level in LEVEL_LIST}
-    
-    def serialize(self):
-        return {
-            'username': self.username,
-            'password': self.password,
-            'progress': self.progress,
-        }
+    def __init__(self, username: str, password: str, uid: str|None = None) -> None:
+        self.username: str = username
+        self.password: str = password
+        self.uid: str = uid
+        self.progress: dict[str:bool] = {level: False for level in LEVEL_LIST}
+        self.checkins: dict[str:bool] = {level: False for level in LEVEL_LIST}
 
 
 class AccountManager:
     def __init__(self):
         self.users: dict[str:User] = {
             "admin": User("admin", "password"),
-            "horse" : User("horse", "hay"),
+            "horse" : User("horse", "hay", "0x93cf1e0e"),
         }
         self.logged_in_user: User = None
+        # For testing purposes:
         self.users["admin"].progress["Maschinenraum"] = True
         self.users["horse"].progress["Cockpit"] = True
+    
+    def get_user_from_uid(self, uid: str) -> User|None:
+        for user in self.users.values():
+            if uid == user.uid:
+                return user
+        return None
     
     def save_user_progress(self, user: User|None = None) -> tuple[bool, str]:
         with shelve.open("user_progress.db") as db:

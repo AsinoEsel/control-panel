@@ -1,26 +1,29 @@
 import requests
-import asyncio
+from account_manager import User
 
-# Function to start and run the asyncio event loop
-def start_asyncio_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_forever()
-    
+
 class ESP:
-    def __init__(self, IP: str) -> None:
+    def __init__(self, IP: str, level_name: str) -> None:
         self.IP = IP
+        self.level_name = level_name
+        self.checked_in_users: list[User] = []
     
-    async def call(self, operation, val=None) -> requests.Response:
+    async def call(self, operation, val=None) -> requests.Response|str:
         url = "http://" + self.IP + "/api"
         params = {"operation": operation}
         if val is not None:
             params["value"] = val
-        response = requests.get(url, params=params)
-        return response
-    
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            return response
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as error:
+            return error
 
-ESP_seven_segment = ESP("192.168.1.36")
+
+ESP_seven_segment = ESP("192.168.1.36", "Maschinenraum")
+ESPs = {
+    ESP_seven_segment.IP: ESP_seven_segment,
+}
 
 
 def debug_send_request(esp, max_tries=10, interval=1):
@@ -36,7 +39,6 @@ def debug_send_request(esp, max_tries=10, interval=1):
 
 if __name__ == "__main__":
     # Test an esp
-    
     from control_panel import ControlPanel
     from time import sleep
     control_panel = ControlPanel()

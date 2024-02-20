@@ -1,7 +1,7 @@
 import pygame as pg
 from window_manager import WindowManager
 from account_manager import AccountManager
-from setup import SCREEN_WIDTH, SCREEN_HEIGHT
+from window_manager_setup import SCREEN_WIDTH, SCREEN_HEIGHT
 import asyncio
 from esp_requests import ESP
 import threading

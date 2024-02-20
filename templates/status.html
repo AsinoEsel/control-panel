@@ -26,5 +26,18 @@
             {% endfor %}
         </div>
     </div>
+    <div class="container mt-5">
+        <h2>User Check-ins</h2>
+        <div class="list-group">
+            {% for username, user in users.items() %}
+                <div class="list-group-item">
+                    <strong>{{ username }}</strong>
+                    {% for level, checked_in in user.checkins.items() %}
+                        <span class="level-box {{ 'completed' if checked_in else 'not-completed' }}" title="{{ level }}"></span>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 </body>
 </html>

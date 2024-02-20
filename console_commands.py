@@ -1,6 +1,6 @@
 from esp_requests import ESP_seven_segment
 import os.path
-from setup import LEVEL_LIST
+from window_manager_setup import LEVEL_LIST
 
 
 class ConsoleCommand:

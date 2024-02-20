@@ -1,5 +1,6 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 from control_panel import ControlPanel
+from esp_requests import ESPs
 
 app = Flask(__name__)
 control_panel: ControlPanel = None
@@ -8,16 +9,34 @@ control_panel: ControlPanel = None
 def button_pressed():
     control_panel.button_is_pressed = True
     control_panel.button_press_acknowledged = False
-    return "Button press acknowledged", 200
+    return jsonify({"message": "Button press acknowledged"}, 200)
 
 
 @app.route('/button_unpressed', methods=['GET'])
 def button_unpressed():
     control_panel.button_is_pressed = False
-    return "Button unpress acknowledged", 200
+    return jsonify({"message": "Button unpress acknowledged"}, 200)
 
 
-@app.route('/status.html')
+@app.route('/api')
+def handle_api():
+    uid=request.args.get('uid')
+    if uid:
+        if not (esp := ESPs.get(request.remote_addr)):
+            print(error := f"No known ESP with IP {request.remote_addr} exists.")
+            return jsonify({"error": error}), 400
+        if not (user := control_panel.account_manager.get_user_from_uid(uid)):
+            print(error := f"No known user with UID {uid} exists.")
+            return jsonify({"error": error}), 400
+        esp.checked_in_users.append(user)
+        user.checkins[esp.level_name] = True
+        print(message := f"User '{user.username}' with UID '{user.uid}' has checked into ESP '{esp.IP}' @ '{esp.level_name}'")
+        return jsonify({"message": message, "uid": user.uid}), 200
+    else:
+        return jsonify({"error": "UID not provided."}), 400
+
+
+@app.route('/status')
 def status():
     return render_template('status.html', users=control_panel.account_manager.users)
 
