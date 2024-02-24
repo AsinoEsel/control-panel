@@ -27,11 +27,11 @@ def handle_api():
             return jsonify({"error": error}), 400
         if not (user := control_panel.account_manager.get_user_from_uid(uid)):
             print(error := f"No known user with UID {uid} exists.")
-            return jsonify({"error": error}), 400
+            return jsonify({"error": error, "uid": uid}), 200
         esp.checked_in_users.append(user)
         user.checkins[esp.level_name] = True
         print(message := f"User '{user.username}' with UID '{user.uid}' has checked into ESP '{esp.IP}' @ '{esp.level_name}'")
-        return jsonify({"message": message, "uid": user.uid}), 200
+        return jsonify({"message": message, "uid": user.uid, "username": user.username}), 200
     else:
         return jsonify({"error": "UID not provided."}), 400
 

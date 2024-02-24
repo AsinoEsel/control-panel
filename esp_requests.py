@@ -20,7 +20,8 @@ class ESP:
             return error
 
 
-ESP_seven_segment = ESP("192.168.1.36", "Maschinenraum")
+ESP_seven_segment = ESP("192.168.1.36", "Cockpit")
+# ESP_seven_segment = ESP("192.168.0.150", "Cockpit")
 ESPs = {
     ESP_seven_segment.IP: ESP_seven_segment,
 }

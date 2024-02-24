@@ -2,8 +2,8 @@ import pygame as pg
 import os
 pg.font.init()
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = 1280 # 1920
+SCREEN_HEIGHT = 800 # 1200 # 1080
 FRAME_RATE = 120
 
 BACKGROUND_COLOR = pg.Color((16,16,16))

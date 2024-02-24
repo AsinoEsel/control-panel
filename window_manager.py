@@ -9,8 +9,62 @@ import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
 import time
+import shaders
 
 from requests.exceptions import ConnectTimeout
+
+
+class WindowManager:
+    def __init__(self, control_panel, fullscreen: bool = False):
+        self.control_panel: ControlPanel = control_panel
+        flags = pg.OPENGL | pg.DOUBLEBUF
+        if fullscreen:
+            flags |= pg.FULLSCREEN
+        self.screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=flags)
+        self.desktop = Desktop(control_panel)
+    
+    def run(self):
+        pg.init()
+        clock = pg.time.Clock()
+        tick = 0
+        previous_time = time.time()
+        
+        ctx = shaders.get_context()
+        render_object = shaders.get_render_object(ctx)
+        frame_tex = shaders.surf_to_texture(self.desktop.surface, ctx)
+        frame_tex.use(0)
+        
+        while True:
+            tick += 1
+            
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    pg.quit()
+                self.desktop.handle_event(event)
+            
+            for future in self.control_panel.futures:
+                if future.done():
+                    if isinstance((error := future.result()), Exception):
+                        self.desktop.terminal.log.print_to_log(str(error), (255,0,0))
+                        self.control_panel.futures.remove(future)
+                        continue
+                    try:
+                        json = future.result().json()
+                        self.desktop.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
+                    except ConnectTimeout as e:
+                        self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
+                    self.control_panel.futures.remove(future)
+            
+            current_time = time.time()
+            self.desktop.update(tick, dt=current_time-previous_time)
+            previous_time=current_time
+            
+            frame_tex.write(self.desktop.surface.get_view('1'))
+            render_object.render(mode=shaders.TRIANGLE_STRIP)
+            
+            pg.event.pump()
+            pg.display.flip()
+            clock.tick(FRAME_RATE)
 
 
 class Widget:
@@ -45,7 +99,7 @@ class Widget:
                 self.active_element = None
         self.flag_as_needing_rerender()
     
-    def get_root(self) -> 'WindowManager':
+    def get_root(self) -> 'Desktop':
         current = self
         while current.parent:
             current = current.parent
@@ -139,11 +193,10 @@ class Widget:
         self.blit_from_children()
 
 
-class WindowManager(Widget):
-    def __init__(self, control_panel, screen: pg.Surface) -> None:
+class Desktop(Widget):
+    def __init__(self, control_panel) -> None:
         self.control_panel: ControlPanel = control_panel
         super().__init__(None, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.surface = screen
         self.terminal = Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP)
         log = Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
         empty_widget = Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
@@ -190,50 +243,6 @@ class WindowManager(Widget):
                       video_path=video_path)
         video_window.add_element(video)
         self.add_element(video_window)
-    
-    def run(self):
-        pg.init()
-        clock = pg.time.Clock()
-        running = True
-        tick = 0
-        previous_time = time.time()
-        while running:
-            tick += 1
-            
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    running = False
-                self.handle_event(event)
-            
-            for future in self.control_panel.futures:
-                if future.done():
-                    if isinstance((error := future.result()), Exception):
-                        self.terminal.log.print_to_log(str(error), (255,0,0))
-                        self.control_panel.futures.remove(future)
-                        continue
-                    try:
-                        json = future.result().json()
-                        self.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
-                    except ConnectTimeout as e:
-                        self.terminal.log.print_to_log(str(e), (255,0,0))
-                    self.control_panel.futures.remove(future)
-            
-            current_time = time.time()
-            self.update(tick, dt=current_time-previous_time)
-            previous_time=current_time
-            
-            if self.control_panel.button_is_pressed and not self.control_panel.button_press_acknowledged:
-                self.control_panel.button_press_acknowledged = True
-                success_window = Window(self, "Task accomplished", 3*SCREEN_WIDTH//4, 3*SCREEN_HEIGHT//4)
-                self.elements.append(success_window)
-                image = Image(success_window, x=success_window.inner_rect.left, y=success_window.inner_rect.top, w=success_window.inner_rect.w, h=success_window.inner_rect.h,
-                            image_path=os.path.join('media', 'robot36.png'))
-                success_window.elements.append(image)
-                image.flag_as_needing_rerender()
-            
-            pg.event.pump()
-            pg.display.flip()
-            clock.tick(FRAME_RATE)
             
 
 class Window(Widget):
@@ -676,7 +685,7 @@ class Log(Widget):
 
 
 class Terminal(Widget):
-    def __init__(self, parent: 'WindowManager', x: int, y: int, w: int, h: int, font=DEFAULT_FONT) -> None:
+    def __init__(self, parent: 'Desktop', x: int, y: int, w: int, h: int, font=DEFAULT_FONT) -> None:
         self.log = Log(self, DEFAULT_GAP, DEFAULT_GAP, w-2*DEFAULT_GAP, h-CHAR_HEIGHT[font]*1.3-3*DEFAULT_GAP, font)
         self.input_box = InputBox(self, DEFAULT_GAP, h-DEFAULT_GAP-CHAR_HEIGHT[font]*1.3, w-2*DEFAULT_GAP, CHAR_HEIGHT[font]*1.3)
         super().__init__(parent, x, y, w, h, elements=[self.log, self.input_box])
@@ -692,7 +701,8 @@ class Terminal(Widget):
         self.blit_from_children()
 
         
-if __name__ == "__main__":   
+if __name__ == "__main__":
     from control_panel import ControlPanel
     control_panel = ControlPanel()
     control_panel.window_manager.run()
+    
