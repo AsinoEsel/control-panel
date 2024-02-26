@@ -1,11 +1,12 @@
 import pygame as pg
 from array import array
 import moderngl
-from window_manager_setup import SCREEN_SIZE
+from window_manager_setup import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SIZE
 from shaders_setup import shader_params
+from debug_util import display_surface
 import time
 
-SHADER_LIST = ["Threshold", "Blur_H", "Blur_V", "Add", "CRT"]
+SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Add", "CRT"]
 
 class Shaders:
     def __init__(self, shaders: list[str], *, texture_filter: int = moderngl.LINEAR):
@@ -26,9 +27,9 @@ class Shaders:
         
         self.programs: dict[str:moderngl.Program] = {shader: get_shader_program(self.ctx, *shader_params[shader]) for shader in shaders}
         self.vaos: list[moderngl.VertexArray] = [get_vertex_array(self.ctx, quad_buffer, program) for program in self.programs.values()]
-        self.final_vao = get_vertex_array(self.ctx, quad_buffer_invert, get_shader_program(self.ctx, *shader_params["Nothing"]))
+        self.final_vao = get_vertex_array(self.ctx, quad_buffer_invert, get_shader_program(self.ctx, *shader_params["To_BGRA"]))
         
-        self.texture = self.ctx.texture(SCREEN_SIZE, 4)
+        self.texture = self.ctx.texture((SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 4)
         self.texture.filter = (texture_filter, texture_filter)
         self.texture.use(location=0)
         self.texture2 = self.ctx.texture(SCREEN_SIZE, 4)
@@ -36,13 +37,16 @@ class Shaders:
         self.texture2.use(location=1)
         
         self.fbo = self.ctx.framebuffer(color_attachments=[self.texture])
+        self.fbo2 = self.ctx.framebuffer(color_attachments=[self.texture2])
     
     def apply(self, surface: pg.Surface, current_time: int):
-        self.texture.write(surface.get_view('1'))
         self.texture2.write(surface.get_view('1'))
         
         self.fbo.use()
-        for vao in self.vaos:
+        for vao in self.vaos[0:4]:
+            vao.render(mode=moderngl.TRIANGLE_STRIP)
+        self.fbo2.use()
+        for vao in self.vaos[4:]:
             vao.render(mode=moderngl.TRIANGLE_STRIP)
         if crt_program := self.programs.get('CRT'):
             crt_program['_ScanlineY'] = current_time / 5 - int(current_time / 5)
@@ -84,7 +88,7 @@ def main(fullscreen: bool = False):
         
         # pygame rendering
         display.fill((0,0,0))
-        img = pg.image.load("media/screenshot.png")
+        img = pg.image.load("media/screenshot_downscaled.png")
         display.blit(pg.transform.scale(img, SCREEN_SIZE), (0,0))
         
         # modernGL

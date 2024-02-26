@@ -22,7 +22,28 @@ class WindowManager:
         if fullscreen:
             flags |= pg.FULLSCREEN
         self.screen = pg.display.set_mode(SCREEN_SIZE, flags=flags)
-        self.desktop = Desktop(control_panel)
+        self.desktops = [Desktop(control_panel), Desktop(control_panel)]
+        self.desktop = self.desktops[0]
+        self.set_up_desktops(self.desktops)
+        
+    def set_up_desktops(self, desktops: list['Desktop']):
+        desktop = desktops[0]
+        desktop.add_element(terminal := Terminal(desktop, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP))
+        desktop.add_element(log := Log(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP))
+        empty_widget = Widget(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+        image = Image(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+                      image_path=os.path.join('media', 'robot36.png'))
+        text_field = TextField(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+                               text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
+        desktop.add_element(STLRenderer(desktop, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
+                                   w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP))
+        desktop.add_element(LoginWindow(desktop))
+        desktop.terminal = terminal
+        log.print_to_log("ROTER TEXT", (255,0,0))
+        #radar = Radar(self, png='media/red_dot_image.png')
+        
+        desktop2 = desktops[1]
+        desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
     
     def run(self, use_shaders: bool):
         pg.init()
@@ -57,7 +78,7 @@ class WindowManager:
                         self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
                     self.control_panel.futures.remove(future)
             
-            self.desktop.update(tick, dt=dt)
+            self.desktop.propagate_update(tick, dt=dt)
             
             if use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
@@ -106,10 +127,14 @@ class Widget:
         while current.parent:
             current = current.parent
         return current
-    
+
     def update(self, tick: int, dt: float):
+        pass
+    
+    def propagate_update(self, tick: int, dt: float):
+        self.update(tick, dt)
         for element in self.elements:
-            element.update(tick, dt)
+            element.propagate_update(tick, dt)
         if self.needs_rerender:
             self.render()
             self.needs_rerender = False
@@ -199,39 +224,6 @@ class Desktop(Widget):
     def __init__(self, control_panel) -> None:
         self.control_panel: ControlPanel = control_panel
         super().__init__(None, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
-        self.terminal = Terminal(self, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP)
-        log = Log(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-        empty_widget = Widget(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-        image = Image(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
-                      image_path=os.path.join('media', 'robot36.png'))
-        text_field = TextField(self, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
-                               text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
-        stl_renderer = STLRenderer(self, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
-                                   w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-        radar = Radar(self, png='media/red_dot_image.png')
-        self.add_element(self.terminal)
-        self.add_element(log)
-        self.add_element(stl_renderer)
-        log.print_to_log("STORAGE/VIDEOS/VHS:", (255, 255, 0))
-        log.print_to_log("VHS1: MISSING DATA", (255, 0, 0))
-        log.print_to_log("VHS2: □□□□□□□ □□□□", (255, 0, 0))
-        log.print_to_log("VHS4: DATA CORRUPTED", (255, 0, 0))
-        log.print_to_log("VHS9: DATA CORRUPTED", (255, 0, 0))
-        log.print_to_log("VHS10: MISSING DATA", (255, 0, 0))
-        log.print_to_log("VHS14: READY", (0, 255, 0))
-        log.print_to_log("VHS17: DELETED", (255, 0, 0))
-        log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
-        #self.add_element(radar)
-        #self.add_element(empty_widget)
-        #empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
-        #empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
-        #empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
-        self.add_element(LoginWindow(self))
-        """window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
-        window.add_element(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
-        window.add_element(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
-        self.add_element(window, True)"""
-        
         self.clipboard = ""
         
     def render(self):
@@ -440,7 +432,6 @@ class Video(Widget):
         if frame > self.current_frame and not self.paused:
             self.advance_video()
             self.current_frame = frame
-        super().update(tick, dt)
 
 class STLRenderer(Widget):
     def __init__(self, parent, stl_path, x, y, w, h) -> None:
@@ -467,7 +458,7 @@ class STLRenderer(Widget):
     def update(self, tick: int, dt: float):
         degrees_per_second = 45
         if self.active:
-            degrees = degrees_per_second*dt
+            degrees = degrees_per_second*dt/1000
             keys = pg.key.get_pressed()
             if keys[pg.K_LEFT]:
                 self.camera.rotate_left_right(-degrees)
@@ -479,7 +470,6 @@ class STLRenderer(Widget):
                 self.camera.rotate_up_down(-degrees)
             if any((keys[pg.K_LEFT], keys[pg.K_RIGHT], keys[pg.K_UP], keys[pg.K_DOWN])):
                 self.flag_as_needing_rerender()
-        super().update(tick, dt)
     
     def render_wireframe(self):
         wireframe = stlr.project_to_2d(self.unique_edges, self.camera)
@@ -572,7 +562,6 @@ class InputBox(Widget):
     def update(self, tick: int, dt: float):
         if self.active:
             self.blink_caret(tick)
-        super().update(tick, dt)
     
     def blink_caret(self, tick):
         blinks_per_second = 1
@@ -714,7 +703,6 @@ class Radar(Widget):
     #     return super().handle_event(event)
         
     def update(self, tick, dt):
-        super().update(tick, dt)
         self.flag_as_needing_rerender()
 
     def render(self):
@@ -723,5 +711,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True)
     
