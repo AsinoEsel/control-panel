@@ -1,6 +1,6 @@
-#version 310 es
+#version 300 es
 
-precision mediump float; // Use highp if you need more precision
+precision mediump float; // Set default precision for float types
 
 in vec2 uvs;
 out vec4 color;
@@ -9,6 +9,8 @@ uniform sampler2D _MainTex;
 uniform float _Curvature;       // lower values -> higher curvature
 uniform float _VignetteWidth;
 uniform vec2 _ScreenParams;     // Viewport Size
+uniform float _ScanlineY;       // Y position of Scanline on V axis [0,1]
+uniform float _ScanlineHeight;  // height of Scanline on V axis [0,1]
 
 void main() {
     vec2 uv = uvs * 2.0 - 1.0;
@@ -27,6 +29,9 @@ void main() {
 
     col.g *= (sin(uvs.y * _ScreenParams.y * 2.0) + 1.0) * 0.15 + 1.0;
     col.rb *= (cos(uvs.y * _ScreenParams.y * 2.0) + 1.0) * 0.135 + 1.0;
+
+    if (abs(uvs.y - _ScanlineY) < _ScanlineHeight)
+        col.rgb *= 1.2;
 
     color = clamp(col, 0.0, 1.0) * vignette.x * vignette.y;
 }

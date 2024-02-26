@@ -2,15 +2,13 @@ import pygame as pg
 import os
 import cv2
 from pygame.event import Event
-from window_manager_setup import DEFAULT_FONT
 from utils import *
 from window_manager_setup import *
 import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
 import time
-import shaders
-
+from shaders import Shaders
 from requests.exceptions import ConnectTimeout
 
 
@@ -20,7 +18,7 @@ class WindowManager:
         flags = pg.OPENGL | pg.DOUBLEBUF
         if fullscreen:
             flags |= pg.FULLSCREEN
-        self.screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=flags)
+        self.screen = pg.display.set_mode(SCREEN_SIZE, flags=flags)
         self.desktop = Desktop(control_panel)
     
     def run(self):
@@ -29,10 +27,7 @@ class WindowManager:
         tick = 0
         previous_time = time.time()
         
-        ctx = shaders.get_context()
-        render_object = shaders.get_render_object(ctx)
-        frame_tex = shaders.surf_to_texture(self.desktop.surface, ctx)
-        frame_tex.use(0)
+        shaders = Shaders(["Threshold", "Blur_H", "Blur_V", "Add", "CRT"])
         
         while True:
             tick += 1
@@ -40,6 +35,8 @@ class WindowManager:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
+                if RUNNING_ON_LINUX and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
+                    event.pos = (event.pos[0] * OUTPUT_WIDTH/SCREEN_WIDTH, event.pos[1]*OUTPUT_HEIGHT/SCREEN_HEIGHT)
                 self.desktop.handle_event(event)
             
             for future in self.control_panel.futures:
@@ -59,12 +56,11 @@ class WindowManager:
             self.desktop.update(tick, dt=current_time-previous_time)
             previous_time=current_time
             
-            frame_tex.write(self.desktop.surface.get_view('1'))
-            render_object.render(mode=shaders.TRIANGLE_STRIP)
-            
+            shaders.apply(self.desktop.surface)
+                        
             pg.event.pump()
             pg.display.flip()
-            clock.tick(FRAME_RATE)
+            clock.tick(TARGET_FRAME_RATE)
 
 
 class Widget:
@@ -432,7 +428,7 @@ class Video(Widget):
             self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.advance_video()
             self.paused = True
-        frame = tick * self.fps // FRAME_RATE
+        frame = tick * self.fps // TARGET_FRAME_RATE
         if frame > self.current_frame and not self.paused:
             self.advance_video()
             self.current_frame = frame
@@ -572,7 +568,7 @@ class InputBox(Widget):
     
     def blink_caret(self, tick):
         blinks_per_second = 1
-        ticks_per_blink = FRAME_RATE / blinks_per_second
+        ticks_per_blink = TARGET_FRAME_RATE / blinks_per_second
         if self.draw_caret == False and tick % ticks_per_blink < ticks_per_blink / 2:
             self.draw_caret = True
             self.flag_as_needing_rerender()

@@ -2,9 +2,13 @@ import pygame as pg
 import os
 pg.font.init()
 
-SCREEN_WIDTH = 1280 # 1920
-SCREEN_HEIGHT = 800 # 1200 # 1080
-FRAME_RATE = 120
+RUNNING_ON_LINUX = (os.name == 'posix')
+
+SCREEN_SIZE = (1280, 800)
+SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN_SIZE
+OUTPUT_SIZE = (2560, 1440)
+OUTPUT_WIDTH, OUTPUT_HEIGHT = OUTPUT_SIZE
+TARGET_FRAME_RATE = 120
 
 BACKGROUND_COLOR = pg.Color((16,16,16))
 COLOR_INACTIVE = pg.Color((0, 128, 0))
@@ -30,4 +34,4 @@ DEFAULT_GAP = 6
 LINE_THICKNESS_THIN = 2
 LINE_THICKNESS_THICK = 4
 
-LEVEL_LIST = ["Maschinenraum", "Cockpit", "Treibstofftank", "Dekontamination"]
+LEVEL_LIST = ["Maschinenraum", "Cockpit", "Treibstofftank", "Dekontamination"]  # TODO: put somewhere else
