@@ -59,8 +59,37 @@ def is_in_sweep_sector(obj_pos, sweep_angle, center, radius, sweep_width):
         return sweep_start_angle <= obj_angle <= sweep_end_angle
     else:
         return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
+    
+# def create_backgrond_surface():
+#     background_surface = pygame.Surface(width, height)
 
-def renderer(surface):
+
+def render(surface):
+    global angle
+    global width, height
+    global clock
+    
+    # colors
+    global black
+    global green
+    global red
+    
+    # radar settings
+    global center
+    global radius
+    global sweep_width
+    global angle_speed
+    
+    # crt effects
+    global scanline_distance
+    global scanline_timer
+    global scanline_speed
+    
+    # Generate random objects
+    global num_objects
+    # objects = [GameObject.create(center, radius) for _ in range(num_objects)]
+    global objects
+
     surface.fill(black)
 
     # Draw radar circle
@@ -130,7 +159,7 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        renderer(screen)
+        render(screen)
 
         # Cap the frame rate
         clock.tick(30)
