@@ -10,6 +10,7 @@ import debug_util
 import time
 from shaders import Shaders
 from requests.exceptions import ConnectTimeout
+import radar
 
 
 class WindowManager:
@@ -202,8 +203,9 @@ class Desktop(Widget):
                                text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
         stl_renderer = STLRenderer(self, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
                                    w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-        self.add_element(self.terminal)
-        self.add_element(log)
+        radar = Radar(self, png='media/red_dot_image.png')
+        # self.add_element(self.terminal)
+        # self.add_element(log)
         log.print_to_log("STORAGE/VIDEOS/VHS:", (255, 255, 0))
         log.print_to_log("VHS1: MISSING DATA", (255, 0, 0))
         log.print_to_log("VHS2: □□□□□□□ □□□□", (255, 0, 0))
@@ -213,12 +215,12 @@ class Desktop(Widget):
         log.print_to_log("VHS14: READY", (0, 255, 0))
         log.print_to_log("VHS17: DELETED", (255, 0, 0))
         log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
-        self.add_element(stl_renderer)
+        self.add_element(radar)
         #self.add_element(empty_widget)
         #empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
         #empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
         #empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
-        self.add_element(LoginWindow(self))
+        # self.add_element(LoginWindow(self))
         """window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
         window.add_element(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
         window.add_element(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
@@ -695,6 +697,22 @@ class Terminal(Widget):
         self.surface.fill(self.accent_color)
         self.render_border()
         self.blit_from_children()
+
+class Radar(Widget):
+    def __init__(self, parent: 'Desktop', png):
+        super().__init__(parent, x = 0, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT)
+        self.png = png
+        self.flag_as_needing_rerender()
+
+    # def handle_event(self, event: Event):
+    #     return super().handle_event(event)
+        
+    def update(self, tick, dt):
+        self.flag_as_needing_rerender()
+
+    def render(self):
+        print("hallo")
+        radar.render(self.surface)
 
         
 if __name__ == "__main__":
