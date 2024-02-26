@@ -10,4 +10,3 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=app.run_flask_app)
     flask_thread.start()
     
-    control_panel.window_manager.run()

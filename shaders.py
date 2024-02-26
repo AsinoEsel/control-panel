@@ -5,7 +5,7 @@ from window_manager_setup import SCREEN_HEIGHT, SCREEN_SIZE
 from shaders_setup import shader_params
 import time
 
-TRIANGLE_STRIP = moderngl.TRIANGLE_STRIP
+SHADER_LIST = ["Threshold", "Blur_H", "Blur_V", "Add", "CRT"]
 
 class Shaders:
     def __init__(self, shaders: list[str]):
@@ -40,10 +40,10 @@ class Shaders:
         
         self.fbo.use()
         for vao in self.vaos:
-            vao.render(mode=TRIANGLE_STRIP)
+            vao.render(mode=moderngl.TRIANGLE_STRIP)
         # program_crt['_ScanlineY'] = current_time / 5 - int(current_time / 5)
         self.ctx.screen.use()
-        self.final_vao.render(mode=TRIANGLE_STRIP)
+        self.final_vao.render(mode=moderngl.TRIANGLE_STRIP)
         
 def get_context() -> moderngl.Context:
     return moderngl.create_context(require=300)
@@ -141,15 +141,15 @@ def main():
         texture2.write(display.get_view('1'))
 
         fbo_texture.use()
-        vao_threshold.render(mode=TRIANGLE_STRIP)
-        vao_blur_h.render(mode=TRIANGLE_STRIP)
-        vao_blur_v.render(mode=TRIANGLE_STRIP)
-        vao_add.render(mode=TRIANGLE_STRIP)
+        vao_threshold.render(mode=moderngl.TRIANGLE_STRIP)
+        vao_blur_h.render(mode=moderngl.TRIANGLE_STRIP)
+        vao_blur_v.render(mode=moderngl.TRIANGLE_STRIP)
+        vao_add.render(mode=moderngl.TRIANGLE_STRIP)
         program_crt['_ScanlineY'] = current_time / 5 - int(current_time / 5)
-        vao_crt.render(mode=TRIANGLE_STRIP)
+        vao_crt.render(mode=moderngl.TRIANGLE_STRIP)
         
         ctx.screen.use()
-        vao_to_screen.render(mode=TRIANGLE_STRIP)"""
+        vao_to_screen.render(mode=moderngl.TRIANGLE_STRIP)"""
         
         pg.display.flip()        
         clock.tick(60)

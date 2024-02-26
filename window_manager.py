@@ -8,27 +8,30 @@ import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
 import time
-from shaders import Shaders
+from shaders import Shaders, SHADER_LIST
 from requests.exceptions import ConnectTimeout
 import radar
 
 
 class WindowManager:
-    def __init__(self, control_panel, fullscreen: bool = False):
+    def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True):
         self.control_panel: ControlPanel = control_panel
-        flags = pg.OPENGL | pg.DOUBLEBUF
+        flags = 0
+        if use_shaders:
+            flags |= pg.OPENGL | pg.DOUBLEBUF
         if fullscreen:
             flags |= pg.FULLSCREEN
         self.screen = pg.display.set_mode(SCREEN_SIZE, flags=flags)
         self.desktop = Desktop(control_panel)
     
-    def run(self):
+    def run(self, use_shaders: bool):
         pg.init()
         clock = pg.time.Clock()
         tick = 0
         previous_time = time.time()
         
-        shaders = Shaders(["Threshold", "Blur_H", "Blur_V", "Add", "CRT"])
+        if use_shaders:
+            shaders = Shaders(shaders=SHADER_LIST)
         
         while True:
             tick += 1
@@ -57,7 +60,10 @@ class WindowManager:
             self.desktop.update(tick, dt=current_time-previous_time)
             previous_time=current_time
             
-            shaders.apply(self.desktop.surface)
+            if use_shaders:
+                shaders.apply(self.desktop.surface)
+            else:
+                self.screen.blit(self.desktop.surface, (0,0))
                         
             pg.event.pump()
             pg.display.flip()
@@ -215,12 +221,12 @@ class Desktop(Widget):
         log.print_to_log("VHS14: READY", (0, 255, 0))
         log.print_to_log("VHS17: DELETED", (255, 0, 0))
         log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
-        self.add_element(radar)
-        #self.add_element(empty_widget)
+        #self.add_element(radar)
+        self.add_element(empty_widget)
         #empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
         #empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
         #empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
-        # self.add_element(LoginWindow(self))
+        self.add_element(LoginWindow(self))
         """window = Window(self, "PLEASE LOG IN", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.")
         window.add_element(Button(window, window.rect.w//4, window.rect.h//2, window.rect.w//2, 50, "Close"))
         window.add_element(Button(window, window.rect.w//4, 3*window.rect.h//4, window.rect.w//2, 50, "DOG"))
@@ -708,15 +714,14 @@ class Radar(Widget):
     #     return super().handle_event(event)
         
     def update(self, tick, dt):
+        super().update(tick, dt)
         self.flag_as_needing_rerender()
 
     def render(self):
-        print("hallo")
         radar.render(self.surface)
 
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel()
-    control_panel.window_manager.run()
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True)
     
