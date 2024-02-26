@@ -28,13 +28,14 @@ class WindowManager:
         pg.init()
         clock = pg.time.Clock()
         tick = 0
-        previous_time = time.time()
+        dt = 0
         
         if use_shaders:
             shaders = Shaders(shaders=SHADER_LIST)
         
         while True:
             tick += 1
+            current_time = time.time()
             
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -56,18 +57,16 @@ class WindowManager:
                         self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
                     self.control_panel.futures.remove(future)
             
-            current_time = time.time()
-            self.desktop.update(tick, dt=current_time-previous_time)
-            previous_time=current_time
+            self.desktop.update(tick, dt=dt)
             
             if use_shaders:
-                shaders.apply(self.desktop.surface)
+                shaders.apply(self.desktop.surface, current_time)
             else:
                 self.screen.blit(self.desktop.surface, (0,0))
                         
             pg.event.pump()
             pg.display.flip()
-            clock.tick(TARGET_FRAME_RATE)
+            dt = clock.tick(TARGET_FRAME_RATE)
 
 
 class Widget:
@@ -210,8 +209,9 @@ class Desktop(Widget):
         stl_renderer = STLRenderer(self, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
                                    w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
         radar = Radar(self, png='media/red_dot_image.png')
-        # self.add_element(self.terminal)
-        # self.add_element(log)
+        self.add_element(self.terminal)
+        self.add_element(log)
+        self.add_element(stl_renderer)
         log.print_to_log("STORAGE/VIDEOS/VHS:", (255, 255, 0))
         log.print_to_log("VHS1: MISSING DATA", (255, 0, 0))
         log.print_to_log("VHS2: □□□□□□□ □□□□", (255, 0, 0))
@@ -222,7 +222,7 @@ class Desktop(Widget):
         log.print_to_log("VHS17: DELETED", (255, 0, 0))
         log.print_to_log("VHS18: MISSING DATA", (255, 0, 0))
         #self.add_element(radar)
-        self.add_element(empty_widget)
+        #self.add_element(empty_widget)
         #empty_widget.add_element(Window(empty_widget, "cooltitle", 300, 100, "cooltext", 80, 120))
         #empty_widget.add_element(Window(empty_widget, "coolertitle", 400, 100, "coolertext"))
         #empty_widget.add_element(Window(empty_widget, "coolesttitle", 300, 150, "this text is so cool you wouldn't believe it"), True)
@@ -723,5 +723,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True)
     

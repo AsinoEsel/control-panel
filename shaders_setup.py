@@ -15,7 +15,7 @@ threshold_shader_uniforms = {
 
 blur_shader_uniforms = {
     '_MainTex': 0,
-    '_Sigma': 12,
+    '_Sigma': 6,
     'u_resolution': SCREEN_SIZE,
     '_KernelSize': 25,
 }
