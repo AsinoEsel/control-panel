@@ -7,8 +7,6 @@ RUNNING_ON_LINUX = (os.name == 'posix')
 
 RENDER_SIZE = (960, 540)
 RENDER_WIDTH, RENDER_HEIGHT = RENDER_SIZE
-OUTPUT_SIZE = (pg.display.Info().current_w, pg.display.Info().current_h)
-OUTPUT_WIDTH, OUTPUT_HEIGHT = OUTPUT_SIZE
 TARGET_FRAME_RATE = 30
 
 BACKGROUND_COLOR = pg.Color((16,16,16))
