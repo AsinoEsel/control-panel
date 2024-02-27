@@ -112,8 +112,6 @@ class Radar:
         end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
         pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 
-        pygame.display.flip()
-
         # Increment angle for sweep movement
         self.angle += dt*self.angle_speed/1000
         if self.angle >= 360:
@@ -138,7 +136,7 @@ if __name__ == '__main__':
                 running = False
         radar.render(screen, dt)
 
-        # Cap the frame rate
+        pygame.display.flip()
         dt = clock.tick(30)
 
     pygame.quit()
