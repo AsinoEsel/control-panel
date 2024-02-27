@@ -9,7 +9,7 @@ RENDER_SIZE = (960, 540)
 RENDER_WIDTH, RENDER_HEIGHT = RENDER_SIZE
 OUTPUT_SIZE = (pg.display.Info().current_w, pg.display.Info().current_h)
 OUTPUT_WIDTH, OUTPUT_HEIGHT = OUTPUT_SIZE
-TARGET_FRAME_RATE = 120
+TARGET_FRAME_RATE = 30
 
 BACKGROUND_COLOR = pg.Color((16,16,16))
 COLOR_INACTIVE = pg.Color((0, 128, 0))
@@ -20,7 +20,7 @@ DEBUG_COLOR = pg.Color((255,20,147))
 DEBUG_LONG_TEXT = """What the dog doin'? But no, actually. What the fuck is the dog doing.\
 Like, are you seeing this? Dude. Dude, check this out, it's almost as if it's...\
 Oh my god. Oh god. It's coming. Run. RUN! FOR GOD'S SAKE RUN."""
-DEFAULT_FONT = pg.font.Font(os.path.join("media","clacon2.ttf"), 32)
+DEFAULT_FONT = pg.font.Font(os.path.join("media","clacon2.ttf"), 20) # 32
 SMALL_FONT = pg.font.Font(os.path.join("media","clacon2.ttf"), 12)
 
 CHAR_WIDTH = {
