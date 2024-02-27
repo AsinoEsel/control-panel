@@ -1,7 +1,7 @@
 from window_manager_setup import SCREEN_SIZE, SCREEN_HEIGHT
 
 crt_shader_uniforms = {
-    '_MainTex': 1,
+    '_MainTex': 0,
     '_Curvature': 8.0,
     '_VignetteWidth': 40.0,
     '_ScreenParams': SCREEN_SIZE,
@@ -9,29 +9,29 @@ crt_shader_uniforms = {
 }
 
 threshold_shader_uniforms = {
-    '_MainTex': 0,
-    '_LuminanceThreshold': 0.1,
+    '_MainTex': 1,
+    '_LuminanceThreshold': 0.07,
 }
 
 blur_shader_uniforms = {
-    '_MainTex': 0,
-    '_Sigma': 3,
+    '_MainTex': 1,
+    '_Sigma': (sigma:=10),
     'u_resolution': SCREEN_SIZE,
-    '_KernelSize': 13,
+    '_KernelSize': 4*sigma+1,
 }
 
 add_shader_uniforms = {
     '_MainTex': 0,
     '_SecondaryTex': 1,
-    '_Influence': 1.0,
+    '_Influence': (2.0, 1.0, 1.0, 0.0),
 }
 
 to_bgra_uniforms = {
-    '_MainTex': 1,
+    '_MainTex': 0,
 }
 
 downscale_uniforms = {
-    '_MainTex': 1,
+    '_MainTex': 0,
 }
 
 shader_params: dict[str: tuple[str, str, dict]] = {

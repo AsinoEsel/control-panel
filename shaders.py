@@ -29,23 +29,23 @@ class Shaders:
         self.vaos: list[moderngl.VertexArray] = [get_vertex_array(self.ctx, quad_buffer, program) for program in self.programs.values()]
         self.final_vao = get_vertex_array(self.ctx, quad_buffer_invert, get_shader_program(self.ctx, *shader_params["To_BGRA"]))
         
-        self.texture = self.ctx.texture((SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 4)
-        self.texture.filter = (texture_filter, texture_filter)
-        self.texture.use(location=0)
-        self.texture2 = self.ctx.texture(SCREEN_SIZE, 4)
-        self.texture2.filter = (texture_filter, texture_filter)
-        self.texture2.use(location=1)
+        self.texture_full = self.ctx.texture(SCREEN_SIZE, 4)
+        self.texture_full.filter = (texture_filter, texture_filter)
+        self.texture_full.use(location=0)
+        self.texture_quarter = self.ctx.texture((SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 4)
+        self.texture_quarter.filter = (texture_filter, texture_filter)
+        self.texture_quarter.use(location=1)
         
-        self.fbo = self.ctx.framebuffer(color_attachments=[self.texture])
-        self.fbo2 = self.ctx.framebuffer(color_attachments=[self.texture2])
+        self.fbo_quarter = self.ctx.framebuffer(color_attachments=[self.texture_quarter])
+        self.fbo_full = self.ctx.framebuffer(color_attachments=[self.texture_full])
     
     def apply(self, surface: pg.Surface, current_time: int):
-        self.texture2.write(surface.get_view('1'))
+        self.texture_full.write(surface.get_view('1'))
         
-        self.fbo.use()
+        self.fbo_quarter.use()
         for vao in self.vaos[0:4]:
             vao.render(mode=moderngl.TRIANGLE_STRIP)
-        self.fbo2.use()
+        self.fbo_full.use()
         for vao in self.vaos[4:]:
             vao.render(mode=moderngl.TRIANGLE_STRIP)
         if crt_program := self.programs.get('CRT'):

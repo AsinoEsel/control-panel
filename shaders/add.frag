@@ -5,7 +5,7 @@ precision mediump float;
 // Texture samplers for the two input textures
 uniform sampler2D _MainTex;
 uniform sampler2D _SecondaryTex;
-uniform float _Influence;
+uniform vec4 _Influence;
 
 // The texture coordinate for this fragment, interpolated from the vertices
 in vec2 uvs;
@@ -20,7 +20,7 @@ void main()
     vec4 color2 = texture(_SecondaryTex, uvs);
 
     // Add the colors together
-    vec4 resultColor = _Influence * color1 + color2;
+    vec4 resultColor = color1 + _Influence * color2;
 
     // Optionally, clamp the result to the valid range [0, 1]
     resultColor = clamp(resultColor, 0.0, 1.0);
