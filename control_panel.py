@@ -21,7 +21,6 @@ class ControlPanel:
         
         if run_window_manager:        
             self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders)
-            self.window_manager.run(use_shaders=use_shaders)
     
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)

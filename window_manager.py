@@ -16,7 +16,6 @@ import radar
 class WindowManager:
     def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True):
         self.control_panel: ControlPanel = control_panel
-        self.fullscreen = fullscreen
         flags = pg.FULLSCREEN if fullscreen else 0
         if use_shaders:
             flags |= pg.OPENGL | pg.DOUBLEBUF
@@ -24,6 +23,7 @@ class WindowManager:
         self.desktops = [Desktop(control_panel), Desktop(control_panel)]
         self.desktop = self.desktops[0]
         self.set_up_desktops(self.desktops)
+        self.run(fullscreen=fullscreen, use_shaders=use_shaders)
         
     def set_up_desktops(self, desktops: list['Desktop']):
         desktop = desktops[0]
@@ -43,7 +43,7 @@ class WindowManager:
         desktop2 = desktops[1]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
     
-    def run(self, use_shaders: bool):
+    def run(self, fullscreen: bool, use_shaders: bool):
         pg.init()
         clock = pg.time.Clock()
         tick = 0
@@ -51,6 +51,8 @@ class WindowManager:
         
         if use_shaders:
             shaders = Shaders(shaders=SHADER_LIST)
+        if fullscreen:
+            scaling_ratio = (RENDER_WIDTH/OUTPUT_WIDTH, RENDER_HEIGHT/OUTPUT_HEIGHT)
         
         while True:
             tick += 1
@@ -59,10 +61,10 @@ class WindowManager:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
-                if self.fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
-                    event.pos = (event.pos[0] * RENDER_WIDTH/OUTPUT_WIDTH, event.pos[1]*RENDER_HEIGHT/OUTPUT_HEIGHT)
+                if fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
+                    event.pos = (event.pos[0] * scaling_ratio[0], event.pos[1] * scaling_ratio[1])
                     if event.type == pg.MOUSEMOTION:
-                        event.rel = (event.rel[0] * RENDER_WIDTH/OUTPUT_WIDTH, event.rel[1]*RENDER_HEIGHT/OUTPUT_HEIGHT)
+                        event.rel = (event.rel[0] * scaling_ratio[0], event.rel[1] * scaling_ratio[1])
                 self.desktop.handle_event(event)
             
             for future in self.control_panel.futures:
@@ -83,7 +85,7 @@ class WindowManager:
             if use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
             else:
-                if self.fullscreen:
+                if fullscreen:
                     pg.transform.scale(self.desktop.surface, OUTPUT_SIZE, self.screen)
                 else:
                     self.screen.blit(self.desktop.surface, (0,0))
