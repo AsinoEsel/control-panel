@@ -19,21 +19,12 @@ center = (width // 2, height // 2)
 radius = 280
 angle = 0
 sweep_width = 6
-angle_speed = 2
-
-# crt effects
-scanline_distance = 600
-scanline_timer = 600
-scanline_speed = 3
+angle_speed = 60  # degrees per second
 
 # Generate random objects
 num_objects = 10
 # objects = [GameObject.create(center, radius) for _ in range(num_objects)]
 objects = GameObject.create_from_png('media/red_dot_image.png')
-
-def crt_scanlines(surface, crt_timer):
-    for y in range(0, surface.get_height(), scanline_distance):
-        pygame.draw.line(surface, (0, 50, 0, 100), (0, y + crt_timer), (surface.get_width(), y + crt_timer), 3)
 
 def is_within_radar(pos, center, radius):
     """Check if a position is within the radar circle."""
@@ -64,7 +55,7 @@ def is_in_sweep_sector(obj_pos, sweep_angle, center, radius, sweep_width):
 #     background_surface = pygame.Surface(width, height)
 
 
-def render(surface):
+def render(surface: pygame.Surface, dt: int):
     global angle
     global width, height
     global clock
@@ -79,11 +70,6 @@ def render(surface):
     global radius
     global sweep_width
     global angle_speed
-    
-    # crt effects
-    global scanline_distance
-    global scanline_timer
-    global scanline_speed
     
     # Generate random objects
     global num_objects
@@ -129,13 +115,6 @@ def render(surface):
     end_y_end   = center[1] + math.sin(math.radians(angle + sweep_width/2)) * radius
     pygame.draw.polygon(surface, green, (center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 
-    # crt timer
-    scanline_timer += scanline_speed
-    if scanline_timer >= scanline_distance:
-        scanline_timer = 1
-    crt_scanlines(surface, scanline_timer)
-
-
     screen_array = pygame.surfarray.array3d(surface)
     # screen_array = gaussian_filter(screen_array + (prev_array * 0.98) / 2, sigma=3).astype(int)
     
@@ -145,7 +124,7 @@ def render(surface):
     pygame.display.flip()
 
     # Increment angle for sweep movement
-    angle += angle_speed
+    angle += dt*angle_speed/1000
     if angle >= 360:
         angle = angle % 360
 
@@ -155,14 +134,15 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((width, height))
 
     running = True
+    dt = 0
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        render(screen)
+        render(screen, dt)
 
         # Cap the frame rate
-        clock.tick(30)
+        dt = clock.tick(30)
 
     pygame.quit()
     sys.exit()

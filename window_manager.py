@@ -40,9 +40,8 @@ class WindowManager:
         desktop.add_element(LoginWindow(desktop))
         desktop.terminal = terminal
         log.print_to_log("ROTER TEXT", (255,0,0))
-        #radar = Radar(self, png='media/red_dot_image.png')
         
-        desktop2 = desktops[1]
+        desktop2 = desktops[0]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
     
     def run(self, use_shaders: bool):
@@ -698,15 +697,17 @@ class Radar(Widget):
         super().__init__(parent, x = 0, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT)
         self.png = png
         self.flag_as_needing_rerender()
+        self.dt = 0
 
     # def handle_event(self, event: Event):
     #     return super().handle_event(event)
         
     def update(self, tick, dt):
+        self.dt = dt
         self.flag_as_needing_rerender()
 
     def render(self):
-        radar.render(self.surface)
+        radar.render(self.surface, self.dt)
 
         
 if __name__ == "__main__":
