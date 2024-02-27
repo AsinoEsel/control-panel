@@ -30,6 +30,12 @@ class WindowManager:
         self.desktop = self.desktops[1]
         self.set_up_desktops(self.desktops)
         self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
+    
+    def change_desktop(self, index: int):
+        if not 0 <= index < len(self.desktops):
+            return
+        self.desktop = self.desktops[index]
+        
         
     def set_up_desktops(self, desktops: list['Desktop']):
         desktop = desktops[0]
@@ -67,6 +73,9 @@ class WindowManager:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
+                if pg.key.get_mods() & pg.KMOD_CTRL and event.type == pg.KEYDOWN and pg.K_0 <= event.key <= pg.K_9:
+                    self.change_desktop(event.key - pg.K_0 - 1)
+                    continue
                 if fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
                     event.pos = (event.pos[0] * scaling_ratio[0], event.pos[1] * scaling_ratio[1])
                     if event.type == pg.MOUSEMOTION:
@@ -139,10 +148,10 @@ class Widget:
             current = current.parent
         return current
 
-    def update(self, tick: int, dt: float):
+    def update(self, tick: int, dt: int):
         pass
     
-    def propagate_update(self, tick: int, dt: float):
+    def propagate_update(self, tick: int, dt: int):
         self.update(tick, dt)
         for element in self.elements:
             element.propagate_update(tick, dt)
@@ -434,7 +443,7 @@ class Video(Widget):
             return
         self.flag_as_needing_rerender()
     
-    def update(self, tick: int, dt: float):
+    def update(self, tick: int, dt: int):
         if not self.playing:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.advance_video()
@@ -467,7 +476,7 @@ class STLRenderer(Widget):
                 self.camera.zoom = self.surface.get_height()
         return super().handle_event(event)
     
-    def update(self, tick: int, dt: float):
+    def update(self, tick: int, dt: int):
         degrees_per_second = 45
         if self.active:
             degrees = degrees_per_second*dt/1000
@@ -574,7 +583,7 @@ class InputBox(Widget):
         self.draw_caret = False
         super().deactivate()
     
-    def update(self, tick: int, dt: float):
+    def update(self, tick: int, dt: int):
         if self.active:
             self.blink_caret(tick)
     
@@ -719,7 +728,7 @@ class Radar(Widget):
     # def handle_event(self, event: Event):
     #     return super().handle_event(event)
         
-    def update(self, tick, dt):
+    def update(self, tick: int, dt: int):
         self.dt = dt
         self.flag_as_needing_rerender()
 
