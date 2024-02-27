@@ -6,6 +6,7 @@ crt_shader_uniforms = {
     '_VignetteWidth': 40.0,
     '_ScreenParams': RENDER_SIZE,
     '_ScanlineHeight': 2.0 / RENDER_HEIGHT,
+    '_ScanlineStrength': 1.2,
 }
 
 threshold_shader_uniforms = {
