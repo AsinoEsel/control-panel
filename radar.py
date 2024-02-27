@@ -1,137 +1,102 @@
 import pygame
 import sys
 import math
-import numpy as np
-from scipy.ndimage.filters import gaussian_filter
 from gameobject import GameObject
 
-# screen settings
-width, height = 800, 600
-clock = pygame.time.Clock()
 
-# colors
-black = (5, 10, 5)
-green = (0, 255, 0)
-red = (255, 0, 0)
-
-# radar settings
-center = (width // 2, height // 2)
-radius = 280
-angle = 0
-sweep_width = 6
-angle_speed = 60  # degrees per second
-
-# Generate random objects
-num_objects = 10
-# objects = [GameObject.create(center, radius) for _ in range(num_objects)]
-objects = GameObject.create_from_png('media/red_dot_image.png')
-
-def is_within_radar(pos, center, radius):
-    """Check if a position is within the radar circle."""
-    return math.sqrt((pos[0] - center[0]) ** 2 + (pos[1] - center[1]) ** 2) <= radius
-
-def is_in_sweep_sector(obj_pos, sweep_angle, center, radius, sweep_width):
-    """Check if an object is within the sweep sector."""
-    # Check distance
-    distance_to_obj = math.sqrt((obj_pos[0] - center[0])**2 + (obj_pos[1] - center[1])**2)
-    if distance_to_obj > radius:
-        return False
-
-    # Check angle
-    obj_angle = math.degrees(math.atan2(obj_pos[1] - center[1], obj_pos[0] - center[0])) % 360
-    # Calculate distance to the object
-
-    # Adjust sweep angle to be within 0-360
-    sweep_start_angle = (sweep_angle - sweep_width // 2) % 360
-    sweep_end_angle = (sweep_angle + sweep_width // 2) % 360
-
-    # Check if object is within the sweep sector
-    if sweep_start_angle < sweep_end_angle:
-        return sweep_start_angle <= obj_angle <= sweep_end_angle
-    else:
-        return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
+class Radar:
+    BLACK = (5, 10, 5)
+    GREEN = (0, 255, 0)
+    RED = (255, 0, 0)
     
-# def create_backgrond_surface():
-#     background_surface = pygame.Surface(width, height)
+    def __init__(self, width: int, height: int, png: str) -> None:
+        self.width = width
+        self.height = height
+        self.center = (width // 2, height // 2)
+        self.radius = int(height/2 * 0.9)
+        self.angle = 0
+        self.angle_speed = 60  # degrees per second
+        self.sweep_width = 6
+        self.objects = GameObject.create_from_png(png)
 
+    def is_within_radar(self, pos):
+        """Check if a position is within the radar circle."""
+        return (pos[0] - self.center[0]) ** 2 + (pos[1] - self.center[1]) ** 2 <= self.radius**2
 
-def render(surface: pygame.Surface, dt: int):
-    global angle
-    global width, height
-    global clock
+    def is_in_sweep_sector(self, obj_pos):
+        """Check if an object is within the sweep sector."""
+        # Check distance
+        distance_to_obj_squared = (obj_pos[0] - self.center[0])**2 + (obj_pos[1] - self.center[1])**2
+        if distance_to_obj_squared > self.radius**2:
+            return False
+
+        # Check angle
+        obj_angle = math.degrees(math.atan2(obj_pos[1] - self.center[1], obj_pos[0] - self.center[0])) % 360
+        # Calculate distance to the object
+
+        # Adjust sweep angle to be within 0-360
+        sweep_start_angle = (self.angle - self.sweep_width // 2) % 360
+        sweep_end_angle = (self.angle + self.sweep_width // 2) % 360
+
+        # Check if object is within the sweep sector
+        if sweep_start_angle < sweep_end_angle:
+            return sweep_start_angle <= obj_angle <= sweep_end_angle
+        else:
+            return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
     
-    # colors
-    global black
-    global green
-    global red
-    
-    # radar settings
-    global center
-    global radius
-    global sweep_width
-    global angle_speed
-    
-    # Generate random objects
-    global num_objects
-    # objects = [GameObject.create(center, radius) for _ in range(num_objects)]
-    global objects
+    def render(self, surface: pygame.Surface, dt: int):
+        surface.fill(self.BLACK)
 
-    surface.fill(black)
+        # Draw radar circle
+        pygame.draw.circle(surface, self.GREEN, self.center, self.radius, 3)
 
-    # Draw radar circle
-    pygame.draw.circle(surface, green, center, radius, 3)
+        radius_qarter = self.radius/4
+        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 1 * radius_qarter, 1)
+        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 2 * radius_qarter, 1)
+        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 3 * radius_qarter, 1)
+        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 0.2 * radius_qarter, 1)
 
-    radius_qarter = radius/4
-    pygame.draw.circle(surface, green, center, radius - 1 * radius_qarter, 1)
-    pygame.draw.circle(surface, green, center, radius - 2 * radius_qarter, 1)
-    pygame.draw.circle(surface, green, center, radius - 3 * radius_qarter, 1)
-    pygame.draw.circle(surface, green, center, radius - 0.2 * radius_qarter, 1)
+        # cross
+        pygame.draw.line(surface, self.GREEN, (self.center[0]-self.radius, self.center[1]), (self.center[0]+self.radius, self.center[1]), 1)
+        pygame.draw.line(surface, self.GREEN, (self.center[0], self.center[1] + self.radius), (self.center[0], self.center[1] - self.radius), 1)
 
-    # cross
-    pygame.draw.line(surface, green, (center[0]-radius, center[1]), (center[0]+radius, center[1]), 1)
-    pygame.draw.line(surface, green, (center[0], center[1] + radius), (center[0], center[1] - radius), 1)
+        current_time = pygame.time.get_ticks()
 
-    # for scale in range(10):
-    #     pygame.draw.line(screen, red, center[0] - )
-    #     pass
+        # Draw and update objects
+        for obj in self.objects:
+            if self.is_in_sweep_sector(obj.pos):
+                obj.visible = True
+                obj.last_hit = current_time
+            if obj.visible and current_time - obj.last_hit <= 1000:
+                pygame.draw.circle(surface, self.RED, obj.pos, 5)
+            elif current_time - obj.last_hit > 1000:
+                obj.visible = False
 
-    current_time = pygame.time.get_ticks()
+        # Draw radar sweep (optional: visualize the sweep sector)
+        # for sweep_angle in range(angle - sweep_width // 2, angle + sweep_width // 2):
+        end_x_front = self.center[0] + math.cos(math.radians(self.angle - self.sweep_width/2)) * self.radius
+        end_y_front = self.center[1] + math.sin(math.radians(self.angle - self.sweep_width/2)) * self.radius
+        end_x_end   = self.center[0] + math.cos(math.radians(self.angle + self.sweep_width/2)) * self.radius
+        end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
+        pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 
-    # Draw and update objects
-    for obj in objects:
-        if is_in_sweep_sector(obj.pos, angle, center, radius, sweep_width):
-            obj.visible = True
-            obj.last_hit = current_time
-        if obj.visible and current_time - obj.last_hit <= 1000:
-            pygame.draw.circle(surface, red, obj.pos, 5)
-        elif current_time - obj.last_hit > 1000:
-            obj.visible = False
+        pygame.display.flip()
 
-    # Draw radar sweep (optional: visualize the sweep sector)
-    # for sweep_angle in range(angle - sweep_width // 2, angle + sweep_width // 2):
-    end_x_front = center[0] + math.cos(math.radians(angle - sweep_width/2)) * radius
-    end_y_front = center[1] + math.sin(math.radians(angle - sweep_width/2)) * radius
-    end_x_end   = center[0] + math.cos(math.radians(angle + sweep_width/2)) * radius
-    end_y_end   = center[1] + math.sin(math.radians(angle + sweep_width/2)) * radius
-    pygame.draw.polygon(surface, green, (center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
-
-    screen_array = pygame.surfarray.array3d(surface)
-    # screen_array = gaussian_filter(screen_array + (prev_array * 0.98) / 2, sigma=3).astype(int)
-    
-    pygame.surfarray.array_to_surface(surface, screen_array)
-
-    prev_array = screen_array
-    pygame.display.flip()
-
-    # Increment angle for sweep movement
-    angle += dt*angle_speed/1000
-    if angle >= 360:
-        angle = angle % 360
+        # Increment angle for sweep movement
+        self.angle += dt*self.angle_speed/1000
+        if self.angle >= 360:
+            self.angle = self.angle % 360
 
 
 if __name__ == '__main__':
+    from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT
     pygame.init()
-    screen = pygame.display.set_mode((width, height))
+    clock = pygame.time.Clock()
+    width, height = RENDER_WIDTH, RENDER_HEIGHT
+
+    screen = pygame.display.set_mode((RENDER_WIDTH, RENDER_HEIGHT))
+    
+    radar = Radar(RENDER_WIDTH, RENDER_HEIGHT, png='media/red_dot_image.png')
 
     running = True
     dt = 0
@@ -139,7 +104,7 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        render(screen, dt)
+        radar.render(screen, dt)
 
         # Cap the frame rate
         dt = clock.tick(30)

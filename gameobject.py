@@ -1,6 +1,6 @@
 import random
 import math
-from PIL import Image
+import pygame
 
 class GameObject:
     def __init__(self, pos, last_hit=0, visible=False):
@@ -19,18 +19,16 @@ class GameObject:
 
     @classmethod
     def create_from_png(cls, image_path):
+        img = pygame.image.load(image_path)
+        img_size = img.get_size()
+        
+        if img_size != (800, 600):
+            print("Warning: Image is not 800x600!")
+        
         objects = []
-        with Image.open(image_path) as img:
-            if img.size != (800, 600):
-                print("Warning: Image is not 800x600!")
-            for x in range(img.width):
-                for y in range(img.height):
-                    r, g, b, _ = img.getpixel((x, y))
-                    if (r, g, b) == (255, 0, 0):
-                        objects.append(cls((x, y)))
+        for x in range(img_size[0]):
+            for y in range(img_size[1]):
+                r, g, b, _ = img.get_at((x, y))
+                if (r, g, b) == (255, 0, 0):
+                    objects.append(cls((x, y)))
         return objects
-
-# image_path = 'red_dot_image.png'
-# objects = GameObject.create_from_png(image_path)
-# for obj in objects:
-#     print(f'Pos: {obj.pos}')

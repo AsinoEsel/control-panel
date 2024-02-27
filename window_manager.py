@@ -21,7 +21,7 @@ class WindowManager:
             flags |= pg.OPENGL | pg.DOUBLEBUF
         self.screen = pg.display.set_mode(OUTPUT_SIZE if fullscreen else RENDER_SIZE, flags=flags)
         self.desktops = [Desktop(control_panel), Desktop(control_panel)]
-        self.desktop = self.desktops[0]
+        self.desktop = self.desktops[1]
         self.set_up_desktops(self.desktops)
         self.run(fullscreen=fullscreen, use_shaders=use_shaders)
         
@@ -704,10 +704,10 @@ class Terminal(Widget):
 
 
 class Radar(Widget):
-    def __init__(self, parent: 'Desktop', png):
-        super().__init__(parent, x = 0, y = 0, w = RENDER_WIDTH, h = RENDER_HEIGHT)
+    def __init__(self, parent: 'Desktop', png: str, x=0, y=0, w=RENDER_WIDTH, h=RENDER_HEIGHT):
+        super().__init__(parent, x, y, w, h)
+        self.radar = radar.Radar(w, h, png)
         self.png = png
-        self.flag_as_needing_rerender()
         self.dt = 0
 
     # def handle_event(self, event: Event):
@@ -718,7 +718,7 @@ class Radar(Widget):
         self.flag_as_needing_rerender()
 
     def render(self):
-        radar.render(self.surface, self.dt)
+        self.radar.render(self.surface, self.dt)
 
         
 if __name__ == "__main__":
