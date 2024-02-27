@@ -1,12 +1,13 @@
 import pygame as pg
 import os
 pg.font.init()
+pg.display.init()
 
 RUNNING_ON_LINUX = (os.name == 'posix')
 
-SCREEN_SIZE = (960, 540)
-SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN_SIZE
-OUTPUT_SIZE = (2560, 1440)
+RENDER_SIZE = (960, 540)
+RENDER_WIDTH, RENDER_HEIGHT = RENDER_SIZE
+OUTPUT_SIZE = (pg.display.Info().current_w, pg.display.Info().current_h)
 OUTPUT_WIDTH, OUTPUT_HEIGHT = OUTPUT_SIZE
 TARGET_FRAME_RATE = 120
 

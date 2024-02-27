@@ -161,14 +161,14 @@ def find_mins_maxs(obj):
 
 if __name__ == "__main__":
     import pygame as pg
-    from window_manager_setup import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SIZE
+    from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, RENDER_SIZE
     
     file_path = 'media/fox_centered.stl'
     
-    camera = Camera(zoom=4, shift=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+    camera = Camera(zoom=4, shift=(RENDER_WIDTH//2, RENDER_HEIGHT//2))
         
     pg.init()
-    screen = pg.display.set_mode(SCREEN_SIZE)
+    screen = pg.display.set_mode(RENDER_SIZE)
     
     running = True
     clock = pg.time.Clock()

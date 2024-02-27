@@ -1,7 +1,7 @@
 import pygame as pg
 from array import array
 import moderngl
-from window_manager_setup import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SIZE
+from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, RENDER_SIZE
 from shaders_setup import shader_params
 from debug_util import display_surface
 import time
@@ -29,10 +29,10 @@ class Shaders:
         self.vaos: list[moderngl.VertexArray] = [get_vertex_array(self.ctx, quad_buffer, program) for program in self.programs.values()]
         self.final_vao = get_vertex_array(self.ctx, quad_buffer_invert, get_shader_program(self.ctx, *shader_params["To_BGRA"]))
         
-        self.texture_full = self.ctx.texture(SCREEN_SIZE, 4)
+        self.texture_full = self.ctx.texture(RENDER_SIZE, 4)
         self.texture_full.filter = (texture_filter, texture_filter)
         self.texture_full.use(location=0)
-        self.texture_quarter = self.ctx.texture((SCREEN_WIDTH//2, SCREEN_HEIGHT//2), 4)
+        self.texture_quarter = self.ctx.texture((RENDER_WIDTH//2, RENDER_HEIGHT//2), 4)
         self.texture_quarter.filter = (texture_filter, texture_filter)
         self.texture_quarter.use(location=1)
         
@@ -72,9 +72,9 @@ def main(fullscreen: bool = False):
     flags = pg.OPENGL | pg.DOUBLEBUF
     if fullscreen:
         flags |= pg.FULLSCREEN
-    pg.display.set_mode(SCREEN_SIZE, flags=flags)
+    pg.display.set_mode(RENDER_SIZE, flags=flags)
     
-    display = pg.Surface(SCREEN_SIZE)
+    display = pg.Surface(RENDER_SIZE)
     shaders = Shaders(SHADER_LIST)
 
     clock = pg.time.Clock()
@@ -89,7 +89,7 @@ def main(fullscreen: bool = False):
         # pygame rendering
         display.fill((0,0,0))
         img = pg.image.load("media/screenshot_downscaled.png")
-        display.blit(pg.transform.scale(img, SCREEN_SIZE), (0,0))
+        display.blit(pg.transform.scale(img, RENDER_SIZE), (0,0))
         
         # modernGL
         shaders.apply(display, current_time=current_time)
@@ -99,4 +99,4 @@ def main(fullscreen: bool = False):
 
 
 if __name__ == '__main__':
-    main(fullscreen=True)
+    main(fullscreen=False)

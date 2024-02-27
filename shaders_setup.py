@@ -1,11 +1,11 @@
-from window_manager_setup import SCREEN_SIZE, SCREEN_HEIGHT
+from window_manager_setup import RENDER_SIZE, RENDER_HEIGHT
 
 crt_shader_uniforms = {
     '_MainTex': 0,
     '_Curvature': 8.0,
     '_VignetteWidth': 40.0,
-    '_ScreenParams': SCREEN_SIZE,
-    '_ScanlineHeight': 2.0 / SCREEN_HEIGHT,
+    '_ScreenParams': RENDER_SIZE,
+    '_ScanlineHeight': 2.0 / RENDER_HEIGHT,
 }
 
 threshold_shader_uniforms = {
@@ -16,7 +16,7 @@ threshold_shader_uniforms = {
 blur_shader_uniforms = {
     '_MainTex': 1,
     '_Sigma': (sigma:=10),
-    'u_resolution': SCREEN_SIZE,
+    'u_resolution': RENDER_SIZE,
     '_KernelSize': 4*sigma+1,
 }
 

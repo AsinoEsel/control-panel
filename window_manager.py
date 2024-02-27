@@ -16,32 +16,31 @@ import radar
 class WindowManager:
     def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True):
         self.control_panel: ControlPanel = control_panel
-        flags = 0
+        self.fullscreen = fullscreen
+        flags = pg.FULLSCREEN if fullscreen else 0
         if use_shaders:
             flags |= pg.OPENGL | pg.DOUBLEBUF
-        if fullscreen:
-            flags |= pg.FULLSCREEN
-        self.screen = pg.display.set_mode(SCREEN_SIZE, flags=flags)
+        self.screen = pg.display.set_mode(OUTPUT_SIZE if fullscreen else RENDER_SIZE, flags=flags)
         self.desktops = [Desktop(control_panel), Desktop(control_panel)]
         self.desktop = self.desktops[0]
         self.set_up_desktops(self.desktops)
         
     def set_up_desktops(self, desktops: list['Desktop']):
         desktop = desktops[0]
-        desktop.add_element(terminal := Terminal(desktop, x=DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT-2*DEFAULT_GAP))
-        desktop.add_element(log := Log(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP))
-        empty_widget = Widget(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
-        image = Image(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+        desktop.add_element(terminal := Terminal(desktop, x=DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT-2*DEFAULT_GAP))
+        desktop.add_element(log := Log(desktop, x=RENDER_WIDTH//2+DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP))
+        empty_widget = Widget(desktop, x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP)
+        image = Image(desktop, x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP,
                       image_path=os.path.join('media', 'robot36.png'))
-        text_field = TextField(desktop, x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP,
+        text_field = TextField(desktop, x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP,
                                text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
-        desktop.add_element(STLRenderer(desktop, "media/fox_centered.stl", x=SCREEN_WIDTH//2+DEFAULT_GAP, y=SCREEN_HEIGHT//2+DEFAULT_GAP,
-                                   w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP))
+        desktop.add_element(STLRenderer(desktop, "media/fox_centered.stl", x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP,
+                                   w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP))
         desktop.add_element(LoginWindow(desktop))
         desktop.terminal = terminal
         log.print_to_log("ROTER TEXT", (255,0,0))
         
-        desktop2 = desktops[0]
+        desktop2 = desktops[1]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
     
     def run(self, use_shaders: bool):
@@ -60,8 +59,10 @@ class WindowManager:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
-                if RUNNING_ON_LINUX and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
-                    event.pos = (event.pos[0] * OUTPUT_WIDTH/SCREEN_WIDTH, event.pos[1]*OUTPUT_HEIGHT/SCREEN_HEIGHT)
+                if self.fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
+                    event.pos = (event.pos[0] * RENDER_WIDTH/OUTPUT_WIDTH, event.pos[1]*RENDER_HEIGHT/OUTPUT_HEIGHT)
+                    if event.type == pg.MOUSEMOTION:
+                        event.rel = (event.rel[0] * RENDER_WIDTH/OUTPUT_WIDTH, event.rel[1]*RENDER_HEIGHT/OUTPUT_HEIGHT)
                 self.desktop.handle_event(event)
             
             for future in self.control_panel.futures:
@@ -82,8 +83,11 @@ class WindowManager:
             if use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
             else:
-                self.screen.blit(self.desktop.surface, (0,0))
-                        
+                if self.fullscreen:
+                    pg.transform.scale(self.desktop.surface, OUTPUT_SIZE, self.screen)
+                else:
+                    self.screen.blit(self.desktop.surface, (0,0))
+            
             pg.event.pump()
             pg.display.flip()
             dt = clock.tick(TARGET_FRAME_RATE)
@@ -222,7 +226,7 @@ class Widget:
 class Desktop(Widget):
     def __init__(self, control_panel) -> None:
         self.control_panel: ControlPanel = control_panel
-        super().__init__(None, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+        super().__init__(None, 0, 0, RENDER_WIDTH, RENDER_HEIGHT)
         self.clipboard = ""
         
     def render(self):
@@ -233,7 +237,7 @@ class Desktop(Widget):
         pass
     
     def add_video_window(self, video_path: str, window_title: str = "Video"):
-        video_window = Window(self, window_title, w=SCREEN_WIDTH//2-2*DEFAULT_GAP, h=SCREEN_HEIGHT//2-2*DEFAULT_GAP)
+        video_window = Window(self, window_title, w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP)
         video = Video(video_window, x=video_window.inner_rect.left, y=video_window.inner_rect.top, w=video_window.inner_rect.w, h=video_window.inner_rect.h,
                       video_path=video_path)
         video_window.add_element(video)
@@ -298,7 +302,7 @@ class Window(Widget):
 
 class LoginWindow(Window):
     def __init__(self, parent) -> None:
-        super().__init__(parent, "Login", SCREEN_WIDTH//4, SCREEN_HEIGHT//4, "Please enter your login credentials.", SCREEN_WIDTH//2-SCREEN_WIDTH//8, SCREEN_HEIGHT//2-SCREEN_HEIGHT//8, DEFAULT_FONT)
+        super().__init__(parent, "Login", RENDER_WIDTH//4, RENDER_HEIGHT//4, "Please enter your login credentials.", RENDER_WIDTH//2-RENDER_WIDTH//8, RENDER_HEIGHT//2-RENDER_HEIGHT//8, DEFAULT_FONT)
         username_text = TextField(self, self.rect.w//8, self.rect.h//2, 3*self.rect.w//8, CHAR_HEIGHT[DEFAULT_FONT]*1.3, "Login:", True)
         password_text = TextField(self, 3*DEFAULT_GAP, 3*self.rect.h//4, 3*self.rect.w//8, CHAR_HEIGHT[DEFAULT_FONT]*1.3, "Password:", True)
         self.username_input = InputBox(self, 3*self.rect.w//8, self.rect.h//2, self.rect.w//2)
@@ -432,6 +436,7 @@ class Video(Widget):
             self.advance_video()
             self.current_frame = frame
 
+
 class STLRenderer(Widget):
     def __init__(self, parent, stl_path, x, y, w, h) -> None:
         super().__init__(parent, x, y, w, h)
@@ -480,6 +485,7 @@ class STLRenderer(Widget):
         self.surface.fill(BACKGROUND_COLOR)
         self.render_wireframe()
         self.render_border()
+
 
 class InputBox(Widget):
     def __init__(self, parent: 'Widget', x: int, y: int, w: int, h: int = None, font = DEFAULT_FONT) -> None:
@@ -692,9 +698,10 @@ class Terminal(Widget):
         self.render_border()
         self.blit_from_children()
 
+
 class Radar(Widget):
     def __init__(self, parent: 'Desktop', png):
-        super().__init__(parent, x = 0, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT)
+        super().__init__(parent, x = 0, y = 0, w = RENDER_WIDTH, h = RENDER_HEIGHT)
         self.png = png
         self.flag_as_needing_rerender()
         self.dt = 0
@@ -712,5 +719,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True)
     

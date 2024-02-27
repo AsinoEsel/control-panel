@@ -23,26 +23,6 @@ def break_up_string_into_lines(string: str, max_length: int) -> list[str]:
     lines.append(second_half)
     return lines
 
-def is_allowed_character(character):
-    if len(character) == 0:
-        return False
-    if character in ("ä", "ö", "ü", "ß", "Ä", "Ö", "Ü", "ẞ"):
-        return True
-    unicode_value = ord(character)
-    return 32 <= unicode_value < 128
-
-def apply_blur(surface, sigma=5):
-    # Convert the surface to a 3D numpy array (width x height x RGB).
-    arr = pg.surfarray.array3d(surface)
-    
-    # Apply Gaussian blur along each color channel.
-    blurred_arr = np.zeros_like(arr)
-    for i in range(3):  # Iterate over each of the R, G, B channels.
-        blurred_arr[..., i] = uniform_filter(arr[..., i], sigma)
-    
-    # Update the original surface with the blurred array.
-    pg.surfarray.blit_array(surface, blurred_arr)
-
 if __name__ == "__main__":
     print(break_up_string_into_lines(DEBUG_LONG_TEXT, 59))
     
