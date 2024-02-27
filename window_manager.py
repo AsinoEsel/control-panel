@@ -555,6 +555,8 @@ class InputBox(Widget):
                     self.erase_selection_range()
             elif event.key == pg.K_v and event.mod & pg.KMOD_CTRL:
                 if clipboard := self.get_root().clipboard:
+                    if self.selection_range:
+                        self.erase_selection_range()
                     self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
                     self.move_caret(len(clipboard))
             self.flag_as_needing_rerender()
