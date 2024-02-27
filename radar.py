@@ -2,7 +2,7 @@ import pygame
 import sys
 import math
 from gameobject import GameObject
-
+import pygame.gfxdraw
 
 class Radar:
     BLACK = (5, 10, 5)
@@ -48,13 +48,13 @@ class Radar:
         surface.fill(self.BLACK)
 
         # Draw radar circle
-        pygame.draw.circle(surface, self.GREEN, self.center, self.radius, 3)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], self.radius, self.GREEN)
 
         radius_qarter = self.radius/4
-        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 1 * radius_qarter, 1)
-        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 2 * radius_qarter, 1)
-        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 3 * radius_qarter, 1)
-        pygame.draw.circle(surface, self.GREEN, self.center, self.radius - 0.2 * radius_qarter, 1)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 1 * radius_qarter), self.GREEN)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 2 * radius_qarter), self.GREEN)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 3 * radius_qarter), self.GREEN)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 0.2 * radius_qarter), self.GREEN)
 
         # cross
         pygame.draw.line(surface, self.GREEN, (self.center[0]-self.radius, self.center[1]), (self.center[0]+self.radius, self.center[1]), 1)
