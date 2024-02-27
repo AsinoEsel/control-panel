@@ -14,16 +14,22 @@ import radar
 
 
 class WindowManager:
-    def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True):
+    def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True, maintain_aspect_ratio: bool = True):
         self.control_panel: ControlPanel = control_panel
         flags = pg.FULLSCREEN if fullscreen else 0
         if use_shaders:
             flags |= pg.OPENGL | pg.DOUBLEBUF
-        self.screen = pg.display.set_mode(OUTPUT_SIZE if fullscreen else RENDER_SIZE, flags=flags)
+        if not fullscreen:
+            output_size = RENDER_SIZE            
+        if fullscreen and maintain_aspect_ratio:
+            output_size = scale_resolution(RENDER_SIZE, (pg.display.Info().current_w, pg.display.Info().current_h))
+        elif fullscreen and not maintain_aspect_ratio:
+            output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
+        self.screen = pg.display.set_mode(output_size, flags=flags)
         self.desktops = [Desktop(control_panel), Desktop(control_panel)]
         self.desktop = self.desktops[1]
         self.set_up_desktops(self.desktops)
-        self.run(fullscreen=fullscreen, use_shaders=use_shaders)
+        self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
         
     def set_up_desktops(self, desktops: list['Desktop']):
         desktop = desktops[0]
@@ -43,7 +49,7 @@ class WindowManager:
         desktop2 = desktops[1]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
     
-    def run(self, fullscreen: bool, use_shaders: bool):
+    def run(self, output_size: tuple[int,int], fullscreen: bool, use_shaders: bool):
         pg.init()
         clock = pg.time.Clock()
         tick = 0
@@ -52,7 +58,7 @@ class WindowManager:
         if use_shaders:
             shaders = Shaders(shaders=SHADER_LIST)
         if fullscreen:
-            scaling_ratio = (RENDER_WIDTH/OUTPUT_WIDTH, RENDER_HEIGHT/OUTPUT_HEIGHT)
+            scaling_ratio = (RENDER_WIDTH/output_size[0], RENDER_HEIGHT/output_size[1])
         
         while True:
             tick += 1
@@ -86,7 +92,7 @@ class WindowManager:
                 shaders.apply(self.desktop.surface, current_time)
             else:
                 if fullscreen:
-                    pg.transform.scale(self.desktop.surface, OUTPUT_SIZE, self.screen)
+                    pg.transform.scale(self.desktop.surface, output_size, self.screen)
                 else:
                     self.screen.blit(self.desktop.surface, (0,0))
             
@@ -723,5 +729,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
     

@@ -7,7 +7,7 @@ import threading
 
 
 class ControlPanel:
-    def __init__(self, run_window_manager: bool = True, *, fullscreen: bool = False, use_shaders: bool = True) -> None:
+    def __init__(self, run_window_manager: bool = True, *, fullscreen: bool = False, use_shaders: bool = True, maintain_aspect_ratio: bool = True) -> None:
         self.button_is_pressed = False
         self.button_press_acknowledged = False
         
@@ -20,7 +20,7 @@ class ControlPanel:
         self.futures: list[asyncio.Future] = []
         
         if run_window_manager:        
-            self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders)
+            self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders, maintain_aspect_ratio=maintain_aspect_ratio)
     
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
