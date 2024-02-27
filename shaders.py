@@ -6,7 +6,7 @@ from shaders_setup import shader_params
 from debug_util import display_surface
 import time
 
-SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Add", "CRT"]
+SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Ghost", "Add", "CRT"]
 
 class Shaders:
     def __init__(self, shaders: list[str], *, texture_filter: int = moderngl.LINEAR):
@@ -35,21 +35,32 @@ class Shaders:
         self.texture_quarter = self.ctx.texture((RENDER_WIDTH//2, RENDER_HEIGHT//2), 4)
         self.texture_quarter.filter = (texture_filter, texture_filter)
         self.texture_quarter.use(location=1)
+        self.texture_ghost = self.ctx.texture((RENDER_WIDTH//2, RENDER_HEIGHT//2), 4)
+        self.texture_ghost.filter = (texture_filter, texture_filter)
+        self.texture_ghost.use(location=2)
         
-        self.fbo_quarter = self.ctx.framebuffer(color_attachments=[self.texture_quarter])
         self.fbo_full = self.ctx.framebuffer(color_attachments=[self.texture_full])
+        self.fbo_quarter = self.ctx.framebuffer(color_attachments=[self.texture_quarter])
+        self.fbo_ghost = self.ctx.framebuffer(color_attachments=[self.texture_ghost])
+        
     
     def apply(self, surface: pg.Surface, current_time: int):
         self.texture_full.write(surface.get_view('1'))
         
+        if crt_program := self.programs.get('CRT'):
+            crt_program['_ScanlineY'] = current_time / 5 - int(current_time / 5)
+        
         self.fbo_quarter.use()
         for vao in self.vaos[0:4]:
             vao.render(mode=moderngl.TRIANGLE_STRIP)
+            
+        self.fbo_ghost.use()
+        self.vaos[4].render(mode=moderngl.TRIANGLE_STRIP)
+        
         self.fbo_full.use()
-        for vao in self.vaos[4:]:
+        for vao in self.vaos[5:7]:
             vao.render(mode=moderngl.TRIANGLE_STRIP)
-        if crt_program := self.programs.get('CRT'):
-            crt_program['_ScanlineY'] = current_time / 5 - int(current_time / 5)
+        
         self.ctx.screen.use()
         self.final_vao.render(mode=moderngl.TRIANGLE_STRIP)
         
