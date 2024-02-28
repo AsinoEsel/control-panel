@@ -5,7 +5,7 @@ precision mediump float;
 // Texture samplers for the two input textures
 uniform sampler2D _MainTex;
 uniform sampler2D _SecondaryTex;
-uniform float _FadeIntensity;
+uniform float _NewIntensity;
 uniform float _GhostInfluence;
 
 // The texture coordinate for this fragment, interpolated from the vertices
@@ -20,12 +20,9 @@ void main()
     vec4 newColor = texture(_MainTex, uvs);
     vec4 ghostColor = texture(_SecondaryTex, uvs);
 
-    //Fade
-    ghostColor *= _GhostInfluence;
-
     // Add the colors together
-    newColor = _FadeIntensity * newColor + ghostColor;
+    vec4 resultColor = _NewIntensity * newColor + _GhostInfluence * ghostColor;
 
     // Clamp and output
-    color = clamp(newColor, 0.0, 1.0);
+    color = clamp(resultColor, 0.0, 1.0);
 }
