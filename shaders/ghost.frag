@@ -17,15 +17,15 @@ out vec4 color;
 void main()
 {
     // Sample the pixel color from each texture
-    vec4 color1 = texture(_MainTex, uvs);
-    vec4 color2 = texture(_SecondaryTex, uvs);
+    vec4 newColor = texture(_MainTex, uvs);
+    vec4 ghostColor = texture(_SecondaryTex, uvs);
 
     //Fade
-    color2 *= _FadeIntensity;
+    ghostColor *= _GhostInfluence;
 
     // Add the colors together
-    color1 += _GhostInfluence * color2;
+    newColor = _FadeIntensity * newColor + ghostColor;
 
     // Clamp and output
-    color = clamp(color1, 0.0, 1.0);
+    color = clamp(newColor, 0.0, 1.0);
 }

@@ -11,6 +11,7 @@ import time
 from shaders import Shaders, SHADER_LIST
 from requests.exceptions import ConnectTimeout
 import radar
+from cursor import cursor_surface
 
 
 class WindowManager:
@@ -96,6 +97,11 @@ class WindowManager:
                     self.control_panel.futures.remove(future)
             
             self.desktop.propagate_update(tick, dt=dt)
+            
+            mouse_pos = pg.mouse.get_pos()
+            if fullscreen:
+                mouse_pos = (mouse_pos[0] * scaling_ratio[0], mouse_pos[1] * scaling_ratio[1])
+            self.desktop.surface.blit(cursor_surface, mouse_pos)
             
             if use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
