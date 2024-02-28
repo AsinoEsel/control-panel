@@ -3,7 +3,7 @@ import sys
 import math
 import pygame.gfxdraw
 
-class GameObject:
+class Dot:
     def __init__(self, pos, last_hit=0, visible=False):
         self.pos = pos
         self.last_hit = last_hit
@@ -51,9 +51,9 @@ class Radar:
         self.angle = 0
         self.angle_speed = 60  # degrees per second
         self.sweep_width = 1
-        self.objects = GameObject.create_from_png(png)
+        self.objects = Dot.create_from_png(png)
         self.angular_cross_sections = 12
-        self.radial_cross_sections = 4
+        self.radial_cross_sections = 8
 
     def is_within_radar(self, pos):
         """Check if a position is within the radar circle."""
@@ -70,8 +70,8 @@ class Radar:
         obj_angle = math.degrees(math.atan2(obj_pos[1] - self.center[1], obj_pos[0] - self.center[0])) % 360
 
         # Adjust sweep angle to be within 0-360
-        sweep_start_angle = (self.angle - self.sweep_width // 2) % 360
-        sweep_end_angle = (self.angle + self.sweep_width // 2) % 360
+        sweep_start_angle = (self.angle - self.sweep_width / 2) % 360 # TODO independent of sweep width 
+        sweep_end_angle = (self.angle + self.sweep_width / 2) % 360
 
         # Check if object is within the sweep sector
         if sweep_start_angle < sweep_end_angle:
@@ -108,16 +108,16 @@ class Radar:
                 obj.visible = True
                 obj.last_hit = current_time
             if obj.visible and current_time - obj.last_hit <= 1000:
-                pygame.draw.circle(surface, self.RED, obj.pos, 5)
-            elif current_time - obj.last_hit > 1000:
+                pygame.draw.circle(surface, self.RED, obj.pos, 5) # TODO add tickrate * 5
+            else:
                 obj.visible = False
 
         end_x_front = self.center[0] + math.cos(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_y_front = self.center[1] + math.sin(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_x_end   = self.center[0] + math.cos(math.radians(self.angle + self.sweep_width/2)) * self.radius
         end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
-        end_x = int(self.center[0] + math.cos(math.radians(self.angle)) * self.radius)
-        end_y = int(self.center[1] + math.sin(math.radians(self.angle)) * self.radius)
+        # end_x = int(self.center[0] + math.cos(math.radians(self.angle)) * self.radius)
+        # end_y = int(self.center[1] + math.sin(math.radians(self.angle)) * self.radius)
         
         pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 

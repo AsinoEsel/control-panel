@@ -752,10 +752,10 @@ class Radar(Widget):
 
     def render(self):
         self.radar.render_cross_section(self.surface)
+        self.surface.blit(self.sweep_surface, (0, 0))
         self.sweep_surface.fill((0,0,0,0))
         self.radar.render_sweep(self.sweep_surface, self.dt)
 
-        self.surface.blit(self.sweep_surface, (0, 0))
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
