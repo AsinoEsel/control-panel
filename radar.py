@@ -51,7 +51,7 @@ class Radar:
         self.angle = 0
         self.angle_speed = 60  # degrees per second
         self.sweep_width = 1
-        self.objects = Dot.create_from_png(png)
+        self.dots = Dot.create_from_png(png)
         self.angular_cross_sections = 12
         self.radial_cross_sections = 8
 
@@ -59,15 +59,15 @@ class Radar:
         """Check if a position is within the radar circle."""
         return (pos[0] - self.center[0]) ** 2 + (pos[1] - self.center[1]) ** 2 <= self.radius**2
 
-    def is_in_sweep_sector(self, obj_pos):
+    def is_in_sweep_sector(self, dot_pos):
         """Check if an object is within the sweep sector."""
         # Check distance
-        distance_to_obj_squared = (obj_pos[0] - self.center[0])**2 + (obj_pos[1] - self.center[1])**2
-        if distance_to_obj_squared > self.radius**2:
+        distance_to_dot_squared = (dot_pos[0] - self.center[0])**2 + (dot_pos[1] - self.center[1])**2
+        if distance_to_dot_squared > self.radius**2:
             return False
 
         # Check angle
-        obj_angle = math.degrees(math.atan2(obj_pos[1] - self.center[1], obj_pos[0] - self.center[0])) % 360
+        dot_angle = math.degrees(math.atan2(dot_pos[1] - self.center[1], dot_pos[0] - self.center[0])) % 360
 
         # Adjust sweep angle to be within 0-360
         sweep_start_angle = (self.angle - self.sweep_width / 2) % 360 # TODO independent of sweep width 
@@ -75,9 +75,9 @@ class Radar:
 
         # Check if object is within the sweep sector
         if sweep_start_angle < sweep_end_angle:
-            return sweep_start_angle <= obj_angle <= sweep_end_angle
+            return sweep_start_angle <= dot_angle <= sweep_end_angle
         else:
-            return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
+            return dot_angle >= sweep_start_angle or dot_angle <= sweep_end_angle
         
     def render_cross_section(self, surface: pygame.Surface):
         surface.fill(self.BLACK)
@@ -87,9 +87,9 @@ class Radar:
             pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * i), self.DARK_GREEN)
         pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * 0.98), self.DARK_GREEN)
 
-        angle_between_lines = 360 / self.angular_cross_sections * 2 # Calculate angle between cross_section lines
+        angle_between_lines = 360 / self.angular_cross_sections # Calculate angle between cross_section lines
     
-        for i in range(self.angular_cross_sections):
+        for i in range(self.angular_cross_sections// 2):
             angle = math.radians(angle_between_lines * i)
 
             start_x = self.center[0] + math.cos(angle) * self.radius
@@ -103,7 +103,7 @@ class Radar:
         current_time = pygame.time.get_ticks()
 
         # Draw and update objects
-        for obj in self.objects:
+        for obj in self.dots:
             if self.is_in_sweep_sector(obj.pos):
                 obj.visible = True
                 obj.last_hit = current_time
