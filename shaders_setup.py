@@ -19,7 +19,7 @@ blur_shader_uniforms = {
 ghost_shader_uniforms = {
     '_MainTex': 1,
     '_SecondaryTex': 2,
-    '_FadeIntensity': 0.6,
+    '_NewIntensity': 0.6,
     '_GhostInfluence': 0.9,
 }
 
