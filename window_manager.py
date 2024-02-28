@@ -741,6 +741,8 @@ class Radar(Widget):
         self.png = png
         self.dt = 0
 
+        self.sweep_surface = pg.Surface((RENDER_WIDTH, RENDER_HEIGHT), pg.SRCALPHA)
+
     # def handle_event(self, event: Event):
     #     return super().handle_event(event)
         
@@ -749,8 +751,11 @@ class Radar(Widget):
         self.flag_as_needing_rerender()
 
     def render(self):
-        self.radar.render(self.surface, self.dt)
+        self.radar.render_cross_section(self.surface)
+        self.sweep_surface.fill((0,0,0,0))
+        self.radar.render_sweep(self.sweep_surface, self.dt)
 
+        self.surface.blit(self.sweep_surface, (0, 0))
         
 if __name__ == "__main__":
     from control_panel import ControlPanel

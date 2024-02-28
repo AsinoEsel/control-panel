@@ -39,8 +39,8 @@ class GameObject:
 class Radar:
     BLACK = (5, 10, 5)
     GREEN = (50, 255, 25)
-
-    D_GREEN = (0, 100, 0)
+    DARK_GREEN = (0, 100, 0)
+    TRANSPARENT = (0, 0, 0, 0)
     RED = (255, 0, 0)
     
     def __init__(self, width: int, height: int, png: str) -> None:
@@ -52,6 +52,8 @@ class Radar:
         self.angle_speed = 60  # degrees per second
         self.sweep_width = 1
         self.objects = GameObject.create_from_png(png)
+        self.angular_cross_sections = 12
+        self.radial_cross_sections = 4
 
     def is_within_radar(self, pos):
         """Check if a position is within the radar circle."""
@@ -66,7 +68,6 @@ class Radar:
 
         # Check angle
         obj_angle = math.degrees(math.atan2(obj_pos[1] - self.center[1], obj_pos[0] - self.center[0])) % 360
-        # Calculate distance to the object
 
         # Adjust sweep angle to be within 0-360
         sweep_start_angle = (self.angle - self.sweep_width // 2) % 360
@@ -77,23 +78,28 @@ class Radar:
             return sweep_start_angle <= obj_angle <= sweep_end_angle
         else:
             return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
-    
-    def render(self, surface: pygame.Surface, dt: int):
+        
+    def render_cross_section(self, surface: pygame.Surface):
         surface.fill(self.BLACK)
 
-        # Draw radar circle
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], self.radius, self.D_GREEN)
+        for i in range(0, self.radial_cross_sections + 1):
+            i = i / (self.radial_cross_sections)
+            pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * i), self.DARK_GREEN)
+        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * 0.98), self.DARK_GREEN)
 
-        radius_qarter = self.radius/4
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 1 * radius_qarter), self.D_GREEN)
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 2 * radius_qarter), self.D_GREEN)
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 3 * radius_qarter), self.D_GREEN)
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius - 0.2 * radius_qarter), self.D_GREEN)
+        angle_between_lines = 360 / self.angular_cross_sections * 2 # Calculate angle between cross_section lines
+    
+        for i in range(self.angular_cross_sections):
+            angle = math.radians(angle_between_lines * i)
 
-        # cross
-        pygame.draw.line(surface, self.D_GREEN, (self.center[0]-self.radius, self.center[1]), (self.center[0]+self.radius, self.center[1]), 1)
-        pygame.draw.line(surface, self.D_GREEN, (self.center[0], self.center[1] + self.radius), (self.center[0], self.center[1] - self.radius), 1)
+            start_x = self.center[0] + math.cos(angle) * self.radius
+            start_y = self.center[1] + math.sin(angle) * self.radius
+            end_x =   self.center[0] - math.cos(angle) * self.radius
+            end_y =   self.center[1] - math.sin(angle) * self.radius
 
+            pygame.draw.line(surface, self.DARK_GREEN, (start_x, start_y), (end_x, end_y), 1)
+    
+    def render_sweep(self, surface: pygame.Surface, dt: int):
         current_time = pygame.time.get_ticks()
 
         # Draw and update objects
@@ -106,22 +112,15 @@ class Radar:
             elif current_time - obj.last_hit > 1000:
                 obj.visible = False
 
-        # Draw radar sweep (optional: visualize the sweep sector)
-        # for sweep_angle in range(angle - sweep_width // 2, angle + sweep_width // 2):
         end_x_front = self.center[0] + math.cos(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_y_front = self.center[1] + math.sin(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_x_end   = self.center[0] + math.cos(math.radians(self.angle + self.sweep_width/2)) * self.radius
         end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
         end_x = int(self.center[0] + math.cos(math.radians(self.angle)) * self.radius)
         end_y = int(self.center[1] + math.sin(math.radians(self.angle)) * self.radius)
-        #pygame.gfxdraw.line(surface, self.center[0], self.center[1], end_x, end_y, self.GREEN)
-        #pygame.draw.aaline(surface, self.GREEN, self.center, (end_x, end_y), 3)
-        #pygame.draw.polygon(surface, self.GREEN, self.center, (end_x, end_y), 4)
-        #pygame.draw.circle(surface, self.GREEN, self.center, 3)
         
         pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 
-        # Increment angle for sweep movement
         self.angle += dt*self.angle_speed/1000
         if self.angle >= 360:
             self.angle = self.angle % 360
@@ -134,7 +133,8 @@ if __name__ == '__main__':
     width, height = RENDER_WIDTH, RENDER_HEIGHT
 
     screen = pygame.display.set_mode((RENDER_WIDTH, RENDER_HEIGHT))
-    
+    sweep_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT), pygame.SRCALPHA)
+
     radar = Radar(RENDER_WIDTH, RENDER_HEIGHT, png='media/red_dot_image.png')
 
     running = True
@@ -143,7 +143,12 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        radar.render(screen, dt)
+        radar.render_cross_section(screen)
+
+        sweep_surface.fill(radar.TRANSPARENT)
+        radar.render_sweep(sweep_surface, dt)
+
+        screen.blit(sweep_surface, (0, 0))
 
         pygame.display.flip()
         dt = clock.tick(30)
