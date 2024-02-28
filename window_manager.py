@@ -64,15 +64,17 @@ class WindowManager:
         
         if use_shaders:
             shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
-                              shader_operations=[(1, "Downscale", {"_MainTex": 0}),
-                                                  (1, "Threshold", {"_MainTex": 1}),
-                                                  (1, "Blur_H", {"_MainTex": 1}),
-                                                  (1, "Blur_V", {"_MainTex": 1}),
-                                                  (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
-                                                  (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
-                                                  (0, "CRT", {"_MainTex": 0}),
-                                                  (-1, "To_BGRA", {"_MainTex": 0}),
-                                                  ])
+                              surfaces_ints=[(self.desktop.surface, 0)],
+                              shader_operations_todo=[(1, "Downscale", {"_MainTex": 0}),
+                                                      (1, "Threshold", {"_MainTex": 1}),
+                                                      (1, "Blur_H", {"_MainTex": 1}),
+                                                      (1, "Blur_V", {"_MainTex": 1}),
+                                                      (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
+                                                      (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
+                                                      (0, "CRT", {"_MainTex": 0}),
+                                                      (-1, "To_BGRA", {"_MainTex": 0}),
+                                                      ])
+            shaders.compile_shaders()
         
         if fullscreen:
             scaling_ratio = (RENDER_WIDTH/output_size[0], RENDER_HEIGHT/output_size[1])
@@ -114,7 +116,7 @@ class WindowManager:
             self.desktop.surface.blit(cursor_surface, mouse_pos)
             
             if use_shaders:
-                shaders.apply(self.desktop.surface, current_time)
+                shaders.apply(current_time)
             else:
                 if fullscreen:
                     pg.transform.scale(self.desktop.surface, output_size, self.screen)
@@ -759,5 +761,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True, maintain_aspect_ratio=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
     

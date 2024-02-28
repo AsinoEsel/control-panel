@@ -9,50 +9,59 @@ import time
 SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Ghost", "Add", "CRT"]
 
 class Shaders:
-    def __init__(self, texture_sizes: list[tuple[int,int]], shader_operations: list[tuple[int, str, dict]], *, texture_filter = moderngl.LINEAR):
-        self.ctx: moderngl.Context = get_context()
-        self.textures: list[moderngl.Texture] = [self.ctx.texture(texture_size, 4) for texture_size in texture_sizes]
-        self.framebuffers: list[moderngl.Framebuffer] = []
+    def __init__(self, texture_sizes: list[tuple[int,int]], surfaces_ints: list[tuple[pg.Surface, int]], shader_operations_todo: list[tuple[int, str, dict]], *, texture_filter = moderngl.LINEAR):
+        self.texture_sizes = texture_sizes
+        self.surfaces_ints = surfaces_ints
+        self.shader_operations_todo = shader_operations_todo
+        self.texture_filter = texture_filter
+        
+        self.textures: list[moderngl.Texture]
+        self.framebuffers: list[moderngl.Framebuffer]
+        self.shader_operations: list[tuple[int, moderngl.Program, dict]]
+        self.vaos: list[moderngl.VertexArray]
+    
+    def compile_shaders(self):
+        ctx: moderngl.Context = get_context()
+        self.textures = [ctx.texture(texture_size, 4) for texture_size in self.texture_sizes]
+        self.framebuffers = []
         for loc, texture in enumerate(self.textures):
-            texture.filter = (texture_filter, texture_filter)
+            texture.filter = (self.texture_filter, self.texture_filter)
             texture.use(loc)
-            self.framebuffers.append(self.ctx.framebuffer(color_attachments=[texture]))
-        self.framebuffers.append(self.ctx.screen)
+            self.framebuffers.append(ctx.framebuffer(color_attachments=[texture]))
+        self.surfaces = [(surface, self.textures[texture_target]) for surface, texture_target in self.surfaces_ints]
+        self.framebuffers.append(ctx.screen)
         programs: dict[str, moderngl.Program] = {}
-        self.shader_operations: list[tuple[int, moderngl.Program, dict]] = []
-        for target_buffer, shader_name, uniforms in shader_operations:
+        self.shader_operations = []
+        for target_buffer, shader_name, uniforms in self.shader_operations_todo:
             if shader_name not in programs:
-                program = get_shader_program(self.ctx, *shader_params[shader_name])
+                program = get_shader_program(ctx, *shader_params[shader_name])
                 programs[shader_name] = program
                 self.shader_operations.append((target_buffer, program, uniforms))
             else:
                 self.shader_operations.append((target_buffer, programs[shader_name], uniforms))
         
-        quad_buffer_normal = self.ctx.buffer(data=array('f', [
+        quad_buffer_normal = ctx.buffer(data=array('f', [
             -1.0, 1.0, 0.0, 1.0,   # topleft
             1.0, 1.0, 1.0, 1.0,    # topright
             -1.0, -1.0, 0.0, 0.0,  # botleft
             1.0, -1.0, 1.0, 0.0,   # botright
         ]))
         
-        quad_buffer_invert = self.ctx.buffer(data=array('f', [
+        quad_buffer_invert = ctx.buffer(data=array('f', [
             -1.0, 1.0, 0.0, 0.0,   # topleft
             1.0, 1.0, 1.0, 0.0,    # topright
             -1.0, -1.0, 0.0, 1.0,  # botleft
             1.0, -1.0, 1.0, 1.0,   # botright
         ]))
         
-        self.vaos: list[moderngl.VertexArray] = []
+        self.vaos = []
         for i, (_, program, _) in enumerate(self.shader_operations):
             quad_buffer = quad_buffer_invert if i == len(self.shader_operations) - 1 else quad_buffer_normal                
-            self.vaos.append(get_vertex_array(self.ctx, quad_buffer, program))
+            self.vaos.append(get_vertex_array(ctx, quad_buffer, program))
                 
-    def apply(self, surfaces: list[pg.Surface], current_time: int):
-        if not isinstance(surfaces, list):  # TODO: ugly
-            surfaces = (surfaces,)
-            
-        for i, surface in enumerate(surfaces):
-            self.textures[i].write(surface.get_view('1'))
+    def apply(self, current_time: int):
+        for surface, texture in self.surfaces:
+            texture.write(surface.get_view('1'))
         
         for i, (target_buffer, program, uniforms) in enumerate(self.shader_operations):
             for uniform, value in uniforms.items():
@@ -85,15 +94,18 @@ def main(fullscreen: bool = False):
     display = pg.Surface(RENDER_SIZE)
     
     shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
-                         shader_operations=[(1, "Downscale", {"_MainTex": 0}),
-                                             (1, "Threshold", {"_MainTex": 1}),
-                                             (1, "Blur_H", {"_MainTex": 1}),
-                                             (1, "Blur_V", {"_MainTex": 1}),
-                                             (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
-                                             (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
-                                             (0, "CRT", {"_MainTex": 0}),
-                                             (-1, "To_BGRA", {"_MainTex": 0}),
-                                             ])
+                      surfaces_ints=[(display, 0)],
+                      shader_operations_todo=[(1, "Downscale", {"_MainTex": 0}),
+                                              (1, "Threshold", {"_MainTex": 1}),
+                                              (1, "Blur_H", {"_MainTex": 1}),
+                                              (1, "Blur_V", {"_MainTex": 1}),
+                                              (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
+                                              (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
+                                              (0, "CRT", {"_MainTex": 0}),
+                                              (-1, "To_BGRA", {"_MainTex": 0}),
+                                              ])
+    
+    shaders.compile_shaders()
 
     clock = pg.time.Clock()
 
@@ -110,7 +122,7 @@ def main(fullscreen: bool = False):
         display.blit(pg.transform.scale(img, RENDER_SIZE), (0,0))
         
         # modernGL
-        shaders.apply(display, current_time=current_time)
+        shaders.apply(current_time=current_time)
         
         pg.display.flip()        
         clock.tick(60)
