@@ -8,7 +8,7 @@ import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
 import time
-from shaders import Shaders, SHADER_LIST
+from shaders import Shaders
 from requests.exceptions import ConnectTimeout
 import radar
 from cursor import cursor_surface
@@ -63,7 +63,17 @@ class WindowManager:
         dt = 0
         
         if use_shaders:
-            shaders = Shaders(shaders=SHADER_LIST)
+            shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
+                              shader_operations=[(1, "Downscale", {"_MainTex": 0}),
+                                                  (1, "Threshold", {"_MainTex": 1}),
+                                                  (1, "Blur_H", {"_MainTex": 1}),
+                                                  (1, "Blur_V", {"_MainTex": 1}),
+                                                  (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
+                                                  (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
+                                                  (0, "CRT", {"_MainTex": 0}),
+                                                  (-1, "To_BGRA", {"_MainTex": 0}),
+                                                  ])
+        
         if fullscreen:
             scaling_ratio = (RENDER_WIDTH/output_size[0], RENDER_HEIGHT/output_size[1])
         
@@ -744,5 +754,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True, maintain_aspect_ratio=True)
     

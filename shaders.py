@@ -1,7 +1,7 @@
 import pygame as pg
 from array import array
 import moderngl
-from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, RENDER_SIZE
+from window_manager_setup import RENDER_SIZE, QUARTER_RENDER_SIZE
 from shaders_setup import shader_params
 from debug_util import display_surface
 import time
@@ -9,8 +9,31 @@ import time
 SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Ghost", "Add", "CRT"]
 
 class Shaders:
-    def __init__(self, shaders: list[str], *, texture_filter: int = moderngl.LINEAR):
-        self.ctx = get_context()
+    def __init__(self, texture_sizes: list[tuple[int,int]], shader_operations: list[tuple[int, str, dict]], *, texture_filter = moderngl.LINEAR):
+        self.ctx: moderngl.Context = get_context()
+        self.textures: list[moderngl.Texture] = [self.ctx.texture(texture_size, 4) for texture_size in texture_sizes]
+        self.framebuffers: list[moderngl.Framebuffer] = []
+        for loc, texture in enumerate(self.textures):
+            texture.filter = (texture_filter, texture_filter)
+            texture.use(loc)
+            self.framebuffers.append(self.ctx.framebuffer(color_attachments=[texture]))
+        self.framebuffers.append(self.ctx.screen)
+        programs: dict[str, moderngl.Program] = {}
+        self.shader_operations: list[tuple[int, moderngl.Program, dict]] = []
+        for target_buffer, shader_name, uniforms in shader_operations:
+            if shader_name not in programs:
+                program = get_shader_program(self.ctx, *shader_params[shader_name])
+                programs[shader_name] = program
+                self.shader_operations.append((target_buffer, program, uniforms))
+            else:
+                self.shader_operations.append((target_buffer, programs[shader_name], uniforms))
+        
+        quad_buffer_normal = self.ctx.buffer(data=array('f', [
+            -1.0, 1.0, 0.0, 1.0,   # topleft
+            1.0, 1.0, 1.0, 1.0,    # topright
+            -1.0, -1.0, 0.0, 0.0,  # botleft
+            1.0, -1.0, 1.0, 0.0,   # botright
+        ]))
         
         quad_buffer_invert = self.ctx.buffer(data=array('f', [
             -1.0, 1.0, 0.0, 0.0,   # topleft
@@ -18,52 +41,26 @@ class Shaders:
             -1.0, -1.0, 0.0, 1.0,  # botleft
             1.0, -1.0, 1.0, 1.0,   # botright
         ]))
-        quad_buffer = self.ctx.buffer(data=array('f', [
-            -1.0, 1.0, 0.0, 1.0,   # topleft
-            1.0, 1.0, 1.0, 1.0,    # topright
-            -1.0, -1.0, 0.0, 0.0,  # botleft
-            1.0, -1.0, 1.0, 0.0,   # botright
-        ]))
         
-        self.programs: dict[str:moderngl.Program] = {shader: get_shader_program(self.ctx, *shader_params[shader]) for shader in shaders}
-        self.vaos: list[moderngl.VertexArray] = [get_vertex_array(self.ctx, quad_buffer, program) for program in self.programs.values()]
-        self.final_vao = get_vertex_array(self.ctx, quad_buffer_invert, get_shader_program(self.ctx, *shader_params["To_BGRA"]))
-        
-        self.texture_full = self.ctx.texture(RENDER_SIZE, 4)
-        self.texture_full.filter = (texture_filter, texture_filter)
-        self.texture_full.use(location=0)
-        self.texture_quarter = self.ctx.texture((RENDER_WIDTH//2, RENDER_HEIGHT//2), 4)
-        self.texture_quarter.filter = (texture_filter, texture_filter)
-        self.texture_quarter.use(location=1)
-        self.texture_ghost = self.ctx.texture((RENDER_WIDTH//2, RENDER_HEIGHT//2), 4)
-        self.texture_ghost.filter = (texture_filter, texture_filter)
-        self.texture_ghost.use(location=2)
-        
-        self.fbo_full = self.ctx.framebuffer(color_attachments=[self.texture_full])
-        self.fbo_quarter = self.ctx.framebuffer(color_attachments=[self.texture_quarter])
-        self.fbo_ghost = self.ctx.framebuffer(color_attachments=[self.texture_ghost])
-        
-    
-    def apply(self, surface: pg.Surface, current_time: int):
-        self.texture_full.write(surface.get_view('1'))
-        
-        if crt_program := self.programs.get('CRT'):
-            crt_program['_ScanlineY'] = current_time / 5 - int(current_time / 5)
-        
-        self.fbo_quarter.use()
-        for vao in self.vaos[0:4]:
-            vao.render(mode=moderngl.TRIANGLE_STRIP)
+        self.vaos: list[moderngl.VertexArray] = []
+        for i, (_, program, _) in enumerate(self.shader_operations):
+            quad_buffer = quad_buffer_invert if i == len(self.shader_operations) - 1 else quad_buffer_normal                
+            self.vaos.append(get_vertex_array(self.ctx, quad_buffer, program))
+                
+    def apply(self, surfaces: list[pg.Surface], current_time: int):
+        if not isinstance(surfaces, list):  # TODO: ugly
+            surfaces = (surfaces,)
             
-        self.fbo_ghost.use()
-        self.vaos[4].render(mode=moderngl.TRIANGLE_STRIP)
+        for i, surface in enumerate(surfaces):
+            self.textures[i].write(surface.get_view('1'))
         
-        self.fbo_full.use()
-        for vao in self.vaos[5:7]:
-            vao.render(mode=moderngl.TRIANGLE_STRIP)
-        
-        self.ctx.screen.use()
-        self.final_vao.render(mode=moderngl.TRIANGLE_STRIP)
-        
+        for i, (target_buffer, program, uniforms) in enumerate(self.shader_operations):
+            for uniform, value in uniforms.items():
+                program[uniform] = value
+            self.framebuffers[target_buffer].use()
+            self.vaos[i].render(mode=moderngl.TRIANGLE_STRIP)
+                
+                
 def get_context() -> moderngl.Context:
     return moderngl.create_context(require=300)
 
@@ -86,7 +83,17 @@ def main(fullscreen: bool = False):
     pg.display.set_mode(RENDER_SIZE, flags=flags)
     
     display = pg.Surface(RENDER_SIZE)
-    shaders = Shaders(SHADER_LIST)
+    
+    shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
+                         shader_operations=[(1, "Downscale", {"_MainTex": 0}),
+                                             (1, "Threshold", {"_MainTex": 1}),
+                                             (1, "Blur_H", {"_MainTex": 1}),
+                                             (1, "Blur_V", {"_MainTex": 1}),
+                                             (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
+                                             (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
+                                             (0, "CRT", {"_MainTex": 0}),
+                                             (-1, "To_BGRA", {"_MainTex": 0}),
+                                             ])
 
     clock = pg.time.Clock()
 
