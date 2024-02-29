@@ -3,6 +3,9 @@ import sys
 import math
 import pygame.gfxdraw
 
+pygame.mixer.init()
+sound = pygame.mixer.Sound("media/ping.wav")
+
 class Dot:
     def __init__(self, pos, last_hit=0, visible=False):
         self.pos = pos
@@ -49,18 +52,18 @@ class Radar:
         self.center = (width // 2, height // 2)
         self.radius = int(height/2 * 0.9)
         self.angle = 0
-        self.angle_speed = 60  # degrees per second
+        self.angle_speed = 100
         self.sweep_width = 1
         self.dots = Dot.create_from_png(png)
         self.angular_cross_sections = 12
         self.radial_cross_sections = 8
 
+        self._tmp_angle = 0
+
     def is_within_radar(self, pos):
-        """Check if a position is within the radar circle."""
         return (pos[0] - self.center[0]) ** 2 + (pos[1] - self.center[1]) ** 2 <= self.radius**2
 
-    def is_in_sweep_sector(self, dot_pos):
-        """Check if an object is within the sweep sector."""
+    def is_in_sweep_sector(self, dot_pos, dt):
         # Check distance
         distance_to_dot_squared = (dot_pos[0] - self.center[0])**2 + (dot_pos[1] - self.center[1])**2
         if distance_to_dot_squared > self.radius**2:
@@ -70,8 +73,17 @@ class Radar:
         dot_angle = math.degrees(math.atan2(dot_pos[1] - self.center[1], dot_pos[0] - self.center[0])) % 360
 
         # Adjust sweep angle to be within 0-360
-        sweep_start_angle = (self.angle - self.sweep_width / 2) % 360 # TODO independent of sweep width 
-        sweep_end_angle = (self.angle + self.sweep_width / 2) % 360
+        last_angle = self.angle - dt * self.angle_speed / 1000
+
+        sweep_start_angle = (last_angle - self.sweep_width  / 2) % 360
+        sweep_end_angle   = (self.angle + self.sweep_width / 2) % 360
+
+        self._tmp_angle = self.angle
+
+        print("start: " , sweep_start_angle)
+        print("end  : " , sweep_end_angle)
+        print("last : " , last_angle)
+        print("dt: " , dt)
 
         # Check if object is within the sweep sector
         if sweep_start_angle < sweep_end_angle:
@@ -103,28 +115,28 @@ class Radar:
         current_time = pygame.time.get_ticks()
 
         # Draw and update objects
-        for obj in self.dots:
-            if self.is_in_sweep_sector(obj.pos):
-                obj.visible = True
-                obj.last_hit = current_time
-            if obj.visible and current_time - obj.last_hit <= 1000:
-                pygame.draw.circle(surface, self.RED, obj.pos, 5) # TODO add tickrate * 5
+        for dot in self.dots:
+            if self.is_in_sweep_sector(dot.pos, dt):
+                dot.visible = True
+                sound.play()
+                dot.last_hit = current_time
+            if dot.visible and current_time - dot.last_hit <= self.angle_speed / dt:
+                pygame.draw.circle(surface, self.RED, dot.pos, 5) # TODO add tickrate * 5
             else:
-                obj.visible = False
+                dot.visible = False
 
         end_x_front = self.center[0] + math.cos(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_y_front = self.center[1] + math.sin(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_x_end   = self.center[0] + math.cos(math.radians(self.angle + self.sweep_width/2)) * self.radius
         end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
-        # end_x = int(self.center[0] + math.cos(math.radians(self.angle)) * self.radius)
-        # end_y = int(self.center[1] + math.sin(math.radians(self.angle)) * self.radius)
         
         pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
 
-        self.angle += dt*self.angle_speed/1000
+        self.angle += dt * self.angle_speed / 1000
         if self.angle >= 360:
             self.angle = self.angle % 360
 
+        print("==ANGLE==", self.angle)
 
 if __name__ == '__main__':
     from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT
