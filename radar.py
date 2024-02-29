@@ -118,7 +118,7 @@ class Radar:
         for dot in self.dots:
             if self.is_in_sweep_sector(dot.pos, dt):
                 dot.visible = True
-                sound.play()
+                # sound.play()
                 dot.last_hit = current_time
             if dot.visible and current_time - dot.last_hit <= dot.visble_duration * 1000:
                 pygame.draw.circle(surface, self.RED, dot.pos, 5) # TODO add tickrate * 5
