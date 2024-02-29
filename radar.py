@@ -11,6 +11,7 @@ class Dot:
         self.pos = pos
         self.last_hit = last_hit
         self.visible = visible
+        self.visble_duration = 1
 
     @classmethod
     def create_random(cls, center, radius):
@@ -57,8 +58,6 @@ class Radar:
         self.dots = Dot.create_from_png(png)
         self.angular_cross_sections = 12
         self.radial_cross_sections = 8
-
-        self._tmp_angle = 0
 
     def is_within_radar(self, pos):
         return (pos[0] - self.center[0]) ** 2 + (pos[1] - self.center[1]) ** 2 <= self.radius**2
@@ -113,6 +112,7 @@ class Radar:
     
     def render_sweep(self, surface: pygame.Surface, dt: int):
         current_time = pygame.time.get_ticks()
+        print("get ticks: ", current_time)
 
         # Draw and update objects
         for dot in self.dots:
@@ -120,7 +120,7 @@ class Radar:
                 dot.visible = True
                 sound.play()
                 dot.last_hit = current_time
-            if dot.visible and current_time - dot.last_hit <= self.angle_speed / dt:
+            if dot.visible and current_time - dot.last_hit <= dot.visble_duration * 1000:
                 pygame.draw.circle(surface, self.RED, dot.pos, 5) # TODO add tickrate * 5
             else:
                 dot.visible = False
@@ -163,7 +163,7 @@ if __name__ == '__main__':
         screen.blit(sweep_surface, (0, 0))
 
         pygame.display.flip()
-        dt = clock.tick(30)
+        dt = clock.tick(100)
 
     pygame.quit()
     sys.exit()
