@@ -79,10 +79,10 @@ class Radar:
 
         self._tmp_angle = self.angle
 
-        print("start: " , sweep_start_angle)
+        """print("start: " , sweep_start_angle)
         print("end  : " , sweep_end_angle)
         print("last : " , last_angle)
-        print("dt: " , dt)
+        print("dt: " , dt)"""
 
         # Check if object is within the sweep sector
         if sweep_start_angle < sweep_end_angle:
@@ -112,7 +112,7 @@ class Radar:
     
     def render_sweep(self, surface: pygame.Surface, dt: int):
         current_time = pygame.time.get_ticks()
-        print("get ticks: ", current_time)
+        #print("get ticks: ", current_time)
 
         # Draw and update objects
         for dot in self.dots:
@@ -136,7 +136,7 @@ class Radar:
         if self.angle >= 360:
             self.angle = self.angle % 360
 
-        print("==ANGLE==", self.angle)
+        #print("==ANGLE==", self.angle)
 
 if __name__ == '__main__':
     from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT
