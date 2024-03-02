@@ -8,7 +8,7 @@ import stl_renderer as stlr
 from console_commands import handle_user_input
 import debug_util
 import time
-from shaders import Shaders
+from shaders import Shaders, ShaderPipeline
 from requests.exceptions import ConnectTimeout
 import radar
 from cursor import cursor_surface
@@ -28,14 +28,15 @@ class WindowManager:
             output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
         self.screen = pg.display.set_mode(output_size, flags=flags)
         self.desktops = [Desktop(control_panel), Desktop(control_panel)]
-        self.desktop = self.desktops[1]
         self.set_up_desktops(self.desktops)
+        self.change_desktop(0)
         self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
     
     def change_desktop(self, index: int):
         if not 0 <= index < len(self.desktops):
             return
         self.desktop = self.desktops[index]
+        self.desktop.shaders.activate()
         
         
     def set_up_desktops(self, desktops: list['Desktop']):
@@ -53,29 +54,39 @@ class WindowManager:
         desktop.terminal = terminal
         log.print_to_log("ROTER TEXT", (255,0,0))
         
+        desktop.shaders = ShaderPipeline(number_of_surfaces=1,
+                                         texture_sizes=[QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
+                                         shader_operations_todo=[(1, "Downscale", {"_MainTex": 0}),
+                                                                  (1, "Threshold", {"_MainTex": 1}),
+                                                                  (1, "Blur_H", {"_MainTex": 1}),
+                                                                  (1, "Blur_V", {"_MainTex": 1}),
+                                                                  (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
+                                                                  (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
+                                                                  (0, "CRT", {"_MainTex": 0}),
+                                                                  (-1, "To_BGRA", {"_MainTex": 0}),
+                                                                 ]).compile(desktop.shader_surfaces)
+        
         desktop2 = desktops[1]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
-    
+        desktop2.shaders = ShaderPipeline(number_of_surfaces=2,
+                                          texture_sizes=[QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
+                                          shader_operations_todo=[(2, "Downscale", {"_MainTex": 0, "_Intensity": 0.5}),
+                                                                 (2, "Add", {"_MainTex": 2, "_SecondaryTex": 1, "_Influence": (1.0,1.0,1.0,1.0)}),
+                                                                 (2, "Threshold", {"_MainTex": 2}),
+                                                                 (2, "Blur_H", {"_MainTex": 2}),
+                                                                 (2, "Blur_V", {"_MainTex": 2}),
+                                                                 (3, "Ghost", {"_MainTex": 2, "_SecondaryTex": 3}),
+                                                                 (0, "Add", {"_MainTex": 0, "_SecondaryTex": 3}),
+                                                                 (0, "CRT", {"_MainTex": 0}),
+                                                                 (-1, "To_BGRA", {"_MainTex": 0}),
+                                                                  ]).compile(desktop2.shader_surfaces)
+        
     def run(self, output_size: tuple[int,int], fullscreen: bool, use_shaders: bool):
         pg.init()
         clock = pg.time.Clock()
         tick = 0
         dt = 0
-        
-        if use_shaders:
-            shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
-                              surfaces_ints=[(self.desktop.surface, 0)],
-                              shader_operations_todo=[(1, "Downscale", {"_MainTex": 0}),
-                                                      (1, "Threshold", {"_MainTex": 1}),
-                                                      (1, "Blur_H", {"_MainTex": 1}),
-                                                      (1, "Blur_V", {"_MainTex": 1}),
-                                                      (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
-                                                      (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
-                                                      (0, "CRT", {"_MainTex": 0}),
-                                                      (-1, "To_BGRA", {"_MainTex": 0}),
-                                                      ])
-            shaders.compile_shaders()
-        
+
         if fullscreen:
             scaling_ratio = (RENDER_WIDTH/output_size[0], RENDER_HEIGHT/output_size[1])
         
@@ -116,7 +127,7 @@ class WindowManager:
             self.desktop.surface.blit(cursor_surface, mouse_pos)
             
             if use_shaders:
-                shaders.apply(current_time)
+                self.desktop.shaders.apply(current_time)
             else:
                 if fullscreen:
                     pg.transform.scale(self.desktop.surface, output_size, self.screen)
@@ -262,7 +273,9 @@ class Desktop(Widget):
     def __init__(self, control_panel) -> None:
         self.control_panel: ControlPanel = control_panel
         super().__init__(None, 0, 0, RENDER_WIDTH, RENDER_HEIGHT)
-        self.clipboard = ""
+        self.shader_surfaces: list[pg.Surface] = [self.surface, ]
+        self.clipboard: str = ""
+        self.shaders: Shaders
         
     def render(self):
         self.surface.fill(BACKGROUND_COLOR)
@@ -744,6 +757,7 @@ class Radar(Widget):
         self.dt = 0
 
         self.sweep_surface = pg.Surface((RENDER_WIDTH, RENDER_HEIGHT), pg.SRCALPHA)
+        self.get_root().shader_surfaces.append(self.sweep_surface)
 
     # def handle_event(self, event: Event):
     #     return super().handle_event(event)
@@ -754,7 +768,7 @@ class Radar(Widget):
 
     def render(self):
         self.radar.render_cross_section(self.surface)
-        self.surface.blit(self.sweep_surface, (0, 0))
+        # self.surface.blit(self.sweep_surface, (0, 0))
         self.sweep_surface.fill((0,0,0,0))
         self.radar.render_sweep(self.sweep_surface, self.dt)
 

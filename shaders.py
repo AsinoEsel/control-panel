@@ -8,37 +8,42 @@ import time
 
 SHADER_LIST = ["Downscale", "Threshold", "Blur_H", "Blur_V", "Ghost", "Add", "CRT"]
 
-class Shaders:
-    def __init__(self, texture_sizes: list[tuple[int,int]], surfaces_ints: list[tuple[pg.Surface, int]], shader_operations_todo: list[tuple[int, str, dict]], *, texture_filter = moderngl.LINEAR):
+
+class ShaderPipeline():
+    def __init__(self, number_of_surfaces: int, texture_sizes: list[tuple[int,int]], shader_operations_todo: list[tuple[int, str, dict]], *, texture_filter = moderngl.LINEAR):
+        self.number_of_surfaces = number_of_surfaces
         self.texture_sizes = texture_sizes
-        self.surfaces_ints = surfaces_ints
         self.shader_operations_todo = shader_operations_todo
         self.texture_filter = texture_filter
-        
-        self.textures: list[moderngl.Texture]
-        self.framebuffers: list[moderngl.Framebuffer]
-        self.shader_operations: list[tuple[int, moderngl.Program, dict]]
-        self.vaos: list[moderngl.VertexArray]
     
-    def compile_shaders(self):
-        ctx: moderngl.Context = get_context()
-        self.textures = [ctx.texture(texture_size, 4) for texture_size in self.texture_sizes]
-        self.framebuffers = []
-        for loc, texture in enumerate(self.textures):
-            texture.filter = (self.texture_filter, self.texture_filter)
-            texture.use(loc)
-            self.framebuffers.append(ctx.framebuffer(color_attachments=[texture]))
-        self.surfaces = [(surface, self.textures[texture_target]) for surface, texture_target in self.surfaces_ints]
-        self.framebuffers.append(ctx.screen)
+    def compile(self, surfaces: list[pg.Surface]) -> 'Shaders':
+        if self.number_of_surfaces != len(surfaces):
+            raise ValueError("Number of surfaces does not match the length of list of surfaces passed")
+        
+        ctx = moderngl.create_context(require=300)
+        textures: list[moderngl.Texture] = []
+        framebuffers: list[moderngl.Framebuffer] = []
+        for i, surface in enumerate(surfaces):
+            texture = ctx.texture(surface.get_size(), 4)
+            texture.use(i)
+            textures.append(texture)
+            framebuffers.append(ctx.framebuffer(color_attachments=[texture]))
+        for i, texture_size in enumerate(self.texture_sizes):
+            texture = ctx.texture(texture_size, 4)
+            texture.use(i + len(surfaces))
+            textures.append(texture)
+            framebuffers.append(ctx.framebuffer(color_attachments=[texture]))
+        framebuffers.append(ctx.screen)
+        
         programs: dict[str, moderngl.Program] = {}
-        self.shader_operations = []
+        shader_operations = []
         for target_buffer, shader_name, uniforms in self.shader_operations_todo:
             if shader_name not in programs:
                 program = get_shader_program(ctx, *shader_params[shader_name])
                 programs[shader_name] = program
-                self.shader_operations.append((target_buffer, program, uniforms))
+                shader_operations.append((target_buffer, program, uniforms))
             else:
-                self.shader_operations.append((target_buffer, programs[shader_name], uniforms))
+                shader_operations.append((target_buffer, programs[shader_name], uniforms))
         
         quad_buffer_normal = ctx.buffer(data=array('f', [
             -1.0, 1.0, 0.0, 1.0,   # topleft
@@ -54,13 +59,27 @@ class Shaders:
             1.0, -1.0, 1.0, 1.0,   # botright
         ]))
         
-        self.vaos = []
-        for i, (_, program, _) in enumerate(self.shader_operations):
-            quad_buffer = quad_buffer_invert if i == len(self.shader_operations) - 1 else quad_buffer_normal                
-            self.vaos.append(get_vertex_array(ctx, quad_buffer, program))
-                
+        vaos = []
+        for i, (_, program, _) in enumerate(shader_operations):
+            quad_buffer = quad_buffer_invert if i == len(shader_operations) - 1 else quad_buffer_normal                
+            vaos.append(get_vertex_array(ctx, quad_buffer, program))
+        
+        return Shaders(surfaces, textures, framebuffers, shader_operations, vaos)
+        
+
+class Shaders:
+    def __init__(self, surfaces: list[pg.Surface], textures: list[moderngl.Texture], framebuffers: list[moderngl.Framebuffer], shader_operations: list[tuple[int, moderngl.Program, dict]], vaos: list[moderngl.VertexArray]):
+        self.surfaces_textures = [(surface, textures[i]) for i, surface in enumerate(surfaces)]
+        self.framebuffers = framebuffers
+        self.shader_operations = shader_operations
+        self.vaos = vaos
+    
+    def activate(self):
+        for i, (_, texture) in enumerate(self.surfaces_textures):
+            texture.use(location=i)
+        
     def apply(self, current_time: int):
-        for surface, texture in self.surfaces:
+        for surface, texture in self.surfaces_textures:
             texture.write(surface.get_view('1'))
         
         for i, (target_buffer, program, uniforms) in enumerate(self.shader_operations):
@@ -68,7 +87,6 @@ class Shaders:
                 program[uniform] = value
             self.framebuffers[target_buffer].use()
             self.vaos[i].render(mode=moderngl.TRIANGLE_STRIP)
-                
                 
 def get_context() -> moderngl.Context:
     return moderngl.create_context(require=300)
