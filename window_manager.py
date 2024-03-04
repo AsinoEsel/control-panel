@@ -27,8 +27,8 @@ class WindowManager:
         elif fullscreen and not maintain_aspect_ratio:
             output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
         self.screen = pg.display.set_mode(output_size, flags=flags)
-        self.desktops = [Desktop(control_panel), Desktop(control_panel)]
-        self.desktop = self.desktops[1]
+        self.desktops = [Desktop(control_panel), Desktop(control_panel), Desktop(control_panel)]
+        self.desktop = self.desktops[2]
         self.set_up_desktops(self.desktops)
         self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
     
@@ -55,6 +55,10 @@ class WindowManager:
         
         desktop2 = desktops[1]
         desktop2.add_element(Radar(desktop2, png='media/red_dot_image.png'))
+        
+        desktop3 = desktops[2]
+        from laser_game import LaserGame
+        desktop3.add_element(LaserGame(desktop3))
     
     def run(self, output_size: tuple[int,int], fullscreen: bool, use_shaders: bool):
         pg.init()
@@ -130,7 +134,7 @@ class Widget:
     def __init__(self, parent, x, y, w, h, elements: list['Widget']|None = None) -> None:
         if elements is None:
             elements = []
-        self.parent = parent
+        self.parent: Widget = parent
         self.position = pg.Vector2(x, y)
         self.rect = pg.Rect(0, 0, w, h)
         self.surface = pg.Surface((w, h))
@@ -214,7 +218,7 @@ class Widget:
             if not self.active_element and self.elements:
                 self.active_element = self.elements[0]
                 self.active_element.activate()
-            else:
+            elif self.parent:
                 self.parent.next_element()
     
     def activate(self) -> None:
@@ -754,5 +758,5 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=False, use_shaders=True, maintain_aspect_ratio=True)
+    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
     
