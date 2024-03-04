@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/maximecb/pyopendmx"""
+
 import time
 import random
 import threading
@@ -35,13 +37,6 @@ def map_to(val, min, max):
     assert max > min
     val = np.clip(val, 0, 1)
     return int(round(min + val * (max - min)))
-
-def show_devices():
-    """
-    List available FTDI devices
-    """
-
-    Ftdi.show_devices()
 
 class DMXUniverse:
     """
@@ -143,113 +138,26 @@ class DMXDevice:
     def update(self, dmx):
         raise NotImplementedError
 
-class RGBWSpotLight(DMXDevice):
-    """
-    Small RGBW spotlight
-    NOTE: needs to be set in mode A_xxx for DMX control
-    CH1: effect (0 no effect, 135-239 strobe)
-    CH2: R 0-255
-    CH3: G 0-255
-    CH4: B 0-255
-    CH5: W 0-255
-    CH6: modes
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=6)
-        self.dimming = 1
-        self.rgbw = np.array([0, 0, 0, 0])
-        self.strobe = 0
-
-    def update(self, dmx):
-        if self.strobe == 0:
-            dmx.set_float(self.chan_no, 1, 134)
-        else:
-            dmx.set_float(self.chan_no, 1, self.strobe, 135, 191)
-
-        dmx.set_float(self.chan_no, 2, self.rgbw * self.dimming)
-
-class RGBW12(DMXDevice):
-    """
-    Small RGBW fixture with 12 LEDs, 8 channels
-    CH1: total dimming
-    CH2: strobe (0-2 off, 3-191 slow to fast)
-    CH3: function select (0-50 DMX)
-    CH4: function speed
-    CH5: R 0-255
-    CH6: G 0-255
-    CH7: B 0-255
-    CH8: W 0-255
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=8)
-        self.dimming = 1
-        self.rgbw = np.array([0, 0, 0, 0])
-        self.strobe = 0
-
-    def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.dimming)
-        dmx.set_float(self.chan_no, 2, self.strobe, 0, 191)
-        dmx.set_float(self.chan_no, 3, 0)
-        dmx.set_float(self.chan_no, 4, 0)
-        dmx.set_float(self.chan_no, 5, self.rgbw)
-
-class RGB36(DMXDevice):
-    """
-    RGB fixture with 36 LEDs, 6 channels
-    CH1: total dimming
-    CH2: R 0-255
-    CH3: G 0-255
-    CH4: B 0-255
-    CH5: strobe speed (0-255)
-    CH6: color change speed (0-255)
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=8)
-        self.dimming = 1
-        self.rgb = np.array([0, 0, 0])
-        self.strobe = 0
-        self.anim_speed = 0
-
-    def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.dimming)
-        dmx.set_float(self.chan_no, 2, self.rgb)
-        dmx.set_float(self.chan_no, 5, self.strobe, 0, 255)
-        dmx.set_float(self.chan_no, 6, self.anim_speed, 0, 255)
-
-class RGBW54(DMXDevice):
-    """
-    RGBW fixture with 54 LEDs, in 4 channel mode
-    CH1: R 0-255
-    CH2: G 0-255
-    CH3: B 0-255
-    CH4: W 0-255
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=4)
-        self.dimming = 1
-        self.rgbw = np.array([0, 0, 0, 0])
-
-    def update(self, dmx):
-        rgbw = self.rgbw * self.dimming
-        dmx.set_float(self.chan_no, 1, rgbw)
-
 class MovingHead(DMXDevice):
     """
-    Moving head with RGBW and strobe.
-    Modeled after the Docooler mini moving head
-    CH1: motor pan
-    CH2: motor tilt
-    CH3: pan/tilt speed 0-255 (fast to slow)
-    CH4: total dimming
-    CH5: strobe speed
-    CH6: R 0-255
-    CH7: G 0-255
-    CH8: B 0-255
-    CH9: W 0-255
+    Moving head.
+    Modeled after the Shehds "LED Spot 100W Lighting" moving head
+    CH1: Dimming        (0-255)
+    CH2: Strobe Speed   (4-251)
+         Open Light     (251-255)
+    CH3: Pan            (0-255)
+    CH4: Tilt           (0-255)
+    CH5: Pan/Tilt Speed (0-255)
+    CH6: Color Wheel    (0-255)
+    CH7: Gobo 1
+    CH8: Gobo 2
+    CH9: Gobo 2 Rotation
+    CH10: Prism Switch  (10-14)
+          Prism Rot.    (15-255)
+    CH11: Focus         (0-255)
+    CH12: Pan fine      (0-255)
+    CH13: Tilt fine     (0-255)
+    CH14: Reset         (255)
 
     Pan:
     0.00 is pointing back
@@ -262,151 +170,81 @@ class MovingHead(DMXDevice):
     0.50 is fully up
     1.00 is pointing back
     """
+    #phi_range = (0, 3*np.pi) # unused
+    theta_range = (-100*np.pi/180, 100*np.pi/180)
 
-    def __init__(self, name, chan_no):
+    def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, num_chans=14)
         self.pan = 0
-        self.tilt = 0
-        self.speed = 0
-        self.dimming = 1
-        self.rgbw = np.array([0, 0, 0, 0])
-        self.strobe = 0
+        self.tilt = 0.5
+        self.speed = .5
+        self.dimming = 1.0
+        self.color = 0.5
+        self.strobe = 1
+        self.prism = 10
 
     def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.pan)
-        dmx.set_float(self.chan_no, 2, self.tilt)
-        dmx.set_float(self.chan_no, 3, 1 - self.speed)
-        dmx.set_float(self.chan_no, 4, self.dimming)
-        dmx.set_float(self.chan_no, 5, self.strobe)
-        dmx.set_float(self.chan_no, 6, self.rgbw)
+        dmx.set_float(self.chan_no, 1, self.dimming)
+        dmx.set_float(self.chan_no, 2, self.strobe)
+        dmx.set_float(self.chan_no, 3, self.pan)
+        dmx.set_float(self.chan_no, 4, self.tilt)
+        dmx.set_float(self.chan_no, 5, 1 - self.speed)
+        dmx.set_float(self.chan_no, 6, self.color)
+        dmx.set_int(self.chan_no, 10, self.prism)
+    
+    def to_yaw_pitch(self) -> tuple[float, float]:
+        if self.tilt < 0.5:
+            return 3*np.pi*self.pan, abs(np.pi*(self.tilt-0.5))
+        else:
+            return np.pi*(3*self.pan+1), abs(np.pi*(self.tilt-0.5))
 
-class MiniGobo9CH(DMXDevice):
-    """
-    Mini gobo moving head with color wheel.
 
-    CH1: motor pan
-    CH2: motor tilt
-    CH3: color wheel control, 0-127 for fixed color selection
-    CH4: gobo wheel control, 0-63 for fixed gobo selection
+def get_device_url() -> str|None:
+    devices = Ftdi.list_devices()
+    if not devices:
+        return None
+    else:
+        device = devices[0]
+        vid = hex(device[0].vid)
+        pid = hex(device[0].pid)
+        sn = device[0].sn
+        return f'ftdi://{vid}:{pid}:{sn}/1'
 
-    CH5: light control, 0 is off, 15 is on.
-    CH6: dimming
-    CH7: pan/tilt speed 0-255 (fast to slow)
-    CH8: function control
-    CH9: effects
 
-    Pan:
-    0.00 is pointing back
-    0.15 is pointing left
-    0.33 is pointing forward
-    0.50 is pointing right
+if __name__ == "__main__":
+    import pygame as pg
+    pg.init()
+    screen = pg.display.set_mode((480,360))
+    
+    for device in Ftdi.list_devices():
+        print(device)
+    dmx = DMXUniverse(url='ftdi://0x403:0x6001:AL040AHB/1')
 
-    Tilt:
-    0.00 is pointing forward
-    0.50 is fully up
-    1.00 is pointing back
-    """
+    moving_head = MovingHead(name="Moving Head", chan_no=1)
+    dmx.add_device(moving_head)
+    dmx.start_dmx_thread()
+    
+    moving_head.dimming = 0.1
+    moving_head.speed = 1.0
+    moving_head.pan = 0.0
+    moving_head.tilt = 0.0
+    
+    clock = pg.time.Clock()
+    
+    move_speed = 0.005
 
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=9)
-        self.pan = 0
-        self.tilt = 0
-        self.speed = 0.5
-        self.dimming = 0
-        self.gobo = 0
-        self.color =  0
-
-    def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.pan)
-        dmx.set_float(self.chan_no, 2, self.tilt)
-
-        # Color wheel
-        # There are 8 colors, with indices in [0, 7]
-        dmx[self.chan_no + 3 - 1] = self.color * 16
-
-        # Gobo wheel
-        # There are 8 gobos, with indices in [0, 7]
-        dmx[self.chan_no + 4 - 1] = self.gobo * 8
-
-        # Color control (on/off)
-        dmx[self.chan_no + 5 - 1] = 15
-
-        # Dimming/brightness
-        dmx.set_float(self.chan_no, 6, self.dimming)
-
-        # Rotation speed
-        dmx.set_float(self.chan_no, 7, 1 - self.speed)
-
-        # Function control
-        dmx.set_float(self.chan_no, 8, 0)
-
-class LedStrip4CH(DMXDevice):
-    """
-    4-channel DMX LED strip decoder
-    CH1: R 0-255
-    CH2: G 0-255
-    CH3: B 0-255
-    CH4: W 0-255
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=4)
-        self.dimming = 1
-        self.ch1 = 0
-        self.ch2 = 0
-        self.ch3 = 0
-        self.ch4 = 0
-
-    def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.ch1 * self.dimming)
-        dmx.set_float(self.chan_no, 2, self.ch2 * self.dimming)
-        dmx.set_float(self.chan_no, 3, self.ch3 * self.dimming)
-        dmx.set_float(self.chan_no, 4, self.ch4 * self.dimming)
-
-class Relay3CH(DMXDevice):
-    """
-    3-channel on/off relay decoder
-    CH1: 0 or 1
-    CH2: 0 or 1
-    CH3: 0 or 1
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=4)
-        self.ch1 = 0
-        self.ch2 = 0
-        self.ch3 = 0
-
-    def update(self, dmx):
-        dmx[self.chan_no + 0] = 255 if self.ch1 else 0
-        dmx[self.chan_no + 1] = 255 if self.ch2 else 0
-        dmx[self.chan_no + 2] = 255 if self.ch3 else 0
-
-class R1200L(DMXDevice):
-    """
-    Rockville R1200L smoke machine
-    CH1: fog burst control
-    CH2: red
-    CH3: green
-    CH4: blue
-    CH5: strobe speed
-    CH6: dimming
-    CH7: sound response
-    """
-
-    def __init__(self, name, chan_no):
-        super().__init__(name, chan_no, num_chans=7)
-        self.fog = 0
-        self.dimming = 1
-        self.rgb = np.array([0, 0, 0])
-        self.strobe = 0
-
-    def update(self, dmx):
-        dmx.set_float(self.chan_no, 1, self.fog)
-        dmx.set_float(self.chan_no, 2, self.rgb * self.dimming)
-        dmx.set_float(self.chan_no, 5, self.strobe)
-        # Dimming/function/sound control
-        # The manual seems inaccurate, this has to be set to 0
-        dmx.set_int(self.chan_no, 6, 0)
-        # Sound response
-        dmx.set_int(self.chan_no, 7, 0)
+    while True:
+        keys_pressed = pg.key.get_pressed()
+        
+        if keys_pressed[pg.K_a]:
+            moving_head.pan += move_speed
+        if keys_pressed[pg.K_d]:
+            moving_head.pan -= move_speed
+        if keys_pressed[pg.K_w]:
+            moving_head.tilt += move_speed
+        if keys_pressed[pg.K_s]:
+            moving_head.tilt -= move_speed
+        
+        pg.event.pump()
+        pg.display.flip()
+        clock.tick(10)
