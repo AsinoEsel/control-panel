@@ -144,11 +144,18 @@ class MovingHead(DMXDevice):
     Modeled after the Shehds "LED Spot 100W Lighting" moving head
     CH1: Dimming        (0-255)
     CH2: Strobe Speed   (4-251)
-         Open Light     (251-255)
+         Open Light     (252-255)
     CH3: Pan            (0-255)
     CH4: Tilt           (0-255)
     CH5: Pan/Tilt Speed (0-255)
-    CH6: Color Wheel    (0-255)
+    CH6: Color          (0-255)
+         White:         0-4
+         Red:           5-9
+         Green:         10-14
+         Blue:          15-19
+         Yellow:        20-24
+         Purple:        25-29
+         Cyan:          30-34
     CH7: Gobo 1
     CH8: Gobo 2
     CH9: Gobo 2 Rotation
@@ -171,33 +178,113 @@ class MovingHead(DMXDevice):
     1.00 is pointing back
     """
     #phi_range = (0, 3*np.pi) # unused
-    theta_range = (-100*np.pi/180, 100*np.pi/180)
+    THETA_RANGE = (-95*np.pi/180, -5*np.pi/180)
+    NUM_COLORS = 4
+    NUM_GOBOS1 = 8
+    NUM_GOBOS2 = 7
 
     def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, num_chans=14)
+        self.dimming = 1.0
+        self._strobe: int = 255
+        self.strobe_frequency: float = 1.0
         self.pan = 0
         self.tilt = 0.5
-        self.speed = .5
-        self.dimming = 1.0
-        self.color = 0.5
-        self.strobe = 1
-        self.prism = 10
+        self.speed = 1.0
+        self._color: int = 0
+        self._gobo1: int = 0
+        self._gobo2: int = 0
+        self._gobo2_rotation: int = 0
+        self._prism: int = 0
+        self.prism_speed: float = 0
+        self.focus: float = 0.0
+        self.pan_fine = 0
+        self.tilt_fine = 0
+        self.reset = 0
+    
+    @property
+    def prism(self):
+        return True if self._prism >= 10 else False
+    
+    @prism.setter
+    def prism(self, value: bool):
+        if value is True:
+            self._prism = 15 + int(240*self.prism_speed)
+        elif value is False:
+            self._prism = 0
+    
+    @property
+    def strobe(self):
+        return True if self._strobe <= 251 else False
+    
+    @strobe.setter
+    def strobe(self, value: bool):
+        if value is True:
+            self._strobe = 4 + int(247*self.strobe_frequency)
+        elif value is False:
+            self._strobe = 255
+    
+    @property
+    def color(self):
+        return self._color // 5
+    
+    @color.setter
+    def color(self, value: int):
+        self._color = 5*(value % self.NUM_COLORS)
+    
+    @property
+    def gobo1(self):
+        return self._gobo1 // 10
+    
+    @gobo1.setter
+    def gobo1(self, value: int):
+        self._gobo1 = 10*(value % self.NUM_GOBOS1)
+    
+    @property
+    def gobo2(self):
+        return self._gobo2 // 10
+    
+    @gobo2.setter
+    def gobo2(self, value: int):
+        self._gobo2 = 10*(value % self.NUM_GOBOS2)
+        
+    @property
+    def gobo2_rotation(self):
+        return self._gobo2_rotation
+    
+    @gobo2_rotation.setter
+    def gobo2_rotation(self, value: float):
+        if value == 0:
+            self._gobo2_rotation = 0
+        elif value > 0:
+            self._gobo2_rotation = 64 + int((127-64)*value)
+        elif value < 0:
+            self._gobo2_rotation = 255 - int(65 * (value+1))
+    
+    def next_color(self):
+        if self.color < 30:
+            self.color += 5
+    
+    def previous_color(self):
+        if self.color >= 5:
+            self.color -= 5
 
-    def update(self, dmx):
+    def update(self, dmx: DMXUniverse):
         dmx.set_float(self.chan_no, 1, self.dimming)
-        dmx.set_float(self.chan_no, 2, self.strobe)
+        dmx.set_int(self.chan_no, 2, self._strobe)
         dmx.set_float(self.chan_no, 3, self.pan)
         dmx.set_float(self.chan_no, 4, self.tilt)
         dmx.set_float(self.chan_no, 5, 1 - self.speed)
-        dmx.set_float(self.chan_no, 6, self.color)
-        dmx.set_int(self.chan_no, 10, self.prism)
-    
-    def to_yaw_pitch(self) -> tuple[float, float]:
-        if self.tilt < 0.5:
-            return 3*np.pi*self.pan, abs(np.pi*(self.tilt-0.5))
-        else:
-            return np.pi*(3*self.pan+1), abs(np.pi*(self.tilt-0.5))
-
+        dmx.set_int(self.chan_no, 6, self._color)
+        dmx.set_int(self.chan_no, 7, self._gobo1)
+        dmx.set_int(self.chan_no, 8, self._gobo2)
+        dmx.set_int(self.chan_no, 9, self._gobo2_rotation)
+        dmx.set_int(self.chan_no, 10, self._prism)
+        dmx.set_float(self.chan_no, 11, self.focus)
+        dmx.set_float(self.chan_no, 12, self.pan_fine)
+        dmx.set_float(self.chan_no, 13, self.tilt_fine)
+        dmx.set_float(self.chan_no, 14, self.reset)
+        
 
 def get_device_url() -> str|None:
     devices = Ftdi.list_devices()
@@ -228,6 +315,7 @@ if __name__ == "__main__":
     moving_head.speed = 1.0
     moving_head.pan = 0.0
     moving_head.tilt = 0.0
+    moving_head.color = 0
     
     clock = pg.time.Clock()
     

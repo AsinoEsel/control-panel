@@ -66,6 +66,8 @@ class WindowManager:
         tick = 0
         dt = 0
         
+        joysticks = {}
+        
         if use_shaders:
             shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
                               shader_operations=[(1, "Downscale", {"_MainTex": 0}),
@@ -88,6 +90,10 @@ class WindowManager:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
+                if event.type == pg.JOYDEVICEADDED:
+                    joy = pg.joystick.Joystick(event.device_index)
+                    joysticks[joy.get_instance_id()] = joy
+                    print(f"Joystick {joy.get_instance_id()} connected")
                 if pg.key.get_mods() & pg.KMOD_CTRL and event.type == pg.KEYDOWN and pg.K_0 <= event.key <= pg.K_9:
                     self.change_desktop(event.key - pg.K_0 - 1)
                     continue
@@ -110,7 +116,7 @@ class WindowManager:
                         self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
                     self.control_panel.futures.remove(future)
             
-            self.desktop.propagate_update(tick, dt=dt)
+            self.desktop.propagate_update(tick, dt=dt, joysticks=joysticks)
             
             mouse_pos = pg.mouse.get_pos()
             if fullscreen:
@@ -168,13 +174,13 @@ class Widget:
             current = current.parent
         return current
 
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         pass
     
-    def propagate_update(self, tick: int, dt: int):
-        self.update(tick, dt)
+    def propagate_update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+        self.update(tick, dt, joysticks)
         for element in self.elements:
-            element.propagate_update(tick, dt)
+            element.propagate_update(tick, dt, joysticks)
         if self.needs_rerender:
             self.render()
             self.needs_rerender = False
@@ -463,7 +469,7 @@ class Video(Widget):
             return
         self.flag_as_needing_rerender()
     
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         if not self.playing:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.advance_video()
@@ -496,7 +502,7 @@ class STLRenderer(Widget):
                 self.camera.zoom = self.surface.get_height()
         return super().handle_event(event)
     
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         degrees_per_second = 45
         if self.active:
             degrees = degrees_per_second*dt/1000
@@ -603,7 +609,7 @@ class InputBox(Widget):
         self.draw_caret = False
         super().deactivate()
     
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         if self.active:
             self.blink_caret(tick)
     
@@ -748,7 +754,7 @@ class Radar(Widget):
     # def handle_event(self, event: Event):
     #     return super().handle_event(event)
         
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         self.dt = dt
         self.flag_as_needing_rerender()
 

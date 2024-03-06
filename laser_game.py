@@ -1,5 +1,5 @@
 import pygame as pg
-from math import sin, cos, acos, pi
+from math import sin, cos, acos, radians, pi
 from window_manager import Widget, Desktop
 from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, BACKGROUND_COLOR, DEFAULT_GAP
 import random
@@ -104,7 +104,7 @@ class Relay(Entity):
     
     @pitch.setter
     def pitch(self, pitch):
-        self._pitch = max(min(self.moving_head.theta_range[1], pitch), self.moving_head.theta_range[0])
+        self._pitch = max(min(self.moving_head.THETA_RANGE[1], pitch), self.moving_head.THETA_RANGE[0])
         self.recalculate_beam_vector()
     
     def draw(self, surface: pg.Surface, camera: Camera):
@@ -126,11 +126,11 @@ class Antenna(Entity):
 
 class Viewport(Widget):
     def __init__(self, parent: Widget):
-        super().__init__(parent, parent.position.x, parent.position.y, parent.surface.get_width(), parent.surface.get_height()//2)
+        super().__init__(parent, parent.position.x+DEFAULT_GAP, parent.position.y+DEFAULT_GAP, parent.surface.get_width()-2*DEFAULT_GAP, parent.surface.get_height()-2*DEFAULT_GAP)
         self.camera = Camera(zoom=64.0, shift=pg.Vector2(self.surface.get_width()//2, self.surface.get_height()//2))
         self.entities = []
     
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         rad_per_second = pi/4
         if self.active:
             radians = rad_per_second*dt/1000
@@ -167,8 +167,17 @@ class Viewport(Widget):
         
 
 class LaserGame(Widget):
-    def __init__(self, parent: Desktop, x=DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH-2*DEFAULT_GAP, h=RENDER_HEIGHT-2*DEFAULT_GAP):
+    def __init__(self, parent: Desktop, x: int|None = None, y: int|None = None, w: int|None = None, h: int|None = None):
+        if x is None:
+            x = parent.position.x
+        if y is None:
+            y = parent.position.y
+        if w is None:
+            w = parent.surface.get_width()
+        if h is None:
+            h = parent.surface.get_height()
         super().__init__(parent, x, y, w, h)
+        self.max_speed = radians(30)
         self.viewport = Viewport(self)
         self.elements.append(self.viewport)
         self.moving_heads = [moving_head := dmx.MovingHead("Moving Head", 1)]
@@ -181,21 +190,51 @@ class LaserGame(Widget):
         self.viewport.entities = self.relays + self.antennas
     
     def handle_event(self, event: pg.event.Event):
-        if event.type == pg.KEYDOWN and event.key == pg.K_i:
-            self.selected_relay.moving_head.prism += 1
-            print(self.selected_relay.moving_head.prism)
+        mods = pg.key.get_mods()
+        if event.type == pg.JOYBUTTONDOWN and event.button == 0:
+            self.selected_relay.moving_head.strobe = True
+        elif event.type == pg.JOYBUTTONUP and event.button == 0:
+            self.selected_relay.moving_head.strobe = False
+        if event.type == pg.JOYBUTTONDOWN and event.button == 2:
+            self.selected_relay.moving_head.color += 1
+        if event.type == pg.JOYBUTTONDOWN and event.button == 3:
+            self.selected_relay.moving_head.color -= 1
+        if event.type == pg.KEYDOWN and event.key == pg.K_p:
+            self.selected_relay.moving_head.prism = not self.selected_relay.moving_head.prism
+        if event.type == pg.KEYDOWN and event.key == pg.K_g:
+            if mods & pg.KMOD_CTRL:
+                self.selected_relay.moving_head.gobo1 += 1
+            else: 
+                self.selected_relay.moving_head.gobo1 -= 1
+        if event.type == pg.KEYDOWN and event.key == pg.K_h:
+            if mods & pg.KMOD_CTRL:
+                self.selected_relay.moving_head.gobo2 += 1
+            else: 
+                self.selected_relay.moving_head.gobo2 -= 1
         return super().handle_event(event)
     
-    def update(self, tick: int, dt: int):
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+        for joystick in joysticks.values():
+            jid = joystick.get_instance_id()
+            axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]   
+        
         keys_pressed = pg.key.get_pressed()
+        max_distance = self.max_speed * dt/1000
+        self.selected_relay.yaw -= axes[0] * max_distance
+        self.selected_relay.pitch += axes[1] * max_distance
+        self.selected_relay.moving_head.pan_fine = (axes[3] + 1) / 2
+        self.selected_relay.moving_head.gobo2_rotation = axes[2]
+        self.viewport.flag_as_needing_rerender()
+        return
+        
         if keys_pressed[pg.K_a]:
-            self.selected_relay.yaw += 0.005
+            self.selected_relay.yaw += distance
         if keys_pressed[pg.K_d]:
-            self.selected_relay.yaw -= 0.005
+            self.selected_relay.yaw -= distance
         if keys_pressed[pg.K_w]:
-            self.selected_relay.pitch -= 0.005
+            self.selected_relay.pitch -= distance
         if keys_pressed[pg.K_s]:
-            self.selected_relay.pitch += 0.005
+            self.selected_relay.pitch += distance
         if any((keys_pressed[pg.K_a], keys_pressed[pg.K_d], keys_pressed[pg.K_w], keys_pressed[pg.K_s])):
             for antenna in self.antennas:
                 for relay in self.relays:
@@ -215,7 +254,7 @@ class LaserGame(Widget):
 
 if __name__ == "__main__":
     pg.mouse.set_visible(True)
-    laser_game = LaserGame(parent=None)
+    laser_game = LaserGame(parent=None, x=0, y=0, w=RENDER_WIDTH, h=RENDER_HEIGHT)
     
     pg.init()
     laser_game.surface = pg.display.set_mode((RENDER_WIDTH,RENDER_HEIGHT))
@@ -223,16 +262,22 @@ if __name__ == "__main__":
     clock = pg.time.Clock()
     dt = 0
     tick = 0
+    
+    joysticks = {}
 
     while running:
         tick += 1
         
         for event in pg.event.get():
+            if event.type == pg.JOYDEVICEADDED:
+                joy = pg.joystick.Joystick(event.device_index)
+                joysticks[joy.get_instance_id()] = joy
+                print(f"Joystick {joy.get_instance_id()} connected")
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                 running = False
             laser_game.handle_event(event)
         
-        laser_game.propagate_update(tick, dt=dt)
+        laser_game.propagate_update(tick, dt, joysticks)
         
         laser_game.render()
         
