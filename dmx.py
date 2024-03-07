@@ -177,19 +177,29 @@ class MovingHead(DMXDevice):
     0.50 is fully up
     1.00 is pointing back
     """
-    #phi_range = (0, 3*np.pi) # unused
     THETA_RANGE = (-95*np.pi/180, -5*np.pi/180)
-    NUM_COLORS = 4
+    NUM_COLORS = 7
     NUM_GOBOS1 = 8
     NUM_GOBOS2 = 7
+    BEAM_ANGLE = 16
+    COLORS = {0: (255,255,255),
+              1: (255,0,0),
+              2: (0,255,0),
+              3: (0,0,255),
+              4: (255,255,0),
+              5: (255,0,255),
+              6: (0,255,255),
+              }
 
     def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, num_chans=14)
         self.dimming = 1.0
         self._strobe: int = 255
         self.strobe_frequency: float = 1.0
-        self.pan = 0
-        self.tilt = 0.5
+        self._yaw: float = 0.0
+        self._pitch: float = -np.pi/4
+        self._pan = 0
+        self._tilt = 0.0
         self.speed = 1.0
         self._color: int = 0
         self._gobo1: int = 0
@@ -198,10 +208,42 @@ class MovingHead(DMXDevice):
         self._prism: int = 0
         self.prism_speed: float = 0
         self.focus: float = 0.0
-        self.pan_fine = 0
-        self.tilt_fine = 0
+        self._pan_fine = 0
+        self._tilt_fine = 0
         self.reset = 0
     
+    def get_rgb(self):
+        return self.COLORS[self.color]
+    
+    @property
+    def yaw(self) -> float:
+        return self._yaw
+    
+    @yaw.setter
+    def yaw(self, radians: float):
+        angle = radians % (2*np.pi)
+        self._yaw = angle
+        self._pan = angle / (3*np.pi)
+        if self._pan > 5/6:
+            self._pan -= 4/6
+        elif self._pan < 1/6:
+            self._pan += 4/6
+        # self._pan = int(angle)
+        # self._pan_fine = angle - int(angle)
+    
+    @property
+    def pitch(self) -> float:
+        return self._pitch
+    
+    @pitch.setter
+    def pitch(self, radians: float):
+        angle = max(min(self.THETA_RANGE[1], radians), self.THETA_RANGE[0])
+        self._pitch = angle
+        self._tilt = angle/np.pi + 1/2
+        #self._tilt = angle
+        # self._tilt = int(angle)
+        # self._tilt_fine = angle - int(angle)
+        
     @property
     def prism(self):
         return True if self._prism >= 10 else False
@@ -272,8 +314,8 @@ class MovingHead(DMXDevice):
     def update(self, dmx: DMXUniverse):
         dmx.set_float(self.chan_no, 1, self.dimming)
         dmx.set_int(self.chan_no, 2, self._strobe)
-        dmx.set_float(self.chan_no, 3, self.pan)
-        dmx.set_float(self.chan_no, 4, self.tilt)
+        dmx.set_float(self.chan_no, 3, self._pan)
+        dmx.set_float(self.chan_no, 4, self._tilt)
         dmx.set_float(self.chan_no, 5, 1 - self.speed)
         dmx.set_int(self.chan_no, 6, self._color)
         dmx.set_int(self.chan_no, 7, self._gobo1)
@@ -281,8 +323,8 @@ class MovingHead(DMXDevice):
         dmx.set_int(self.chan_no, 9, self._gobo2_rotation)
         dmx.set_int(self.chan_no, 10, self._prism)
         dmx.set_float(self.chan_no, 11, self.focus)
-        dmx.set_float(self.chan_no, 12, self.pan_fine)
-        dmx.set_float(self.chan_no, 13, self.tilt_fine)
+        dmx.set_float(self.chan_no, 12, self._pan_fine)
+        dmx.set_float(self.chan_no, 13, self._tilt_fine)
         dmx.set_float(self.chan_no, 14, self.reset)
         
 

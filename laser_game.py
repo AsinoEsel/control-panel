@@ -63,6 +63,7 @@ class Camera:
 class Entity:
     def __init__(self, position: pg.Vector3) -> None:
         self.position = position
+        self.origins: set[Relay] = set()
     
     def draw(self, surface: pg.Surface, camera: Camera):
         center = camera.project_point(self.position)
@@ -74,54 +75,49 @@ class Relay(Entity):
         super().__init__(position)
         self.orientation = orientation.normalize()
         self.moving_head = moving_head
-        self.moving_head.pan = 1/2
-        self._yaw = 3/2*pi
-        self._pitch = 0
         self.beam_vector: pg.Vector3
+        self.target: Entity|None = None
+        self.selected: bool = False
         self.recalculate_beam_vector()
     
     def recalculate_beam_vector(self):
-        self.beam_vector = spherical_to_cartesian(self.yaw, self.pitch)
+        self.beam_vector = spherical_to_cartesian(self.moving_head.yaw, self.moving_head.pitch)
     
-    @property
-    def yaw(self):
-        return self._yaw
-    
-    @yaw.setter
-    def yaw(self, yaw):
-        self._yaw = yaw
-        self.moving_head.pan = yaw / (3*pi)
-        if self.moving_head.pan > 5/6:
-            self.moving_head.pan -= 4/6
-        elif self.moving_head.pan < 1/6:
-            self.moving_head.pan += 4/6
-        self.recalculate_beam_vector()
-    
-    @property
-    def pitch(self):
-        self.moving_head.tilt = self._pitch/pi + 1/2
-        return self._pitch
-    
-    @pitch.setter
-    def pitch(self, pitch):
-        self._pitch = max(min(self.moving_head.THETA_RANGE[1], pitch), self.moving_head.THETA_RANGE[0])
-        self.recalculate_beam_vector()
+    def recalculate_connections(self, targets: list[Entity]):
+        for target in targets:
+            if target is self:
+                continue
+            vector_to_antenna = target.position - self.position
+            angle = self.beam_vector.angle_to(vector_to_antenna)
+            if angle <= self.moving_head.BEAM_ANGLE/2:
+                self.target = target
+                target.origins.add(self)
+                return
+        self.target = None
+        if target and self in target.origins:
+            target.origins.remove(self)
     
     def draw(self, surface: pg.Surface, camera: Camera):
         super().draw(surface, camera)
         center = camera.project_point(self.position)
-        pg.draw.line(surface, (255,255,0), center, camera.project_point(self.position + 1.0*self.beam_vector), 2)
+        if self.selected:
+            pg.draw.circle(surface, (255,255,0), center, 8, 2)
+        pg.draw.line(surface, self.moving_head.get_rgb(), center, camera.project_point(self.position + 1.0*self.beam_vector), 2)
 
 
 class Antenna(Entity):
     def __init__(self, position: pg.Vector3) -> None:
         super().__init__(position)
-        self.active = False
     
     def draw(self, surface: pg.Surface, camera: Camera):
         center = camera.project_point(self.position)
-        width = 0 if self.active else 2
-        pg.draw.circle(surface, (255,255,0), center, 6, width)
+        if self.origins:
+            width = 0
+            color = list(self.origins)[0].moving_head.get_rgb()  # TODO: implement color mixing
+        else:
+            width = 2
+            color = (255,255,255)
+        pg.draw.circle(surface, color, center, 6, width)
 
 
 class Viewport(Widget):
@@ -177,17 +173,24 @@ class LaserGame(Widget):
         if h is None:
             h = parent.surface.get_height()
         super().__init__(parent, x, y, w, h)
-        self.max_speed = radians(30)
+        self.max_speed = radians(45)
         self.viewport = Viewport(self)
         self.elements.append(self.viewport)
-        self.moving_heads = [moving_head := dmx.MovingHead("Moving Head", 1)]
+        self.moving_heads = [dmx.MovingHead("Moving Head", 1), dmx.MovingHead("Moving Head", 2)]
         if dmx_universe:
-            dmx_universe.add_device(moving_head)
+            for moving_head in self.moving_heads:
+                dmx_universe.add_device(moving_head)
             dmx_universe.start_dmx_thread()
-        self.relays = [relay := Relay(moving_head=moving_head, position=pg.Vector3(0,0,0), orientation=pg.Vector3(1,0,0))]
+        self.relays = [Relay(moving_head=moving_head, position=pg.Vector3(i,i,0), orientation=pg.Vector3(1,0,0)) for i, moving_head in enumerate(self.moving_heads)]
         self.antennas = [Antenna(pg.Vector3.from_spherical((random.uniform(1,2), random.randrange(0,100), random.randrange(0,360)))),]
-        self.selected_relay = relay
-        self.viewport.entities = self.relays + self.antennas
+        self.entities = self.relays + self.antennas
+        self.viewport.entities = self.entities
+        self.selected_relay = self.relays[0]
+        self.selected_relay.selected = True
+    
+    def recalculate_connections(self):
+        for relay in self.relays:
+            relay.recalculate_connections(self.relays + self.antennas)
     
     def handle_event(self, event: pg.event.Event):
         mods = pg.key.get_mods()
@@ -195,18 +198,21 @@ class LaserGame(Widget):
             self.selected_relay.moving_head.strobe = True
         elif event.type == pg.JOYBUTTONUP and event.button == 0:
             self.selected_relay.moving_head.strobe = False
-        if event.type == pg.JOYBUTTONDOWN and event.button == 2:
-            self.selected_relay.moving_head.color += 1
-        if event.type == pg.JOYBUTTONDOWN and event.button == 3:
+        elif event.type == pg.JOYBUTTONDOWN and event.button == 2:
             self.selected_relay.moving_head.color -= 1
+        elif event.type == pg.JOYBUTTONDOWN and event.button == 3:
+            self.selected_relay.moving_head.color += 1
+        
         if event.type == pg.KEYDOWN and event.key == pg.K_p:
             self.selected_relay.moving_head.prism = not self.selected_relay.moving_head.prism
-        if event.type == pg.KEYDOWN and event.key == pg.K_g:
+        elif event.type == pg.KEYDOWN and event.key == pg.K_c:
+            self.selected_relay.moving_head.color += 1
+        elif event.type == pg.KEYDOWN and event.key == pg.K_g:
             if mods & pg.KMOD_CTRL:
                 self.selected_relay.moving_head.gobo1 += 1
             else: 
                 self.selected_relay.moving_head.gobo1 -= 1
-        if event.type == pg.KEYDOWN and event.key == pg.K_h:
+        elif event.type == pg.KEYDOWN and event.key == pg.K_h:
             if mods & pg.KMOD_CTRL:
                 self.selected_relay.moving_head.gobo2 += 1
             else: 
@@ -214,38 +220,40 @@ class LaserGame(Widget):
         return super().handle_event(event)
     
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+        max_distance = self.max_speed * dt/1000
+        
         for joystick in joysticks.values():
-            jid = joystick.get_instance_id()
             axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]   
+            self.selected_relay.moving_head.yaw -= axes[0] * abs(axes[0]) * max_distance
+            self.selected_relay.moving_head.pitch += axes[1] * abs(axes[1]) * max_distance
+            self.selected_relay.moving_head.gobo2_rotation = axes[2]
+            self.selected_relay.moving_head.focus = (axes[3] + 1) / 2
         
         keys_pressed = pg.key.get_pressed()
-        max_distance = self.max_speed * dt/1000
-        self.selected_relay.yaw -= axes[0] * max_distance
-        self.selected_relay.pitch += axes[1] * max_distance
-        self.selected_relay.moving_head.pan_fine = (axes[3] + 1) / 2
-        self.selected_relay.moving_head.gobo2_rotation = axes[2]
-        self.viewport.flag_as_needing_rerender()
-        return
-        
         if keys_pressed[pg.K_a]:
-            self.selected_relay.yaw += distance
+            self.selected_relay.moving_head.yaw += max_distance
         if keys_pressed[pg.K_d]:
-            self.selected_relay.yaw -= distance
+            self.selected_relay.moving_head.yaw -= max_distance
         if keys_pressed[pg.K_w]:
-            self.selected_relay.pitch -= distance
+            self.selected_relay.moving_head.pitch -= max_distance
         if keys_pressed[pg.K_s]:
-            self.selected_relay.pitch += distance
-        if any((keys_pressed[pg.K_a], keys_pressed[pg.K_d], keys_pressed[pg.K_w], keys_pressed[pg.K_s])):
-            for antenna in self.antennas:
-                for relay in self.relays:
-                    vector_to_antenna = antenna.position - relay.position
-                    angle = relay.beam_vector.angle_to(vector_to_antenna)
-                    if angle <= 3:
-                        antenna.active = True
-                    else:
-                        antenna.active = False
-                
-            self.viewport.flag_as_needing_rerender()
+            self.selected_relay.moving_head.pitch += max_distance
+        
+        self.selected_relay.recalculate_beam_vector()        
+        self.recalculate_connections()
+        self.viewport.flag_as_needing_rerender()
+    
+    def next_element(self):
+        self.selected_relay.selected = False
+        index = self.relays.index(self.selected_relay)
+        index += 1
+        if index < len(self.relays):
+            self.selected_relay = self.relays[index]
+            self.selected_relay.selected = True
+        elif index >= len(self.relays):
+            self.selected_relay = self.relays[0]
+            self.selected_relay.selected = True
+            super().next_element()
     
     def render(self) -> None:
         self.surface.fill(BACKGROUND_COLOR)
