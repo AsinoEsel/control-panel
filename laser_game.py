@@ -4,14 +4,6 @@ from window_manager import Widget, Desktop
 from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, BACKGROUND_COLOR, DEFAULT_GAP
 import random
 import dmx
-try:
-    device_url = dmx.get_device_url()
-except ValueError as e:
-    if str(e) == 'No backend available':
-        print("If you are on Windows, make sure to follow the pyftdi installation restructions (-> libusb-win32)")
-else:
-    dmx_universe = dmx.DMXUniverse(url=device_url) if device_url else None
-        
 
 def spherical_to_cartesian(phi, theta) -> pg.Vector3:
         return pg.Vector3(sin(theta) * cos(phi),
@@ -176,11 +168,10 @@ class LaserGame(Widget):
         self.max_speed = radians(45)
         self.viewport = Viewport(self)
         self.elements.append(self.viewport)
-        self.moving_heads = [dmx.MovingHead("Moving Head", 1), dmx.MovingHead("Moving Head", 2)]
-        if dmx_universe:
-            for moving_head in self.moving_heads:
-                dmx_universe.add_device(moving_head)
-            dmx_universe.start_dmx_thread()
+        if dmx.dmx_universe:
+            [device for device in dmx.dmx_universe.devices if isinstance(device, dmx.MovingHead)]
+        else:
+            self.moving_heads = [dmx.MovingHead("Moving Head", 1), dmx.MovingHead("Moving Head 2", 15)]
         self.relays = [Relay(moving_head=moving_head, position=pg.Vector3(i,i,0), orientation=pg.Vector3(1,0,0)) for i, moving_head in enumerate(self.moving_heads)]
         self.antennas = [Antenna(pg.Vector3.from_spherical((random.uniform(1,2), random.randrange(0,100), random.randrange(0,360)))),]
         self.entities = self.relays + self.antennas

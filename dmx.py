@@ -42,7 +42,7 @@ class DMXUniverse:
     """
     Interface to an ENTTEC OpenDMX (FTDI) DMX interface
     """
-    def __init__(self, url='ftdi://ftdi:232:AL6E8JFW/1'):
+    def __init__(self, url='ftdi://ftdi:232:AL6E8JFW/1', devices: list['DMXDevice']|None = None):
         self.url = url
         self.port = Ftdi.create_from_url(url)
         self.port.reset()
@@ -54,16 +54,15 @@ class DMXUniverse:
         # 513 bytes are sent in total
         self.data = bytearray(513 * [0])
 
-        self.devices = []
+        self.devices = {device.name: device for device in devices} if devices is not None else {}
 
     def __del__(self):
         self.port.close()
 
     def __setitem__(self, idx, val):
-        assert (idx >= 1)
-        assert (idx <= 512)
+        assert (1 <= idx <= 512)
         assert isinstance(val, int)
-        assert (val >= 0 and val <= 255)
+        assert (0 <= val <= 255)
         self.data[idx] = val
 
     def set_int(self, start_chan, chan_no, int_val):
@@ -81,10 +80,14 @@ class DMXUniverse:
             int_val = map_to(val, min, max)
             self[start_chan + chan_no - 1] = int_val
 
-    def add_device(self, device):
+    def add_device(self, device: 'DMXDevice'):
+        # Check if name is already in use:
+        if self.devices.get(device.name, None):
+            raise Exception(f'Device name {device.name} already in use.')
+        
         # Check for partial channel overlaps between devices, which
         # are probably an error
-        for other in self.devices:
+        for other in self.devices.values():
             # Two devices with the same type and the same channel are probably ok
             if device.chan_no == other.chan_no and type(device) == type(other):
                 continue
@@ -92,7 +95,7 @@ class DMXUniverse:
             if device.chan_overlap(other):
                 raise Exception('partial channel overlap between devices "{}" and "{}"'.format(device.name, other.name))
 
-        self.devices.append(device)
+        self.devices[device.name] = device
         return device
 
     def start_dmx_thread(self):
@@ -102,7 +105,7 @@ class DMXUniverse:
 
         def dmx_thread_fn():
             while True:
-                for dev in self.devices:
+                for dev in self.devices.values():
                     dev.update(self)
 
                 self.port.set_break(True)
@@ -110,7 +113,8 @@ class DMXUniverse:
                 self.port.write_data(self.data)
 
                 # The maximum update rate for the Enttec OpenDMX is 40Hz
-                time.sleep(8/1000.0)
+                #time.sleep(8/1000.0)
+                time.sleep(1/40)
 
         dmx_thread = threading.Thread(target=dmx_thread_fn, args=(), daemon=True)
         dmx_thread.start()
@@ -193,27 +197,39 @@ class MovingHead(DMXDevice):
 
     def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, num_chans=14)
-        self.dimming = 1.0
+        self._intensity: float = 1.0
         self._strobe: int = 255
-        self.strobe_frequency: float = 1.0
-        self._yaw: float = 0.0
-        self._pitch: float = -np.pi/4
-        self._pan = 0
-        self._tilt = 0.0
-        self.speed = 1.0
+        self._pan: float = 0.0
+        self._tilt: float = 0.0
+        self._speed: float = 1.0
         self._color: int = 0
         self._gobo1: int = 0
         self._gobo2: int = 0
         self._gobo2_rotation: int = 0
         self._prism: int = 0
+        self._focus: float = 0.0
+        self._pan_fine: float = 0.0
+        self._tilt_fine: float = 0.0
+        self._reset: float = 0.0
+        
+        self._yaw: float = 0.0
+        self._pitch: float = -np.pi/4
+        self.strobe_frequency: float = 1.0
         self.prism_speed: float = 0
-        self.focus: float = 0.0
-        self._pan_fine = 0
-        self._tilt_fine = 0
-        self.reset = 0
     
     def get_rgb(self):
         return self.COLORS[self.color]
+    
+    def reset(self):
+        self._reset = 1.0
+    
+    @property
+    def intensity(self):
+        return self._intensity
+    
+    @intensity.setter
+    def intensity(self, value: float):
+        self._intensity = min(1.0, max(0.0, value))
     
     @property
     def yaw(self) -> float:
@@ -243,6 +259,14 @@ class MovingHead(DMXDevice):
         #self._tilt = angle
         # self._tilt = int(angle)
         # self._tilt_fine = angle - int(angle)
+    
+    @property
+    def speed(self):
+        return self._speed
+    
+    @speed.setter
+    def speed(self, value: float):
+        self._speed = min(1.0, max(0.0, value))
         
     @property
     def prism(self):
@@ -303,6 +327,14 @@ class MovingHead(DMXDevice):
         elif value < 0:
             self._gobo2_rotation = 255 - int(65 * (value+1))
     
+    @property
+    def focus(self):
+        return self._focus
+    
+    @focus.setter
+    def focus(self, value: float):
+        self._focus = min(1.0, max(0.0, value))
+    
     def next_color(self):
         if self.color < 30:
             self.color += 5
@@ -312,21 +344,44 @@ class MovingHead(DMXDevice):
             self.color -= 5
 
     def update(self, dmx: DMXUniverse):
-        dmx.set_float(self.chan_no, 1, self.dimming)
+        dmx.set_float(self.chan_no, 1, self._intensity)
         dmx.set_int(self.chan_no, 2, self._strobe)
         dmx.set_float(self.chan_no, 3, self._pan)
         dmx.set_float(self.chan_no, 4, self._tilt)
-        dmx.set_float(self.chan_no, 5, 1 - self.speed)
+        dmx.set_float(self.chan_no, 5, 1 - self._speed)
         dmx.set_int(self.chan_no, 6, self._color)
         dmx.set_int(self.chan_no, 7, self._gobo1)
         dmx.set_int(self.chan_no, 8, self._gobo2)
         dmx.set_int(self.chan_no, 9, self._gobo2_rotation)
         dmx.set_int(self.chan_no, 10, self._prism)
-        dmx.set_float(self.chan_no, 11, self.focus)
+        dmx.set_float(self.chan_no, 11, self._focus)
         dmx.set_float(self.chan_no, 12, self._pan_fine)
         dmx.set_float(self.chan_no, 13, self._tilt_fine)
-        dmx.set_float(self.chan_no, 14, self.reset)
-        
+        dmx.set_float(self.chan_no, 14, self._reset)
+
+
+class VaritecColorsStarbar12(DMXDevice):
+    LED_COUNT = 12
+    def __init__(self, name: str, chan_no: int):
+        super().__init__(name, chan_no, num_chans=52)
+        self.intensity: float = 1.0
+        self.strobe: float = 0.0
+        self.leds: list[tuple[int,int,int]] = [(0,0,0) for _ in range(self.LED_COUNT)]
+        self.lights: list[int] = [0 for _ in range(self.LED_COUNT)]
+        self.function: int = 0
+        self.effect_speed: float = 0.5
+    
+    def update(self, dmx: DMXUniverse):
+        dmx.set_float(self.chan_no, 1, self.intensity)
+        dmx.set_float(self.chan_no, 2, self.strobe)
+        for i in range(self.LED_COUNT):
+            dmx.set_int(self.chan_no, 3 + i*4 + 0, self.leds[i][0])
+            dmx.set_int(self.chan_no, 3 + i*4 + 1, self.leds[i][1])
+            dmx.set_int(self.chan_no, 3 + i*4 + 2, self.leds[i][2])
+            dmx.set_int(self.chan_no, 3 + i*4 + 3, self.lights[i])
+        dmx.set_int(self.chan_no, 51, self.function)
+        dmx.set_float(self.chan_no, 52, self.effect_speed)
+                
 
 def get_device_url() -> str|None:
     devices = Ftdi.list_devices()
@@ -340,40 +395,49 @@ def get_device_url() -> str|None:
         return f'ftdi://{vid}:{pid}:{sn}/1'
 
 
+def initialize_dmx_universe():
+    device_url = get_device_url()
+    if device_url:
+        dmx_universe = DMXUniverse(url=device_url, devices=[MovingHead("Laser Cockpit", 1),
+                                                            MovingHead("Laser Lichthaus", 15),
+                                                            VaritecColorsStarbar12("Starbar Cockpit", 300)])
+        dmx_universe.start_dmx_thread()
+        print(f"Successfully initiated DMX Universe at {dmx_universe.url}.")
+        return dmx_universe
+    else:
+        print("Was unable to initiate DMX Universe. (No devices found)")
+        return None
+
+
+dmx_universe = initialize_dmx_universe()
+        
+
 if __name__ == "__main__":
     import pygame as pg
     pg.init()
     screen = pg.display.set_mode((480,360))
     
-    for device in Ftdi.list_devices():
-        print(device)
-    dmx = DMXUniverse(url='ftdi://0x403:0x6001:AL040AHB/1')
-
-    moving_head = MovingHead(name="Moving Head", chan_no=1)
-    dmx.add_device(moving_head)
-    dmx.start_dmx_thread()
-    
-    moving_head.dimming = 0.1
-    moving_head.speed = 1.0
-    moving_head.pan = 0.0
-    moving_head.tilt = 0.0
-    moving_head.color = 0
-    
+    dmx_universe.add_device(color_bar := VaritecColorsStarbar12("VaritecColorsStarbar12", 300))
+            
     clock = pg.time.Clock()
+    tick = 0
     
-    move_speed = 0.005
-
     while True:
+        tick += 1
+        light = tick % color_bar.LED_COUNT
+        for i in range(color_bar.LED_COUNT):
+            color_bar.lights[i] = 255 if i == light else 0
+        
         keys_pressed = pg.key.get_pressed()
         
         if keys_pressed[pg.K_a]:
-            moving_head.pan += move_speed
+            ...
         if keys_pressed[pg.K_d]:
-            moving_head.pan -= move_speed
+            ...
         if keys_pressed[pg.K_w]:
-            moving_head.tilt += move_speed
+            ...
         if keys_pressed[pg.K_s]:
-            moving_head.tilt -= move_speed
+            ...
         
         pg.event.pump()
         pg.display.flip()
