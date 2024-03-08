@@ -42,7 +42,7 @@ class DMXUniverse:
     """
     Interface to an ENTTEC OpenDMX (FTDI) DMX interface
     """
-    def __init__(self, url='ftdi://ftdi:232:AL6E8JFW/1', devices: list['DMXDevice']|None = None):
+    def __init__(self, url: str, devices: list['DMXDevice']|None = None):
         self.url = url
         self.port = Ftdi.create_from_url(url)
         self.port.reset()
@@ -54,7 +54,9 @@ class DMXUniverse:
         # 513 bytes are sent in total
         self.data = bytearray(513 * [0])
 
-        self.devices = {device.name: device for device in devices} if devices is not None else {}
+        self.devices = {}
+        for device in devices:
+            self.add_device(device)
 
     def __del__(self):
         self.port.close()
@@ -83,7 +85,7 @@ class DMXUniverse:
     def add_device(self, device: 'DMXDevice'):
         # Check if name is already in use:
         if self.devices.get(device.name, None):
-            raise Exception(f'Device name {device.name} already in use.')
+            raise Exception('Device name {} already in use.'.format(device.name))
         
         # Check for partial channel overlaps between devices, which
         # are probably an error
@@ -104,7 +106,7 @@ class DMXUniverse:
         """
 
         def dmx_thread_fn():
-            target_interval = 1/40 # The maximum update rate for the Enttec OpenDMX is 40Hz
+            target_interval = 1/20 # The maximum update rate for the Enttec OpenDMX is 40Hz
             
             while True:
                 start_time = time.time()  # Get the current time at the start of the loop
