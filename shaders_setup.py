@@ -26,7 +26,7 @@ ghost_shader_uniforms = {
 add_shader_uniforms = {
     '_MainTex': 0,
     '_SecondaryTex': 2,
-    '_Influence': (1.0, .25, .25, 0.0), # TODO: Does this do anything?
+    '_Influence': (.25, .25, .25, 0.0), # TODO: Does this do anything?
     #'_Influence': (2.0, 1.0, 1.0, 0.0),
 }
 
