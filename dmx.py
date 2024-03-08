@@ -42,7 +42,7 @@ class DMXUniverse:
     """
     Interface to an ENTTEC OpenDMX (FTDI) DMX interface
     """
-    def __init__(self, url: str, devices: list['DMXDevice']|None = None):
+    def __init__(self, url: str, devices: list['DMXDevice']|None = None, *, target_frequency: int = 20):
         self.url = url
         self.port = Ftdi.create_from_url(url)
         self.port.reset()
@@ -53,6 +53,8 @@ class DMXUniverse:
         # The 0th byte must be 0 (start code)
         # 513 bytes are sent in total
         self.data = bytearray(513 * [0])
+        
+        self.target_frequency = target_frequency  # In Hz
 
         self.devices = {}
         for device in devices:
@@ -106,7 +108,7 @@ class DMXUniverse:
         """
 
         def dmx_thread_fn():
-            target_interval = 1/20 # The maximum update rate for the Enttec OpenDMX is 40Hz
+            target_interval = 1.0/self.target_frequency # The maximum update rate for the Enttec OpenDMX is 40Hz
             
             while True:
                 start_time = time.time()  # Get the current time at the start of the loop
@@ -120,6 +122,8 @@ class DMXUniverse:
 
                 elapsed_time = time.time() - start_time
                 sleep_time = max(0, target_interval - elapsed_time)
+                if sleep_time == 0:
+                    print("Warning: DMX thread could not keep up with target frequency. If this warning appears often, consider lowering it.")
                 time.sleep(sleep_time)
 
         dmx_thread = threading.Thread(target=dmx_thread_fn, args=(), daemon=True)
@@ -447,4 +451,4 @@ if __name__ == "__main__":
         
         pg.event.pump()
         pg.display.flip()
-        clock.tick(10)
+        clock.tick(dmx_universe.target_frequency)
