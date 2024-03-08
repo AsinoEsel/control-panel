@@ -104,7 +104,11 @@ class DMXUniverse:
         """
 
         def dmx_thread_fn():
+            target_interval = 1/40 # The maximum update rate for the Enttec OpenDMX is 40Hz
+            
             while True:
+                start_time = time.time()  # Get the current time at the start of the loop
+                
                 for dev in self.devices.values():
                     dev.update(self)
 
@@ -112,9 +116,9 @@ class DMXUniverse:
                 self.port.set_break(False)
                 self.port.write_data(self.data)
 
-                # The maximum update rate for the Enttec OpenDMX is 40Hz
-                #time.sleep(8/1000.0)
-                time.sleep(1/40)
+                elapsed_time = time.time() - start_time
+                sleep_time = max(0, target_interval - elapsed_time)
+                time.sleep(sleep_time)
 
         dmx_thread = threading.Thread(target=dmx_thread_fn, args=(), daemon=True)
         dmx_thread.start()

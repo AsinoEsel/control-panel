@@ -169,7 +169,7 @@ class LaserGame(Widget):
         self.viewport = Viewport(self)
         self.elements.append(self.viewport)
         if dmx.dmx_universe:
-            [device for device in dmx.dmx_universe.devices if isinstance(device, dmx.MovingHead)]
+            self.moving_heads = [device for device in dmx.dmx_universe.devices.values() if isinstance(device, dmx.MovingHead)]
         else:
             self.moving_heads = [dmx.MovingHead("Moving Head", 1), dmx.MovingHead("Moving Head 2", 15)]
         self.relays = [Relay(moving_head=moving_head, position=pg.Vector3(i,i,0), orientation=pg.Vector3(1,0,0)) for i, moving_head in enumerate(self.moving_heads)]
