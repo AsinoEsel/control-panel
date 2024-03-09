@@ -109,13 +109,13 @@ class Antenna(Entity):
         else:
             width = 2
             color = (255,255,255)
-        pg.draw.circle(surface, color, center, 6, width)
+        pg.draw.circle(surface, color, center, 12, width)
 
 
 class Viewport(Widget):
     def __init__(self, parent: Widget):
         super().__init__(parent, parent.position.x+DEFAULT_GAP, parent.position.y+DEFAULT_GAP, parent.surface.get_width()-2*DEFAULT_GAP, parent.surface.get_height()-2*DEFAULT_GAP)
-        self.camera = Camera(zoom=64.0, shift=pg.Vector2(self.surface.get_width()//2, self.surface.get_height()//2))
+        self.camera = Camera(zoom=128.0, shift=pg.Vector2(self.surface.get_width()//2, self.surface.get_height()//2))
         self.entities = []
     
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
@@ -172,8 +172,8 @@ class LaserGame(Widget):
             self.moving_heads = [device for device in dmx.dmx_universe.devices.values() if isinstance(device, dmx.MovingHead)]
         else:
             self.moving_heads = [dmx.MovingHead("Moving Head", 1), dmx.MovingHead("Moving Head 2", 15)]
-        self.relays = [Relay(moving_head=moving_head, position=pg.Vector3(i,i,0), orientation=pg.Vector3(1,0,0)) for i, moving_head in enumerate(self.moving_heads)]
-        self.antennas = [Antenna(pg.Vector3.from_spherical((random.uniform(1,2), random.randrange(0,100), random.randrange(0,360)))),]
+        self.relays = [Relay(moving_head=self.moving_heads[0], position=pg.Vector3(0,0,0), orientation=pg.Vector3(1,0,0))]
+        self.antennas = [Antenna(pg.Vector3(0.473, 0.533, 0.700).normalize()),]
         self.entities = self.relays + self.antennas
         self.viewport.entities = self.entities
         self.selected_relay = self.relays[0]
@@ -212,6 +212,7 @@ class LaserGame(Widget):
     
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         max_distance = self.max_speed * dt/1000
+        camera_distance = pi/4 * dt/1000
         
         for joystick in joysticks.values():
             axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]   
@@ -219,6 +220,9 @@ class LaserGame(Widget):
             self.selected_relay.moving_head.pitch += axes[1] * abs(axes[1]) * max_distance
             self.selected_relay.moving_head.gobo2_rotation = axes[2]
             self.selected_relay.moving_head.focus = (axes[3] + 1) / 2
+            hat = joystick.get_hat(0)
+            self.viewport.camera.yaw += camera_distance * hat[0]
+            self.viewport.camera.pitch -= camera_distance * hat[1]
         
         keys_pressed = pg.key.get_pressed()
         if keys_pressed[pg.K_a]:
@@ -279,6 +283,8 @@ if __name__ == "__main__":
         laser_game.propagate_update(tick, dt, joysticks)
         
         laser_game.render()
+        
+        print(laser_game.selected_relay.beam_vector)
         
         pg.display.flip()
         pg.event.pump()
