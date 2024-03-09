@@ -5,6 +5,7 @@ import random
 import threading
 from pyftdi.ftdi import Ftdi
 import numpy as np
+import pygame as pg
 
 def random_rgb():
     while True:
@@ -372,14 +373,35 @@ class MovingHead(DMXDevice):
 
 class VaritecColorsStarbar12(DMXDevice):
     LED_COUNT = 12
+    FUNCTIONS = [int((255/64)*i)+7 for i in range(62)]
     def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, num_chans=52)
         self.intensity: float = 1.0
         self.strobe: float = 0.0
         self.leds: list[tuple[int,int,int]] = [(0,0,0) for _ in range(self.LED_COUNT)]
         self.lights: list[int] = [0 for _ in range(self.LED_COUNT)]
-        self.function: int = 0
+        self._function: int = 7
         self.effect_speed: float = 0.5
+    
+    def render(self, surface: pg.Surface, position: pg.Vector2 = pg.Vector2(0,0)):
+        led_width = 30
+        width = self.LED_COUNT * led_width
+        height = 30
+        light_radius = led_width // 4
+        for i, led in enumerate(self.leds):
+            pg.draw.rect(surface, led, pg.Rect(position.x + i*led_width, position.y, led_width, height))
+        for i, light in enumerate(self.lights):
+            pg.draw.circle(surface, (light, light, 0.8*light), position+pg.Vector2(i*led_width + led_width//2, height//2), light_radius)
+        pg.draw.rect(surface, (64,64,64), pg.Rect(position.x, position.y, width, led_width), 2)
+    
+    @property
+    def function(self):
+        return int(self._function / (255/64)) - 1
+    
+    @function.setter
+    def function(self, value: int):
+        
+        self._function = int(self.FUNCTIONS[value]) if 0<=value<len(self.FUNCTIONS) else 7
     
     def update(self, dmx: DMXUniverse):
         dmx.set_float(self.chan_no, 1, self.intensity)
@@ -389,7 +411,7 @@ class VaritecColorsStarbar12(DMXDevice):
             dmx.set_int(self.chan_no, 3 + i*4 + 1, self.leds[i][1])
             dmx.set_int(self.chan_no, 3 + i*4 + 2, self.leds[i][2])
             dmx.set_int(self.chan_no, 3 + i*4 + 3, self.lights[i])
-        dmx.set_int(self.chan_no, 51, self.function)
+        dmx.set_int(self.chan_no, 51, self._function)
         dmx.set_float(self.chan_no, 52, self.effect_speed)
                 
 
@@ -423,7 +445,6 @@ dmx_universe = initialize_dmx_universe()
         
 
 if __name__ == "__main__":
-    import pygame as pg
     pg.init()
     screen = pg.display.set_mode((480,360))
     
@@ -437,6 +458,24 @@ if __name__ == "__main__":
         light = tick % color_bar.LED_COUNT
         for i in range(color_bar.LED_COUNT):
             color_bar.lights[i] = 255 if i == light else 0
+            color_bar.leds[i] = (255,0,0) if i == light else (0,0,0)
+        
+        for event in pg.event.get():
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_a:
+                    color_bar.function -= 1
+                    print(color_bar.function, color_bar._function)
+                elif event.key == pg.K_d:
+                    color_bar.function += 1
+                    print(color_bar.function, color_bar._function)
+                elif event.key == pg.K_w:
+                    color_bar.effect_speed += 0.1
+                    print(color_bar.effect_speed)
+                elif event.key == pg.K_s:
+                    color_bar.effect_speed -= 0.1
+                    print(color_bar.effect_speed)
+                    
+                    
         
         keys_pressed = pg.key.get_pressed()
         
@@ -448,6 +487,9 @@ if __name__ == "__main__":
             ...
         if keys_pressed[pg.K_s]:
             ...
+        
+        screen.fill((16,16,16))
+        color_bar.render(screen, position=pg.Vector2(10,10))
         
         pg.event.pump()
         pg.display.flip()
