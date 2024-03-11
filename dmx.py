@@ -43,23 +43,30 @@ class DMXUniverse:
     """
     Interface to an ENTTEC OpenDMX (FTDI) DMX interface
     """
-    def __init__(self, url: str, devices: list['DMXDevice']|None = None, *, target_frequency: int = 20):
-        self.url = url
-        self.port = Ftdi.create_from_url(url)
-        self.port.reset()
-        self.port.set_baudrate(baudrate=250000)
-        self.port.set_line_property(bits=8, stopbit=2, parity='N', break_=False)
-        assert self.port.is_connected
-
+    def __init__(self, url: str|None, devices: list['DMXDevice']|None = None, *, target_frequency: int = 20):
+        self.target_frequency = target_frequency  # In Hz
         # The 0th byte must be 0 (start code)
         # 513 bytes are sent in total
         self.data = bytearray(513 * [0])
         
-        self.target_frequency = target_frequency  # In Hz
-
-        self.devices = {}
+        self.devices: dict[str:'DMXDevice'] = {}
+        if devices is None:
+            devices = []
         for device in devices:
             self.add_device(device)
+            
+        if url:
+            self.url = url
+            self.port = Ftdi.create_from_url(url)
+            self.port.reset()
+            self.port.set_baudrate(baudrate=250000)
+            self.port.set_line_property(bits=8, stopbit=2, parity='N', break_=False)
+            assert self.port.is_connected
+            self.start_dmx_thread()
+            print(f"Successfully initiated a DMX universe @ {url}.")
+        else:
+            print("Was unable to initiate DMX Universe. (No devices found)")
+
 
     def __del__(self):
         self.port.close()
@@ -87,7 +94,7 @@ class DMXUniverse:
 
     def add_device(self, device: 'DMXDevice'):
         # Check if name is already in use:
-        if self.devices.get(device.name, None):
+        if self.devices.get(device.name):
             raise Exception('Device name {} already in use.'.format(device.name))
         
         # Check for partial channel overlaps between devices, which
@@ -131,13 +138,13 @@ class DMXUniverse:
         dmx_thread.start()
 
 class DMXDevice:
-    def __init__(self, name, chan_no, num_chans):
+    def __init__(self, name: str, chan_no: int, num_chans: int):
         assert (chan_no >= 1)
         self.name = name
         self.chan_no = chan_no
         self.num_chans = num_chans
 
-    def chan_overlap(this, that):
+    def chan_overlap(this, that: 'DMXDevice'):
         """
         Check if two devices have overlapping channels
         """
@@ -427,29 +434,19 @@ def get_device_url() -> str|None:
         return f'ftdi://{vid}:{pid}:{sn}/1'
 
 
-def initialize_dmx_universe():
-    device_url = get_device_url()
-    if device_url:
-        dmx_universe = DMXUniverse(url=device_url, devices=[MovingHead("Laser Cockpit", 1),
-                                                            MovingHead("Laser Lichthaus", 15),
-                                                            VaritecColorsStarbar12("Starbar Cockpit", 300)])
-        dmx_universe.start_dmx_thread()
-        print(f"Successfully initiated DMX Universe at {dmx_universe.url}.")
-        return dmx_universe
-    else:
-        print("Was unable to initiate DMX Universe. (No devices found)")
-        return None
+dmx_universe = DMXUniverse(url=get_device_url(), devices=[MovingHead("Laser Cockpit", 1),
+                                                          MovingHead("Laser Lichthaus", 15),
+                                                          VaritecColorsStarbar12("Starbar Cockpit", 300)])
 
-
-dmx_universe = initialize_dmx_universe()
-        
 
 if __name__ == "__main__":
     pg.init()
     screen = pg.display.set_mode((480,360))
     
-    dmx_universe.add_device(color_bar := VaritecColorsStarbar12("VaritecColorsStarbar12", 300))
-            
+    #dmx_universe.add_device(color_bar := VaritecColorsStarbar12("VaritecColorsStarbar12", 300))
+    
+    color_bar: VaritecColorsStarbar12 = dmx_universe.devices["Starbar Cockpit"]
+    
     clock = pg.time.Clock()
     tick = 0
     
