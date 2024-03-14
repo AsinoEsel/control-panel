@@ -8,5 +8,5 @@ if __name__ == "__main__":
     
     app.control_panel = control_panel
     flask_thread = threading.Thread(target=app.run_flask_app)
-    flask_thread.start()
+    flask_thread.run()
     

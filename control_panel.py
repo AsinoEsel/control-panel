@@ -18,10 +18,14 @@ class ControlPanel:
         loop_thread = threading.Thread(target=self.start_asyncio_loop, daemon=True)
         loop_thread.start()
         self.futures: list[asyncio.Future] = []
-        
-        if run_window_manager:        
-            self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders, maintain_aspect_ratio=maintain_aspect_ratio)
+                
+        if run_window_manager:
+            pygame_thread = threading.Thread(target=self.start_window_manager, args=(fullscreen, use_shaders, maintain_aspect_ratio), daemon=True)
+            pygame_thread.start()
     
+    def start_window_manager(self, fullscreen: bool, use_shaders: bool, maintain_aspect_ratio: bool):
+        self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders, maintain_aspect_ratio=maintain_aspect_ratio)
+                
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
