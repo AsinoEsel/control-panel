@@ -17,21 +17,23 @@ from cursor import cursor_surface
 class WindowManager:
     def __init__(self, control_panel, *, fullscreen: bool = False, use_shaders: bool = True, maintain_aspect_ratio: bool = True):
         self.control_panel: ControlPanel = control_panel
+        self.fullscreen = fullscreen
+        self.use_shaders = use_shaders
         flags = pg.FULLSCREEN if fullscreen else 0
         if use_shaders:
             flags |= pg.OPENGL | pg.DOUBLEBUF
         if not fullscreen:
-            output_size = RENDER_SIZE            
+            self.output_size = RENDER_SIZE            
         if fullscreen and maintain_aspect_ratio:
-            output_size = scale_resolution(RENDER_SIZE, (pg.display.Info().current_w, pg.display.Info().current_h))
+            self.output_size = scale_resolution(RENDER_SIZE, (pg.display.Info().current_w, pg.display.Info().current_h))
         elif fullscreen and not maintain_aspect_ratio:
-            output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
-        self.screen = pg.display.set_mode(output_size, flags=flags)
-        self.desktops = [Desktop(control_panel), Desktop(control_panel), Desktop(control_panel)]
-        self.desktop = self.desktops[2]
+            self.output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
+        self.screen = pg.display.set_mode(self.output_size, flags=flags)
+        self.desktops = [Desktop(control_panel) for _ in range(4)]
+        self.desktop = self.desktops[0]
         self.set_up_desktops(self.desktops)
-        self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
-    
+        # self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
+        
     def change_desktop(self, index: int):
         if not 0 <= index < len(self.desktops):
             return
@@ -51,6 +53,7 @@ class WindowManager:
                                    w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP))
         desktop.add_element(LoginWindow(desktop))
         desktop.terminal = terminal
+        desktop.add_element(Taskbar(desktop, 20))
         log.print_to_log("ROTER TEXT", (255,0,0))
         
         desktop2 = desktops[1]
@@ -59,8 +62,13 @@ class WindowManager:
         desktop3 = desktops[2]
         from laser_game import LaserGame
         desktop3.add_element(LaserGame(desktop3))
+        
+        desktop4 = desktops[3]
+        from dmx_monitor import DMXMonitor
+        desktop4.add_element(DMXMonitor(None, 0, 0, RENDER_WIDTH, RENDER_HEIGHT))
+
     
-    def run(self, output_size: tuple[int,int], fullscreen: bool, use_shaders: bool):
+    def run(self):
         pg.init()
         clock = pg.time.Clock()
         tick = 0
@@ -68,7 +76,7 @@ class WindowManager:
         
         joysticks = {}
         
-        if use_shaders:
+        if self.use_shaders:
             shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
                               shader_operations=[(1, "Downscale", {"_MainTex": 0}),
                                                   (1, "Threshold", {"_MainTex": 1}),
@@ -80,8 +88,8 @@ class WindowManager:
                                                   (-1, "To_BGRA", {"_MainTex": 0}),
                                                   ])
         
-        if fullscreen:
-            scaling_ratio = (RENDER_WIDTH/output_size[0], RENDER_HEIGHT/output_size[1])
+        if self.fullscreen:
+            scaling_ratio = (RENDER_WIDTH/self.output_size[0], RENDER_HEIGHT/self.output_size[1])
         
         while True:
             tick += 1
@@ -97,7 +105,7 @@ class WindowManager:
                 if pg.key.get_mods() & pg.KMOD_CTRL and event.type == pg.KEYDOWN and pg.K_0 <= event.key <= pg.K_9:
                     self.change_desktop(event.key - pg.K_0 - 1)
                     continue
-                if fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP, pg.MOUSEWHEEL):
+                if self.fullscreen and event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP):
                     event.pos = (event.pos[0] * scaling_ratio[0], event.pos[1] * scaling_ratio[1])
                     if event.type == pg.MOUSEMOTION:
                         event.rel = (event.rel[0] * scaling_ratio[0], event.rel[1] * scaling_ratio[1])
@@ -119,15 +127,15 @@ class WindowManager:
             self.desktop.propagate_update(tick, dt=dt, joysticks=joysticks)
             
             mouse_pos = pg.mouse.get_pos()
-            if fullscreen:
+            if self.fullscreen:
                 mouse_pos = (mouse_pos[0] * scaling_ratio[0], mouse_pos[1] * scaling_ratio[1])
             self.desktop.surface.blit(cursor_surface, mouse_pos)
             
-            if use_shaders:
+            if self.use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
             else:
-                if fullscreen:
-                    pg.transform.scale(self.desktop.surface, output_size, self.screen)
+                if self.fullscreen:
+                    pg.transform.scale(self.desktop.surface, self.output_size, self.screen)
                 else:
                     self.screen.blit(self.desktop.surface, (0,0))
             
@@ -262,7 +270,7 @@ class Widget:
     
     def render(self) -> None:
         self.surface.fill(self.accent_color)
-        pg.draw.rect(self.surface, self.color, self.rect, LINE_THICKNESS_THIN)
+        self.render_border()
         self.blit_from_children()
 
 
@@ -285,6 +293,14 @@ class Desktop(Widget):
                       video_path=video_path)
         video_window.add_element(video)
         self.add_element(video_window)
+
+
+class Taskbar(Widget):
+    def __init__(self, parent: Widget|None, height: int) -> None:
+        x = parent.position.x if parent else 0
+        y = parent.position.y if parent else 0
+        w = parent.surface.get_width() if parent else RENDER_WIDTH
+        super().__init__(parent, x, y, w, height)
             
 
 class Window(Widget):
@@ -764,5 +780,7 @@ class Radar(Widget):
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
-    
+    import threading
+    control_panel = ControlPanel(fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
+    window_manager_thread = threading.Thread(target=control_panel.window_manager.run)
+    window_manager_thread.run()

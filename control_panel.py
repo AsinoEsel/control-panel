@@ -7,7 +7,7 @@ import threading
 
 
 class ControlPanel:
-    def __init__(self, run_window_manager: bool = True, *, fullscreen: bool = False, use_shaders: bool = True, maintain_aspect_ratio: bool = True) -> None:
+    def __init__(self, *, fullscreen: bool = False, use_shaders: bool = True, maintain_aspect_ratio: bool = True) -> None:
         self.button_is_pressed = False
         self.button_press_acknowledged = False
         
@@ -19,13 +19,8 @@ class ControlPanel:
         loop_thread.start()
         self.futures: list[asyncio.Future] = []
                 
-        if run_window_manager:
-            pygame_thread = threading.Thread(target=self.start_window_manager, args=(fullscreen, use_shaders, maintain_aspect_ratio), daemon=True)
-            pygame_thread.start()
-    
-    def start_window_manager(self, fullscreen: bool, use_shaders: bool, maintain_aspect_ratio: bool):
         self.window_manager = WindowManager(self, fullscreen=fullscreen, use_shaders=use_shaders, maintain_aspect_ratio=maintain_aspect_ratio)
-                
+                    
     def start_asyncio_loop(self):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()

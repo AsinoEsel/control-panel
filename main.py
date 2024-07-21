@@ -4,9 +4,12 @@ from control_panel import ControlPanel
 
 
 if __name__ == "__main__":
-    control_panel = ControlPanel(run_window_manager=True, fullscreen=True)
+    control_panel = ControlPanel(fullscreen=True, use_shaders=True, maintain_aspect_ratio=True)
     
     app.control_panel = control_panel
     flask_thread = threading.Thread(target=app.run_flask_app)
-    flask_thread.run()
+    flask_thread.start()
+    
+    window_manager_thread = threading.Thread(target=control_panel.window_manager.run)
+    window_manager_thread.run()
     

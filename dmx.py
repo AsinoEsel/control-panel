@@ -67,9 +67,11 @@ class DMXUniverse:
         else:
             print("Was unable to initiate DMX Universe. (No devices found)")
 
-
     def __del__(self):
-        self.port.close()
+        try:
+            self.port.close()
+        except AttributeError:
+            print("Cannot close port because no port exists.")
 
     def __setitem__(self, idx, val):
         assert (1 <= idx <= 512)
@@ -157,7 +159,10 @@ class DMXDevice:
             (that.chan_no >= this.chan_no and that.chan_no <= this_last)
         )
 
-    def update(self, dmx):
+    def update(self, dmx: DMXUniverse):
+        raise NotImplementedError
+    
+    def render(self, surface: pg.Surface, position: pg.Vector2 = pg.Vector2(0,0)):
         raise NotImplementedError
 
 class MovingHead(DMXDevice):
@@ -389,18 +394,7 @@ class VaritecColorsStarbar12(DMXDevice):
         self.lights: list[int] = [0 for _ in range(self.LED_COUNT)]
         self._function: int = 7
         self.effect_speed: float = 0.5
-    
-    def render(self, surface: pg.Surface, position: pg.Vector2 = pg.Vector2(0,0)):
-        led_width = 30
-        width = self.LED_COUNT * led_width
-        height = 30
-        light_radius = led_width // 4
-        for i, led in enumerate(self.leds):
-            pg.draw.rect(surface, led, pg.Rect(position.x + i*led_width, position.y, led_width, height))
-        for i, light in enumerate(self.lights):
-            pg.draw.circle(surface, (light, light, 0.8*light), position+pg.Vector2(i*led_width + led_width//2, height//2), light_radius)
-        pg.draw.rect(surface, (64,64,64), pg.Rect(position.x, position.y, width, led_width), 2)
-    
+        
     @property
     def function(self):
         return int(self._function / (255/64)) - 1
@@ -436,57 +430,49 @@ def get_device_url() -> str|None:
 
 dmx_universe = DMXUniverse(url=get_device_url(), devices=[MovingHead("Laser Cockpit", 1),
                                                           MovingHead("Laser Lichthaus", 15),
-                                                          VaritecColorsStarbar12("Starbar Cockpit", 300)])
+                                                          VaritecColorsStarbar12("Starbar Cockpit", 300),
+                                                          ])
 
 
 if __name__ == "__main__":
     pg.init()
     screen = pg.display.set_mode((480,360))
-    
-    #dmx_universe.add_device(color_bar := VaritecColorsStarbar12("VaritecColorsStarbar12", 300))
-    
-    color_bar: VaritecColorsStarbar12 = dmx_universe.devices["Starbar Cockpit"]
+        
+    color_bar: VaritecColorsStarbar12 = dmx_universe.devices.get("Starbar Cockpit")
     
     clock = pg.time.Clock()
     tick = 0
     
     while True:
         tick += 1
+        
         light = tick % color_bar.LED_COUNT
         for i in range(color_bar.LED_COUNT):
             color_bar.lights[i] = 255 if i == light else 0
             color_bar.leds[i] = (255,0,0) if i == light else (0,0,0)
         
+        print(color_bar.lights)
+        
         for event in pg.event.get():
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_a:
-                    color_bar.function -= 1
-                    print(color_bar.function, color_bar._function)
-                elif event.key == pg.K_d:
-                    color_bar.function += 1
-                    print(color_bar.function, color_bar._function)
-                elif event.key == pg.K_w:
-                    color_bar.effect_speed += 0.1
-                    print(color_bar.effect_speed)
-                elif event.key == pg.K_s:
-                    color_bar.effect_speed -= 0.1
-                    print(color_bar.effect_speed)
+            ...
                     
                     
         
         keys_pressed = pg.key.get_pressed()
         
         if keys_pressed[pg.K_a]:
-            ...
+            dmx_universe.devices.get("WLED ESP")._effect -= 1
+            print(dmx_universe.devices.get("WLED ESP")._effect)
         if keys_pressed[pg.K_d]:
-            ...
+            dmx_universe.devices.get("WLED ESP")._effect += 1
+            print(dmx_universe.devices.get("WLED ESP")._effect)
         if keys_pressed[pg.K_w]:
             ...
         if keys_pressed[pg.K_s]:
             ...
         
         screen.fill((16,16,16))
-        color_bar.render(screen, position=pg.Vector2(10,10))
+        # color_bar.render(screen, position=pg.Vector2(10,10))
         
         pg.event.pump()
         pg.display.flip()
