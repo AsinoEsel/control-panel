@@ -11,7 +11,6 @@ import time
 from shaders import Shaders
 from requests.exceptions import ConnectTimeout
 import radar
-from cursor import cursor_surface
 
 
 class WindowManager:
@@ -32,7 +31,7 @@ class WindowManager:
         self.desktops = [Desktop(control_panel) for _ in range(4)]
         self.desktop = self.desktops[0]
         self.set_up_desktops(self.desktops)
-        # self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
+
         
     def change_desktop(self, index: int):
         if not 0 <= index < len(self.desktops):
@@ -51,9 +50,7 @@ class WindowManager:
                                text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
         desktop.add_element(STLRenderer(desktop, "media/fox_centered.stl", x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP,
                                    w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP))
-        desktop.add_element(LoginWindow(desktop))
         desktop.terminal = terminal
-        desktop.add_element(Taskbar(desktop, 20))
         log.print_to_log("ROTER TEXT", (255,0,0))
         
         desktop2 = desktops[1]
@@ -64,8 +61,6 @@ class WindowManager:
         desktop3.add_element(LaserGame(desktop3))
         
         desktop4 = desktops[3]
-        from dmx_monitor import DMXMonitor
-        desktop4.add_element(DMXMonitor(None, 0, 0, RENDER_WIDTH, RENDER_HEIGHT))
 
     
     def run(self):
@@ -111,25 +106,24 @@ class WindowManager:
                         event.rel = (event.rel[0] * scaling_ratio[0], event.rel[1] * scaling_ratio[1])
                 self.desktop.handle_event(event)
             
-            for future in self.control_panel.futures:
-                if future.done():
-                    if isinstance((error := future.result()), Exception):
-                        self.desktop.terminal.log.print_to_log(str(error), (255,0,0))
-                        self.control_panel.futures.remove(future)
-                        continue
-                    try:
-                        json = future.result().json()
-                        self.desktop.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
-                    except ConnectTimeout as e:
-                        self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
-                    self.control_panel.futures.remove(future)
+            # for future in self.control_panel.futures:
+            #     if future.done():
+            #         if isinstance((error := future.result()), Exception):
+            #             self.desktop.terminal.log.print_to_log(str(error), (255,0,0))
+            #             self.control_panel.futures.remove(future)
+            #             continue
+            #         try:
+            #             json = future.result().json()
+            #             self.desktop.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
+            #         except ConnectTimeout as e:
+            #             self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
+            #         self.control_panel.futures.remove(future)
             
             self.desktop.propagate_update(tick, dt=dt, joysticks=joysticks)
             
             mouse_pos = pg.mouse.get_pos()
             if self.fullscreen:
                 mouse_pos = (mouse_pos[0] * scaling_ratio[0], mouse_pos[1] * scaling_ratio[1])
-            self.desktop.surface.blit(cursor_surface, mouse_pos)
             
             if self.use_shaders:
                 shaders.apply(self.desktop.surface, current_time)
