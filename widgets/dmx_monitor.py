@@ -2,7 +2,7 @@
 
 import pygame as pg
 from pygame.event import Event
-from window_manager import Widget, Desktop
+from .widget import Widget, Desktop
 from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, BACKGROUND_COLOR, DEFAULT_GAP
 import dmx
 

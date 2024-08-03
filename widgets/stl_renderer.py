@@ -2,7 +2,9 @@ import numpy as np
 import quaternion
 from stl import mesh, Dimension
 from itertools import combinations
-
+from .widget import Widget
+from window_manager_setup import COLOR_ACTIVE, COLOR_INACTIVE, BACKGROUND_COLOR
+import pygame as pg
 
 class Camera:
     def __init__(self, zoom: float = 1, shift: tuple[int, int] = (0, 0)):
@@ -157,6 +159,57 @@ def find_mins_maxs(obj):
             maxz = max(p[Dimension.Z], maxz)
             minz = min(p[Dimension.Z], minz)
     return minx, maxx, miny, maxy, minz, maxz
+
+
+class STLRenderer(Widget):
+    def __init__(self, parent, stl_path, x, y, w, h) -> None:
+        super().__init__(parent, x, y, w, h)
+        self.stl_path = stl_path
+        self.camera = Camera(shift=(w//2,h//2))
+        self.set_model(stl_path=stl_path)
+    
+    def set_model(self, stl_path: str):
+        self.stl_path = stl_path
+        self.unique_edges = extract_unique_edges(mesh := read_stl(stl_path))
+        min_x, max_x, min_y, max_y, min_z, max_z = find_mins_maxs(mesh)
+        max_bounding_box = max((max_x-min_x), (max_y-min_y), (max_z-min_z))
+        self.camera.zoom = 0.9 * min(self.surface.get_width(), self.surface.get_height()) / max_bounding_box
+        self.flag_as_needing_rerender()
+    
+    def handle_event(self, event: pg.event.Event):
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_d:
+                self.set_model("media/roboter.stl")
+                self.camera.zoom = self.surface.get_height()
+        return super().handle_event(event)
+    
+    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+        degrees_per_second = 45
+        if self.active:
+            degrees = degrees_per_second*dt/1000
+            keys = pg.key.get_pressed()
+            if keys[pg.K_LEFT]:
+                self.camera.rotate_left_right(-degrees)
+            if keys[pg.K_RIGHT]:
+                self.camera.rotate_left_right(degrees)
+            if keys[pg.K_UP]:
+                self.camera.rotate_up_down(degrees)
+            if keys[pg.K_DOWN]:
+                self.camera.rotate_up_down(-degrees)
+            if any((keys[pg.K_LEFT], keys[pg.K_RIGHT], keys[pg.K_UP], keys[pg.K_DOWN])):
+                self.flag_as_needing_rerender()
+    
+    def render_wireframe(self):
+        wireframe = project_to_2d(self.unique_edges, self.camera)
+        color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
+        for line_segment in wireframe:
+            pg.draw.line(self.surface, color, line_segment[0], line_segment[1])
+    
+    def render(self):
+        self.surface.fill(BACKGROUND_COLOR)
+        self.render_wireframe()
+        self.render_border()
+
 
 
 if __name__ == "__main__":
