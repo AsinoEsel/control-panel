@@ -1,4 +1,3 @@
-from esp_requests import ESP_seven_segment
 import os.path
 from window_manager_setup import LEVEL_LIST
 
@@ -60,14 +59,14 @@ class Logout(ConsoleCommand):
         account_manager.logout()
 
 
-class Display(ConsoleCommand):
-    def execute(self, terminal, *args: str) -> None:
-        print_to_log = terminal.log.print_to_log if terminal else print
+# class Display(ConsoleCommand):
+#     def execute(self, terminal, *args: str) -> None:
+#         print_to_log = terminal.log.print_to_log if terminal else print
 
-        if not args:
-            print_to_log(self.usage_string, (255,255,0))
-            return
-        terminal.get_root().control_panel.schedule_async_task(ESP_seven_segment, "display", ' '.join(args))
+#         if not args:
+#             print_to_log(self.usage_string, (255,255,0))
+#             return
+#         terminal.get_root().control_panel.schedule_async_task(ESP_seven_segment, "display", ' '.join(args))
 
 
 class PlayVideo(ConsoleCommand):
@@ -162,7 +161,7 @@ def handle_user_input(terminal, user_input: str):
 cmds = (Help("help", "Display this text.", "<command>", (0,1)),
         Login("login", "Log into an account.", "<username> <password>", 2),
         Logout("logout", "Log out of an account.", "", 0),
-        Display("display", "Display a text.", "<text>", 1),
+        # Display("display", "Display a text.", "<text>", 1),
         PlayVideo("play", "Play a video file.", "<video_file>", 1),
         UnlockLevel("unlock", "Unlock a level for the current user.", "<level>", 1, requires_login=True),
         UnlockAll("unlockall", "Unlock all levels for the current user.", "", 0, requires_login=True),

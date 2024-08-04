@@ -1,22 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from control_panel import ControlPanel
-from esp_requests import ESPs
 
 app = Flask(__name__)
 control_panel: ControlPanel = None
-
-@app.route('/button_pressed', methods=['GET'])
-def button_pressed():
-    control_panel.button_is_pressed = True
-    control_panel.button_press_acknowledged = False
-    return jsonify({"message": "Button press acknowledged"}, 200)
-
-
-@app.route('/button_unpressed', methods=['GET'])
-def button_unpressed():
-    control_panel.button_is_pressed = False
-    return jsonify({"message": "Button unpress acknowledged"}, 200)
-
 
 @app.route('/api')
 def handle_api():

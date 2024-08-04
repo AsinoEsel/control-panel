@@ -1,6 +1,6 @@
 import pygame as pg
 from math import sin, cos, acos, radians, pi
-from window_manager import Widget, Desktop
+from .widget import Widget, Desktop
 from window_manager_setup import RENDER_WIDTH, RENDER_HEIGHT, BACKGROUND_COLOR, DEFAULT_GAP
 import random
 import dmx
@@ -21,7 +21,7 @@ class Camera:
         self.shift = shift
     
     def project_point(self, point: pg.Vector3) -> pg.Vector2:
-        from stl_renderer import find_basis_vectors
+        from widgets.stl_renderer import find_basis_vectors
         camera_angle = -self.position
         basis_x, basis_y = find_basis_vectors(camera_angle)
         basis_x = pg.Vector3(basis_x[0], basis_x[1], basis_x[2])

@@ -2,16 +2,20 @@ import pygame as pg
 import os
 import cv2
 from pygame.event import Event
-from utils import *
+import utils
 from window_manager_setup import *
-import stl_renderer as stlr
-from console_commands import handle_user_input
 import debug_util
 import time
+<<<<<<< HEAD
 from shaders import Shaders, ShaderPipeline
 from requests.exceptions import ConnectTimeout
 import radar
 from cursor import cursor_surface
+=======
+from shaders import Shaders
+
+from widgets import Widget, STLRenderer, Desktop, Window, InputBox, Radar, TextField, Image, Log, Terminal
+>>>>>>> mitdir2024
 
 
 class WindowManager:
@@ -25,7 +29,7 @@ class WindowManager:
         if not fullscreen:
             self.output_size = RENDER_SIZE            
         if fullscreen and maintain_aspect_ratio:
-            self.output_size = scale_resolution(RENDER_SIZE, (pg.display.Info().current_w, pg.display.Info().current_h))
+            self.output_size = utils.scale_resolution(RENDER_SIZE, (pg.display.Info().current_w, pg.display.Info().current_h))
         elif fullscreen and not maintain_aspect_ratio:
 <<<<<<< HEAD
             output_size = (pg.display.Info().current_w, pg.display.Info().current_h)
@@ -41,7 +45,7 @@ class WindowManager:
         self.desktops = [Desktop(control_panel) for _ in range(4)]
         self.desktop = self.desktops[0]
         self.set_up_desktops(self.desktops)
-        # self.run(output_size, fullscreen=fullscreen, use_shaders=use_shaders)
+
         
 >>>>>>> fix_shader
     def change_desktop(self, index: int):
@@ -62,9 +66,8 @@ class WindowManager:
                                text=os.path.join('media','roboter_ascii.txt'), load_ascii_file=True, transparent=False, font=SMALL_FONT)
         desktop.add_element(STLRenderer(desktop, "media/fox_centered.stl", x=RENDER_WIDTH//2+DEFAULT_GAP, y=RENDER_HEIGHT//2+DEFAULT_GAP,
                                    w=RENDER_WIDTH//2-2*DEFAULT_GAP, h=RENDER_HEIGHT//2-2*DEFAULT_GAP))
-        desktop.add_element(LoginWindow(desktop))
         desktop.terminal = terminal
-        desktop.add_element(Taskbar(desktop, 20))
+        # desktop.add_element(Taskbar(desktop, 20))
         log.print_to_log("ROTER TEXT", (255,0,0))
         
         desktop.shaders = ShaderPipeline(number_of_surfaces=1,
@@ -99,12 +102,10 @@ class WindowManager:
 =======
         
         desktop3 = desktops[2]
-        from laser_game import LaserGame
+        from widgets import LaserGame
         desktop3.add_element(LaserGame(desktop3))
         
         desktop4 = desktops[3]
-        from dmx_monitor import DMXMonitor
-        desktop4.add_element(DMXMonitor(None, 0, 0, RENDER_WIDTH, RENDER_HEIGHT))
 
     
     def run(self):
@@ -157,25 +158,24 @@ class WindowManager:
                         event.rel = (event.rel[0] * scaling_ratio[0], event.rel[1] * scaling_ratio[1])
                 self.desktop.handle_event(event)
             
-            for future in self.control_panel.futures:
-                if future.done():
-                    if isinstance((error := future.result()), Exception):
-                        self.desktop.terminal.log.print_to_log(str(error), (255,0,0))
-                        self.control_panel.futures.remove(future)
-                        continue
-                    try:
-                        json = future.result().json()
-                        self.desktop.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
-                    except ConnectTimeout as e:
-                        self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
-                    self.control_panel.futures.remove(future)
+            # for future in self.control_panel.futures:
+            #     if future.done():
+            #         if isinstance((error := future.result()), Exception):
+            #             self.desktop.terminal.log.print_to_log(str(error), (255,0,0))
+            #             self.control_panel.futures.remove(future)
+            #             continue
+            #         try:
+            #             json = future.result().json()
+            #             self.desktop.terminal.log.print_to_log(f"{json["status"]}: {json["message"]}")
+            #         except ConnectTimeout as e:
+            #             self.desktop.terminal.log.print_to_log(str(e), (255,0,0))
+            #         self.control_panel.futures.remove(future)
             
             self.desktop.propagate_update(tick, dt=dt, joysticks=joysticks)
             
             mouse_pos = pg.mouse.get_pos()
             if self.fullscreen:
                 mouse_pos = (mouse_pos[0] * scaling_ratio[0], mouse_pos[1] * scaling_ratio[1])
-            self.desktop.surface.blit(cursor_surface, mouse_pos)
             
 <<<<<<< HEAD
             if use_shaders:
@@ -193,6 +193,7 @@ class WindowManager:
             pg.event.pump()
             pg.display.flip()
             dt = clock.tick(TARGET_FRAME_RATE)
+<<<<<<< HEAD
 
 
 class Widget:
@@ -836,6 +837,9 @@ class Radar(Widget):
         self.sweep_surface.fill((0,0,0,0))
         self.radar.render_sweep(self.sweep_surface, self.dt)
 
+=======
+                
+>>>>>>> mitdir2024
         
 if __name__ == "__main__":
     from control_panel import ControlPanel
