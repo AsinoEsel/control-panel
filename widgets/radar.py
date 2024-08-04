@@ -90,45 +90,6 @@ class Radar(Widget):
         if sweep_start_angle < sweep_end_angle:
             return sweep_start_angle <= dot_angle <= sweep_end_angle
         else:
-<<<<<<< HEAD:radar.py
-            return dot_angle >= sweep_start_angle or dot_angle <= sweep_end_angle
-        
-    def render_cross_section(self, surface: pygame.Surface):
-        surface.fill(self.BLACK)
-
-        for i in range(0, self.radial_cross_sections + 1):
-            i = i / (self.radial_cross_sections)
-            pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * i), self.DARK_GREEN)
-        pygame.gfxdraw.aacircle(surface, self.center[0], self.center[1], int(self.radius * 0.98), self.DARK_GREEN)
-
-        angle_between_lines = 360 / self.angular_cross_sections # Calculate angle between cross_section lines
-    
-        for i in range(self.angular_cross_sections// 2):
-            angle = math.radians(angle_between_lines * i)
-
-            start_x = self.center[0] + math.cos(angle) * self.radius
-            start_y = self.center[1] + math.sin(angle) * self.radius
-            end_x =   self.center[0] - math.cos(angle) * self.radius
-            end_y =   self.center[1] - math.sin(angle) * self.radius
-
-            pygame.draw.line(surface, self.DARK_GREEN, (start_x, start_y), (end_x, end_y), 1)
-    
-    def render_sweep(self, surface: pygame.Surface, dt: int):
-        current_time = pygame.time.get_ticks()
-        #print("get ticks: ", current_time)
-
-        # Draw and update objects
-        for dot in self.dots:
-            if self.is_in_sweep_sector(dot.pos, dt):
-                dot.visible = True
-                # sound.play()
-                dot.last_hit = current_time
-            if dot.visible and current_time - dot.last_hit <= dot.visble_duration * 1000:
-                pygame.draw.circle(surface, self.RED, dot.pos, 5) # TODO add tickrate * 5
-            else:
-                dot.visible = False
-
-=======
             return obj_angle >= sweep_start_angle or obj_angle <= sweep_end_angle
     
     def render(self):
@@ -160,23 +121,16 @@ class Radar(Widget):
                 obj.visible = False
 
         # Draw radar sweep (optional: visualize the sweep sector)
->>>>>>> mitdir2024:widgets/radar.py
         end_x_front = self.center[0] + math.cos(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_y_front = self.center[1] + math.sin(math.radians(self.angle - self.sweep_width/2)) * self.radius
         end_x_end   = self.center[0] + math.cos(math.radians(self.angle + self.sweep_width/2)) * self.radius
         end_y_end   = self.center[1] + math.sin(math.radians(self.angle + self.sweep_width/2)) * self.radius
         
-<<<<<<< HEAD:radar.py
-        pygame.draw.polygon(surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))
-
-        self.angle += dt * self.angle_speed / 1000
-=======
         pg.draw.polygon(self.surface, self.GREEN, (self.center,(end_x_front, end_y_front), (end_x_end, end_y_end)))    
     
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         # Increment angle for sweep movement
         self.angle += dt*self.angle_speed/1000
->>>>>>> mitdir2024:widgets/radar.py
         if self.angle >= 360:
             self.angle = self.angle % 360
         self.flag_as_needing_rerender()
@@ -191,14 +145,8 @@ if __name__ == '__main__':
     clock = pg.time.Clock()
     width, height = RENDER_WIDTH, RENDER_HEIGHT
 
-<<<<<<< HEAD:radar.py
-    screen = pygame.display.set_mode((RENDER_WIDTH, RENDER_HEIGHT))
-    sweep_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT), pygame.SRCALPHA)
-
-=======
     screen = pg.display.set_mode((RENDER_WIDTH, RENDER_HEIGHT))
     
->>>>>>> mitdir2024:widgets/radar.py
     radar = Radar(RENDER_WIDTH, RENDER_HEIGHT, png='media/red_dot_image.png')
 
     running = True
@@ -214,13 +162,8 @@ if __name__ == '__main__':
 
         screen.blit(sweep_surface, (0, 0))
 
-<<<<<<< HEAD:radar.py
-        pygame.display.flip()
-        dt = clock.tick(100)
-=======
         pg.display.flip()
         dt = clock.tick(30)
->>>>>>> mitdir2024:widgets/radar.py
 
     pg.quit()
     sys.exit()
