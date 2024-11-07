@@ -1,0 +1,60 @@
+import asyncio
+from artnet import my_artnet, OpCode
+from micropython import const
+import time
+
+from devices.phys.pwm import PWM
+from devices.phys.button import Button
+from devices.phys.led_strip import led_strip
+from devices.base.led_strip import animations as led_animations
+
+
+def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
+    if op_code == OpCode.ArtDmx:
+        universe = reply.get("Universe")
+        data = reply.get("Data")
+        device = universe_dict.get(universe)
+        if device is None:
+            return
+        # print(f"Parsing dmx data {data} for device {device.name}")
+        device.parse_dmx_data(data)
+
+
+async def start_main_loop():
+    await main_loop()
+
+
+async def main_loop():
+    
+    asyncio.create_task(big_red_button.run(updates_per_second=10))
+    asyncio.create_task(chronometer.run(updates_per_second=10))
+    asyncio.create_task(status_led_strip.run(updates_per_second=2))
+    
+    while True:
+        # keeping the loop alive
+        await asyncio.sleep_ms(1000)
+
+
+CHRONOMETER_PWM_PIN = const(4)
+BIG_RED_BUTTON_PIN = const(14)
+LED_STRIP_PIN = const(5)
+
+chronometer = PWM("Chronometer", CHRONOMETER_PWM_PIN, intensity=1.0)
+big_red_button = Button("BigRedButton", BIG_RED_BUTTON_PIN)
+status_led_strip = led_strip.LEDStrip("ChronometerLampen", LED_STRIP_PIN, 3)
+status_led_strip._animation = led_animations.strobe(len(status_led_strip), 1, 0.5, (0, 0, 0), (100, 100, 0))
+
+
+universe_dict = {
+                 status_led_strip.universe: status_led_strip,
+                 chronometer.universe: chronometer,
+                 }
+
+
+my_artnet.subscribe_all(artnet_callback)
+
+
+asyncio.run(start_main_loop())
+
+
+print("whoops, end of main.py")
