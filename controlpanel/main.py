@@ -36,13 +36,16 @@ def main():
         ControlAPI.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
     except ConnectionError:
         print("Unable to initiate DMX Universe because of missing USB to DMX device.")
+    except ValueError as err:
+        print('Unable to initiate DMX Universe because of value error.')
+        print(err)
 
     if args.load_scripts is not None:
         load_scripts(args.load_scripts)
 
     if window_manager is not None:
         window_manager_thread = Thread(target=window_manager.run, args=(not args.windowed, not args.no_shaders, args.stretch_to_fit))
-        window_manager_thread.start()
+        window_manager_thread.run()
         threads.append(window_manager_thread)
 
     for th in threads:
