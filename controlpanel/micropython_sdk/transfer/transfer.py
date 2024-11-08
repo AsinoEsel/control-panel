@@ -1,13 +1,8 @@
 import subprocess
-import sys
-from .ignore_patterns import IGNORE_PATTERNS, should_ignore
+import argparse
 import os
+from .ignore_patterns import IGNORE_PATTERNS, should_ignore
 from .checksumtest import file_has_changed, update_checksum
-try:
-    from .ip_manifest import IP_MANIFEST
-except ImportError:
-    IP_MANIFEST = dict()
-from controlpanel.micropython_sdk.credentials import AP_SSID
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +28,7 @@ PASSWORD = "incubator"  # password used in webrepl setup
 PATH_TO_WEBREPL = os.path.join(os.path.dirname(script_dir), "webrepl", "webrepl_cli.py")
 
 
-def send_file(esp_name: str, ip: str, file_path: str, new_file_path: str|None = None) -> subprocess.CompletedProcess:
+def send_file(esp_name: str, ip: str, password: str, file_path: str, new_file_path: str|None = None) -> subprocess.CompletedProcess:
     assert "/" not in file_path, "Make sure to replace '/' with '\\' to make webrepl happy."
 
     print(f'Sending file {file_path} to {esp_name} at {ip}{f" as {new_file_path}" if new_file_path else ""}...')
@@ -42,7 +37,7 @@ def send_file(esp_name: str, ip: str, file_path: str, new_file_path: str|None = 
             "python",
             PATH_TO_WEBREPL,
             "-p",
-            PASSWORD,
+            password,
             file_path,
             f"{ip}:/{new_file_path if new_file_path else ""}",
         ]
@@ -50,7 +45,9 @@ def send_file(esp_name: str, ip: str, file_path: str, new_file_path: str|None = 
     return subprocess.run(executable, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
-def send_all_files(esp_name: str, ip: str, directory: str = os.path.dirname(script_dir), give_up_on_failed_attempt: bool = False):
+def send_all_files(esp_name: str, ip: str, password: str, directory: str = os.path.dirname(script_dir), *,
+                   give_up_on_failed_attempt: bool = False,
+                   ignore_checksums: bool = False):
     print(f'Sending ALL files in {directory} to ESP "{esp_name}" @ {ip}')
     successful_transfers = []
     failed_transfers = []
@@ -58,12 +55,11 @@ def send_all_files(esp_name: str, ip: str, directory: str = os.path.dirname(scri
     for root, dirs, files in os.walk(directory):
         dirs[:] = [d for d in dirs if not should_ignore(d, IGNORE_PATTERNS)]
         for file in files:
-            # path = os.path.relpath(os.path.join(root, file), directory)
             path = os.path.join(os.path.relpath(root, os.getcwd()), file)
             path = path.lstrip("./\\")
             if should_ignore(file, IGNORE_PATTERNS):
                 continue
-            if not file_has_changed(path, esp_name):
+            if not file_has_changed(path, esp_name) and not ignore_checksums:
                 continue
                         
             new_file_path = None
@@ -74,7 +70,7 @@ def send_all_files(esp_name: str, ip: str, directory: str = os.path.dirname(scri
                 else:
                     new_file_path = "main.py"
             
-            result = send_file(esp_name, ip, path, new_file_path)
+            result = send_file(esp_name, ip, password, path, new_file_path)
             if not result.stderr:
                 print(f"Sucessfully sent {path} to {esp_name}")
                 # print(result.stdout)
@@ -88,24 +84,8 @@ def send_all_files(esp_name: str, ip: str, directory: str = os.path.dirname(scri
     return successful_transfers, failed_transfers
 
 
-def flash_esp(esp_name: str):
-    print(f"Attempting to send files to {esp_name}")
-
-    esp = IP_MANIFEST.get(esp_name, None)
-    if esp is None:
-        raise ValueError(f"Specified esp {esp_name} does not exist in IP manifest.")
-
-    ssid = get_wifi_ssid()
-    if ssid is None:
-        raise ConnectionError("Not connected to any network or otherwise cannot determine SSID")
-
-    ip = esp.get(ssid, None) if not ssid == AP_SSID else "192.168.4.1"
-    if ip is None:
-        raise ValueError(f"IP of esp {esp_name} for current network {ssid} does not exist in IP manifest.")
-
-    with open(last_espname_storage_path, "w+") as file:
-        file.write(esp_name)
-    successful_transfers, failed_transfers = send_all_files(esp_name, ip, give_up_on_failed_attempt=False)
+def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool):
+    successful_transfers, failed_transfers = send_all_files(esp_name, ip, password, give_up_on_failed_attempt=False, ignore_checksums=ignore_checksums)
     if not successful_transfers and not failed_transfers:
         print(f"{esp_name} appears to be up to date.")
     elif not failed_transfers:
@@ -117,22 +97,23 @@ def flash_esp(esp_name: str):
 
 
 def transfer():
-    if len(sys.argv) == 1:
-        if get_wifi_ssid() == AP_SSID:
-            send_all_files("accesspoint", ACCESS_POINT_IP)
-        else:
-            try:
-                with open(last_espname_storage_path, "r") as file:
-                    esp_name = file.read()
-                send_all_files(esp_name, IP_MANIFEST.get(esp_name).get(get_wifi_ssid()))
-            except FileNotFoundError:
-                print("error")
-    elif len(sys.argv) == 2 and sys.argv[1] == "all":
-        for esp_name in IP_MANIFEST.keys():
-            flash_esp(esp_name)
-    elif len(sys.argv) >= 2:
-        for esp_name in sys.argv[1:]:
-            flash_esp(esp_name)
+    parser = argparse.ArgumentParser(description='Control Panel File Transfer Tool')
+    parser.add_argument("hostname", help="The IP or hostname of the device to send the files to.")
+    parser.add_argument("paths", nargs="*", help="Optional: the files to transfer. Default is all in CWD.")
+    parser.add_argument('-f', '--force', action='store_true', help='Ignore the checksums.')
+    parser.add_argument('-p', '--password', default=PASSWORD, help='The webrepl password.')
+    args = parser.parse_args()
+
+    print("Getting ip... ")
+    import socket
+    try:
+        ip = socket.gethostbyname(args.hostname)
+        print(f"IP is {ip}")
+    except socket.gaierror:
+        print(f"Hostname {args.hostname} could not be resolved.")
+        return
+
+    flash_esp(args.hostname, ip, args.password, args.force)
 
 
 if __name__ == "__main__":

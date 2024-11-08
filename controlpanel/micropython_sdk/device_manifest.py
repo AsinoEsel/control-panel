@@ -12,22 +12,6 @@ DeviceManifestType = dict[str: Fixture | Sensor]
 START_UNIVERSE = 5000
 
 
-esp_name_manifest = {
-    "A0:B7:65:DC:09:28": "ladestation",
-    "CC:DB:A7:6A:13:FC": "pilz",
-    "": "kommunikation",  # 3C:E9:0E:8C:26:24 kaputt
-    "A0:DD:6C:0E:6F:B4": "kuehlwasser",
-    "": "bvgpanel",  # 08:D1:F9:E0:B5:A4 kaputt
-    "08:D1:F9:E0:D8:E8": "mainframe",
-    "08:D1:F9:E1:F6:94": "waehlscheibe",
-    "08:D1:F9:E2:9D:DC": "chronometer",
-    "08:D1:F9:E0:1A:D0": "biesenthuer",
-
-    # "EC:62:60:93:7F:B8": "test",
-    # 08:D1:F9:F8:6D:38 Tobis micro usb (unused)
-}
-
-
 esp_device_manifest: dict[ESPNameType: list[tuple[DeviceNameType, DeviceKwargsType]]] = {
     "bvgpanel": [("BVGPanel", {"name": "TestBVGPanel"}),
                  ("LEDStrip", {"name": "BatterySlotBVG-LEDStrip", "length": 30}),

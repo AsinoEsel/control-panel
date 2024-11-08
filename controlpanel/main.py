@@ -2,7 +2,7 @@ from threading import Thread
 from controlpanel.event_manager import EventManager
 from controlpanel.gui.window_manager import WindowManager
 from controlpanel.scripts import load_scripts, ControlAPI
-from controlpanel.micropython_sdk.esp_manifest import get_instantiated_devices
+from controlpanel.micropython_sdk.device_manifest import get_instantiated_devices
 from controlpanel.dmx import DMXUniverse, device_list
 from artnet import ArtNet
 import argparse

@@ -1,0 +1,11 @@
+hostname_manifest = {
+    "A0:B7:65:DC:09:28": "ladestation",
+    "CC:DB:A7:6A:13:FC": "pilz",
+    "": "kommunikation",
+    "A0:DD:6C:0E:6F:B4": "kuehlwasser",
+    "": "bvgpanel",
+    "08:D1:F9:E0:D8:E8": "mainframe",
+    "08:D1:F9:E1:F6:94": "waehlscheibe",
+    "08:D1:F9:E2:9D:DC": "chronometer",
+    "08:D1:F9:E0:1A:D0": "biesenthuer",
+}

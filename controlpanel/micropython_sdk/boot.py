@@ -15,6 +15,12 @@ def get_mac_address() -> str:
     return hexlify(mac_raw, ':').decode().upper()
 
 
+def get_hostname() -> str:
+    from hostname_manifest import hostname_manifest
+    name = hostname_manifest.get(get_mac_address())
+    return name if name is not None else "ControlPanelESP"
+
+
 def create_ap(ssid, password, authmode):
     ap_if = network.WLAN(network.AP_IF)
     ap_if.active(True)
@@ -67,7 +73,7 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
     
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    dhcp_hostname = "ControlPanelESP"
+    dhcp_hostname = get_hostname()
     sta_if.config(dhcp_hostname=dhcp_hostname)
 
     import select
@@ -136,8 +142,10 @@ def main():
         create_modules()
         webrepl.start()
         print(f"MAC address is {get_mac_address()}")
-    except Exception:
-        print("Encountered an error in boot. Using backup...")
+    except Exception as e:
+        print("Encountered an error in boot:")
+        print(e)
+        print("Falling back to backup...")
         os.remove("boot.py")
         os.rename("boot.py.backup", "boot.py")
         machine.reset()

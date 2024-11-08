@@ -4,4 +4,3 @@
 credentials.py
 transfer/*.json
 transfer/last_esp.txt
-transfer/ip_manifest.py
