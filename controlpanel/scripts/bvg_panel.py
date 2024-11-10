@@ -22,7 +22,5 @@ def callback_bvgpanel_address(event: Event):
     print("Address is ", event.value)
 
 
-@ControlAPI.run_once_on_setup
-def setup():
-    for i in range(47):
-        ControlAPI.subscribe(callback_bvgpanel_button, f"TestBVGPanel{i}", "PushButton", True)
+for i in range(47):
+    ControlAPI.subscribe(callback_bvgpanel_button, f"TestBVGPanel{i}", "PushButton", True)

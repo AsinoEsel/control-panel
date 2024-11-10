@@ -65,67 +65,39 @@ class ControlAPI:
 
         return decorator
 
-    @staticmethod
-    def run_once_on_setup(func):
-        """Decorator to mark functions to be run once during setup."""
 
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+def load_scripts(args: list[str]) -> None:
 
-        wrapper._run_once_on_setup = True  # Add a custom attribute to mark the function
-        return wrapper
+    # First, unpack all .txt files
+    while any(arg.endswith(".txt") for arg in args):
+        for arg in args:
+            if arg.endswith(".txt"):
+                with open(os.path.join(os.path.dirname(__file__), arg), "r") as f:
+                    entries = f.readlines()
+                for entry in entries:
+                    entry = entry.strip()
+                    if entry:
+                        args.append(entry)
+                args.remove(arg)
+                break
 
+    failed: list[tuple[str, Exception]] = []
+    success = []
+    for arg in args:
+        if arg.endswith(".py"):
+            arg = arg.removesuffix(".py")
+        try:
+            importlib.import_module(f".{arg}", package=__name__)
+            success.append(arg)
+        except (ModuleNotFoundError, ImportError) as e:
+            failed.append((arg, e))
 
-def load_scripts(args: list[str]):
-    if not args:
-        module_dir = os.path.dirname(__file__)
-        py_files = glob.glob(os.path.join(module_dir, "*.py"))
-        scripts_to_load = [os.path.basename(f) for f in py_files if not f.endswith('__init__.py')]
-    else:
-        scripts_to_load: list[str] = []
-        while not scripts_to_load or args:
-            for arg in args:
-                if not arg.endswith(".py") and not arg.endswith(".txt"):
-                    if os.path.exists(os.path.join(os.path.dirname(__file__), arg + ".py")):
-                        args.append(arg + ".py")
-                        args.remove(arg)
-                        continue
-                    if os.path.exists(os.path.join(os.path.dirname(__file__), arg + ".txt")):
-                        args.append(arg + ".txt")
-                        args.remove(arg)
-                        continue
-                    raise FileNotFoundError(f"Could not find a file matching {arg}.")
-                if arg.endswith(".txt") and not os.path.exists(os.path.join(os.path.dirname(__file__), arg)):
-                    raise FileNotFoundError(f"The script preset file {arg} could not be found.")
-                if arg.endswith(".py") and not os.path.exists(os.path.join(os.path.dirname(__file__), arg)):
-                    raise FileNotFoundError(f"The script file {arg} could not be found.")
-                if arg.endswith(".txt"):
-                    with open(os.path.join(os.path.dirname(__file__), arg), "r") as f:
-                        entries = f.readlines()
-                    for entry in entries:
-                        entry = entry.strip()
-                        if entry:
-                            args.append(entry)
-                    args.remove(arg)
-                    continue
-                if arg not in scripts_to_load:
-                    scripts_to_load.append(arg)
-                    args.remove(arg)
-                    continue
-                else:
-                    args.remove(arg)
-                    continue
+    if success:
+        print("Successfully loaded the following scripts:")
+        for script in success:
+            print(f"- {script}")
 
-    print("Loading the following scripts:")
-    for script in scripts_to_load:
-        print(f"- {script}")
-
-    for script in scripts_to_load:
-        script = script.removesuffix(".py")
-        module = importlib.import_module(f".{script}", package=__name__)
-        # Inspect the module for all functions
-        for name, obj in inspect.getmembers(module, inspect.isfunction):
-            # Check if the function has been decorated with 'run_once_on_setup'
-            if getattr(obj, "_run_once_on_setup", False):
-                obj()  # Call the decorated function
+    if failed:
+        print("Failed to the following scripts:")
+        for script, error in failed:
+            print(f"- {script} ({error.__class__.__name__})")

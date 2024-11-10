@@ -9,7 +9,7 @@ import argparse
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Control Panel GUI')
+    parser = argparse.ArgumentParser(description='Control Panel')
     parser.add_argument('--no-gui', action='store_true', help='Disable the GUI (enabled by default)')
     parser.add_argument('-w', '--windowed', action='store_true', help='Run in windowed mode (fullscreen is default)')
     parser.add_argument('--no-shaders', action='store_true', help='Disable shaders (shaders are enabled by default)')
@@ -22,7 +22,7 @@ def main():
     artnet = ArtNet()
 
     event_manager = EventManager(artnet)
-    event_manager_thread = Thread(target=artnet.listen, args=(None,))
+    event_manager_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
     event_manager_thread.start()
     threads.append(event_manager_thread)
 

@@ -3,7 +3,6 @@ from controlpanel.gui.widgets import *
 from controlpanel.gui.window_manager.window_manager_setup import *
 
 
-@ControlAPI.run_once_on_setup
 def set_up_desktops():
     desktop = ControlAPI.window_manager.create_new_desktop("main")
     desktop.add_element(
@@ -42,3 +41,6 @@ def set_up_desktops():
     desktop5 = ControlAPI.window_manager.create_new_desktop("bliss")
     desktop5.add_element(bliss := Image("Image", desktop5, 0, 0, "controlpanel/gui/media/bliss.jpeg"))
     bliss.do_render_border = False
+
+
+set_up_desktops()
