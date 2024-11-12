@@ -5,7 +5,6 @@ import random
 import threading
 from pyftdi.ftdi import Ftdi
 import numpy as np
-import pygame as pg
 
 
 def get_device_url() -> str | None:
@@ -189,9 +188,3 @@ class DMXDevice:
 
     def animate(self, dmx: DMXUniverse, t: float):
         pass
-
-    def update(self, dmx: DMXUniverse):
-        raise NotImplementedError
-    
-    def render(self, surface: pg.Surface, position: pg.Vector2 = pg.Vector2(0,0)):
-        raise NotImplementedError

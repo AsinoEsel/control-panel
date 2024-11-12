@@ -8,13 +8,12 @@ import time
 import threading
 from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
-from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, Subscriber, CallbackType, SourceNameType
-from controlpanel.gui.window_manager import WindowManager
+from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
+# from controlpanel.gui.window_manager import WindowManager
+from controlpanel.game_manager import GameManager
 import os
-import glob
 import importlib
 from functools import wraps
-import inspect
 from controlpanel.micropython_sdk.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
 
 
@@ -22,7 +21,7 @@ class ControlAPI:
     artnet: ArtNet = None
     event_manager: EventManager = None
     devices: DeviceManifestType = None
-    window_manager: WindowManager = None
+    game_manager: GameManager = None
     dmx: DMXUniverse = None
 
     @classmethod

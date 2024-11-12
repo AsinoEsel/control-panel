@@ -1,14 +1,18 @@
 from controlpanel.scripts import ControlAPI, Event
-from controlpanel.gui.widgets import Desktop, Log
-from fourteensegment import Display, rgb_to_b16
+from controlpanel.scripts.gui.widgets import Desktop, Log
 from itertools import islice
 from typing import Generator
+try:
+    from fourteensegment import Display, rgb_to_b16
+    display = Display(display_number=4)
+    UNIVERSE = 14
+    MEMORY_INDEX = 1
+    NUMBER_OF_DIGITS = 8
+except ImportError:
+    display = None
+    print("Failed to import fourteensegment package, some functionality will be missing.")
 
 
-display = Display(display_number=4)
-UNIVERSE = 14
-MEMORY_INDEX = 1
-NUMBER_OF_DIGITS = 8
 
 COLOR = (255, 0, 0)
 
@@ -59,7 +63,7 @@ class ScrollingText(Animation):
 
 @ControlAPI.callback("TerminalInputBox", "TextInput")
 def console(event: Event):
-    desktop: Desktop = ControlAPI.window_manager.desktops.get("main")
+    desktop: Desktop = ControlAPI.game_manager.games["Window Manager"].desktops.get("main")
     log: Log = desktop.widget_manifest.get("TerminalLog")
     user_input = event.value
 
@@ -75,6 +79,9 @@ def console(event: Event):
         COLOR = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
         log.print_to_log(f"Changing color to {h}")
     elif user_input.startswith("/display"):
+        if display is None:
+            print("Fatal error connecting to display! (import error?)")
+            return
         text_to_display = user_input.lstrip().removeprefix("/display").lstrip().upper()
         if not text_to_display:
             log.print_to_log("Usage: /display <message>")

@@ -1,5 +1,5 @@
 import asyncio
-from artnet import my_artnet, OpCode
+from artnet import ArtNet, OpCode
 from micropython import const
 from machine import Pin, SoftSPI
 
@@ -32,9 +32,9 @@ async def main_loop():
     asyncio.create_task(keyboard_led_strip.run(updates_per_second=10))
 
     while True:
-        # keeping the loop alive
         await asyncio.sleep_ms(1000)
 
+artnet = ArtNet()
 
 NUM_KEYBOARD_MODULES = const(15)
 NUM_SHIFT_REGISTERS = const(NUM_KEYBOARD_MODULES * 2)
@@ -44,12 +44,11 @@ PISO_LATCH_PIN = const(4)
 PISO_SERIALIN_PIN = const(15)
 KEYBOARD_LED_PIN = const(16)
 
-keyboard_piso_module = PisoShiftRegister("MainframeKeys", PISO_CLOCK_PIN, PISO_LATCH_PIN, PISO_SERIALIN_PIN, NUM_SHIFT_REGISTERS)
-keyboard_led_strip = led_strip.LEDStrip("MainframeLEDs", KEYBOARD_LED_PIN, 16 * NUM_KEYBOARD_MODULES)
+keyboard_piso_module = PisoShiftRegister(artnet, "MainframeKeys", PISO_CLOCK_PIN, PISO_LATCH_PIN, PISO_SERIALIN_PIN, NUM_SHIFT_REGISTERS)
+keyboard_led_strip = led_strip.LEDStrip(artnet, "MainframeLEDs", KEYBOARD_LED_PIN, 16 * NUM_KEYBOARD_MODULES)
 keyboard_led_strip._animation = led_animations.looping_line(len(keyboard_led_strip), .25, (255, 255, 255), (0, 0, 0), 3000)
 
-my_artnet.subscribe_all(artnet_callback)
-
+artnet.subscribe_all(artnet_callback)
 
 asyncio.run(start_main_loop())
 
