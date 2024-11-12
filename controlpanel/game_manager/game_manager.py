@@ -32,16 +32,47 @@ class GameManager:
         if make_current:
             self.current_game = game
 
+    def open_dev_console(self, clock: pg.time.Clock):
+        dark_surface = pg.Surface(self.screen.get_size())
+        dark_surface.fill((100, 100, 100))
+        self.screen.blit(dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
+
+        console_rect_outer = pg.Rect((0, 0), (self.screen.get_width(), self.screen.get_height()//4))
+        border_w = 2
+        console_rect_inner = pg.Rect((border_w, border_w), (console_rect_outer.w - 2*border_w, console_rect_outer.h - 2*border_w))
+
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN and event.key == pg.K_CARET:
+                    return
+                print(event)
+
+            pg.draw.rect(self.screen, (100, 168, 100), console_rect_outer)
+            pg.draw.rect(self.screen, (32, 48, 32), console_rect_inner)
+
+            pg.display.flip()
+            clock.tick(60)
+
     def run(self):
+        if self.current_game is None:
+            self.current_game = self.games[0]
+
         clock = pg.time.Clock()
         dt: int = 0
         while True:
 
             if self.current_game is None:
+                print("No game!")
+                self.screen.fill((100, 100, 100))
+                pg.display.flip()
                 clock.tick(1)
                 continue
 
-            self.current_game.handle_events(pg.event.get())
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.KEYDOWN and event.key == pg.K_CARET:
+                    self.open_dev_console(clock)
+            self.current_game.handle_events(events)
 
             self.current_game.update(dt)
 
