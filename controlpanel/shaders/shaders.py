@@ -3,7 +3,6 @@ from array import array
 import moderngl
 # from controlpanel.scripts.gui.window_manager.window_manager_setup import RENDER_SIZE, QUARTER_RENDER_SIZE
 from .shader_manifest import shader_params
-# import time
 
 
 class Shaders:

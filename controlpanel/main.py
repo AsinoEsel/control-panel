@@ -14,7 +14,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description='Control Panel')
     group = parser.add_mutually_exclusive_group()
-    parser.add_argument('--no-gui', action='store_true', help='Disable the GUI (enabled by default)')
+    group.add_argument('--no-gui', action='store_true', help='Disable the GUI (enabled by default)')
     group.add_argument('-w', '--windowed', action='store_true', help='Run in windowed mode (fullscreen is default)')
     parser.add_argument('--no-shaders', action='store_true', help='Disable shaders (shaders are enabled by default)')
     group.add_argument('--stretch-to-fit', action='store_true', help='Stretch game to fit screen (black bars by default)')
@@ -43,23 +43,16 @@ def main():
     if args.load_scripts is not None:
         load_scripts(args.load_scripts)
 
-    threads = []
-
-    do_start_game_manager = (game_manager is not None and bool(game_manager.games))
-    if do_start_game_manager:
+    if game_manager is not None:
         game_manager_thread = Thread(target=game_manager.run, daemon=True)
         game_manager_thread.run()
-        threads.append(game_manager_thread)
     else:
         pygame.quit()
 
     event_manager_thread = Thread(target=artnet.listen, args=(None,), daemon=False)
-    threads.append(event_manager_thread)
 
     event_manager_thread.start()
-
-    for th in threads:
-        th.join()
+    event_manager_thread.join()
 
 
 if __name__ == "__main__":

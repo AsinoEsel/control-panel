@@ -10,7 +10,7 @@ from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
 from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
 # from controlpanel.gui.window_manager import WindowManager
-from controlpanel.game_manager import GameManager
+from controlpanel.game_manager import GameManager, BaseGame
 import os
 import importlib
 from functools import wraps
@@ -23,6 +23,13 @@ class ControlAPI:
     devices: DeviceManifestType = None
     game_manager: GameManager = None
     dmx: DMXUniverse = None
+
+    @classmethod
+    def add_game(cls, game: BaseGame, *, make_current: bool = False):
+        if cls.game_manager is None:
+            raise NotImplementedError
+        else:
+            cls.game_manager.add_game(game, make_current)
 
     @classmethod
     def fire_event(cls, source: str, name: str, value: EventValueType = None):

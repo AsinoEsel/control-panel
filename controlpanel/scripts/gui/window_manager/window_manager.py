@@ -2,7 +2,7 @@ from controlpanel.scripts.gui import utils
 from .window_manager_setup import *
 import time
 from controlpanel.shaders import Shaders
-from .event_queue import EventQueue
+from .event_queue import event_queue
 from controlpanel.scripts.gui.widgets import Desktop
 from controlpanel.game_manager import BaseGame
 
@@ -12,8 +12,15 @@ class WindowManager(BaseGame):
         super().__init__(name="Window Manager", resolution=RENDER_SIZE)
         self.desktops: dict[str: Desktop] = dict()
         self.desktop: Desktop | None = None
-        self.event_queue = EventQueue()
+        self.event_queue = event_queue
         self.tick = 0
+
+    def test_cmd(self, text: str, repeats: int = 1, mystery="?") -> str:
+        """
+        Das ist ein Docstring.
+        """
+        print(text * int(repeats))
+        return self.desktop.name
 
     def create_new_desktop(self, name: str, *, make_selected: bool = False) -> Desktop:
         if self.desktops.get(name) is not None:
@@ -37,6 +44,7 @@ class WindowManager(BaseGame):
         if not self.desktop:
             return
         self.tick += 1
+        self.event_queue.update()
         self.desktop.propagate_update(self.tick, dt=dt, joysticks=dict())
 
     def render(self) -> None:

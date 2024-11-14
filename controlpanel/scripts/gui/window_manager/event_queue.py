@@ -1,6 +1,7 @@
 import time
 from typing import Any, Generator, Callable
 
+
 Event = Generator[None, None, None]
 Callback = Callable[[], Any]
 
