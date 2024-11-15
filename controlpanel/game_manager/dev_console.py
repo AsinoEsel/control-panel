@@ -2,22 +2,26 @@ import pygame as pg
 import os
 import inspect
 from typing import get_type_hints, TYPE_CHECKING, Callable, Any
+from itertools import islice
 import types
-import contextlib
+import sys
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
 
 
 class OutputRedirector:
+    stdout = sys.stdout
+
     def __init__(self, func):
         self.func = func
 
     def write(self, text):
+        self.stdout.write(text)
         if text.strip():  # Ignore empty lines
-            self.func(text)
+            self.func(text, mirror_to_stdout=False)
 
     def flush(self):
-        pass  # Needed for compatibility with file-like objects
+        self.stdout.flush()
 
 
 class DeveloperConsole:
@@ -28,14 +32,18 @@ class DeveloperConsole:
                  *,
                  font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
                  font_size: int = 20):
+        sys.stdout = OutputRedirector(self.log)
         self.font = pg.font.Font(font_name, font_size)
         self.game_manager = game_manager
         self.open: bool = False
         self.surface = pg.Surface((screen_surface.get_width(), screen_surface.get_height()*relative_height))
         self.dark_surface = pg.Surface(screen_surface.get_size())
         self.dark_surface.fill((100, 100, 100))
+
         self.primary_color = (100, 168, 100)
         self.secondary_color = (32, 48, 32)
+        self.error_color = (255, 64, 64)
+        self.text_color = (200, 200, 200)
 
         self.input_box = InputBox(self, font=self.font)
 
@@ -43,8 +51,10 @@ class DeveloperConsole:
         self.log_surface = pg.Surface((self.surface.get_width() - 2*border_w, self.surface.get_height()-border_w - self.input_box.surface.get_height()))
         self.log_surface.fill(self.secondary_color)
 
-    def log(self, string: str, color: tuple[int, int, int] | None = None):
+    def log(self, string: str, color: tuple[int, int, int] | None = None, *, mirror_to_stdout: bool = True):
         # print("DEV:", string)  # TODO: recursion error
+        if mirror_to_stdout:
+            print("DEV: " + string, file=sys.__stdout__)
         color = color if color is not None else self.primary_color
         font_surface = self.font.render(string, True, color, self.secondary_color)
         dy = -font_surface.get_height()
@@ -53,46 +63,54 @@ class DeveloperConsole:
         self.log_surface.blit(font_surface, (0, self.log_surface.get_height() - font_surface.get_height()))
 
     def handle_command(self, command: str):
-        self.log(">>> " + command, color=(200, 200, 200))
+        self.log(">>> " + command, color=self.text_color)
         func_name, *args = command.split()
         func = self.game_manager.current_game.get_methods().get(func_name)
         if func_name == "help":
             if not args:
-                self.log(str(self.game_manager.current_game.get_methods().keys()))
+                all_methods = self.game_manager.current_game.get_methods().keys()
+                column_gap = 2
+                column_width = max(len(method_name) for method_name in all_methods) + column_gap
+                column_count = self.input_box.max_chars//column_width
+                method_iterator = iter(all_methods)
+                while True:
+                    chunk = list(islice(method_iterator, column_count))
+                    if not chunk:
+                        break
+                    self.log("".join(f"{method_name:<{column_width}}" for method_name in chunk), color=self.text_color)
             elif (func := self.game_manager.current_game.get_methods().get(args[0])) is not None:
                 if func.__doc__:
                     self.log(func.__doc__.strip())
                 self.print_usage_string(func)
             else:
-                self.log(f"No method {args[0]} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=(255, 64, 64))
+                self.log(f"No method {args[0]} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
             return
         elif func_name == "exit" or func_name == "quit":
             pg.quit()
         elif func is None:
-            self.log(f"No method {func_name} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=(255, 64, 64))
+            self.log(f"No method {func_name} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
             return
         try:
-            with contextlib.redirect_stdout(OutputRedirector(self.log)):
-                cast_args = []
-                for arg, (param_name, param) in zip(args, inspect.signature(func).parameters.items()):
-                    param_type = get_type_hints(func).get(param_name, "undef")
-                    if param_type == "undef":
-                        cast_args.append(arg)
-                    elif type(param_type) is types.UnionType:
-                        cast_arg = arg
-                        for unioned_type in sorted(param_type.__args__, key=lambda t: t is str):
-                            try:
-                                cast_arg = unioned_type(arg)
-                            except ValueError:
-                                continue
-                            break
-                        cast_args.append(cast_arg)
-                    else:
-                        cast_args.append(param_type(arg))
-                result = func(*cast_args)
+            cast_args = []
+            for arg, (param_name, param) in zip(args, inspect.signature(func).parameters.items()):
+                param_type = get_type_hints(func).get(param_name, "undef")
+                if param_type == "undef":
+                    cast_args.append(arg)
+                elif type(param_type) is types.UnionType:
+                    cast_arg = arg
+                    for unioned_type in sorted(param_type.__args__, key=lambda t: t is str):
+                        try:
+                            cast_arg = unioned_type(arg)
+                        except ValueError:
+                            continue
+                        break
+                    cast_args.append(cast_arg)
+                else:
+                    cast_args.append(param_type(arg))
+            result = func(*cast_args)
             self.log(str(result))
         except TypeError as e:
-            self.log(str(e), color=(255, 0, 0))
+            self.log(str(e), color=self.error_color)
             self.print_usage_string(func)
             return
 
