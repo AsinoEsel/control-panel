@@ -2,6 +2,7 @@ import pygame as pg
 import os
 import inspect
 from typing import get_type_hints, TYPE_CHECKING, Callable, Any
+import types
 import contextlib
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
@@ -58,9 +59,10 @@ class DeveloperConsole:
         if func_name == "help":
             if not args:
                 self.log(str(self.game_manager.current_game.get_methods().keys()))
-            elif self.game_manager.current_game.get_methods().get(args[0]) is not None:
-                self.log(self.game_manager.current_game.get_methods().get(args[0]).__doc__.strip())
-                self.print_usage_string(self.game_manager.current_game.get_methods().get(args[0]))
+            elif (func := self.game_manager.current_game.get_methods().get(args[0])) is not None:
+                if func.__doc__:
+                    self.log(func.__doc__.strip())
+                self.print_usage_string(func)
             else:
                 self.log(f"No method {args[0]} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=(255, 64, 64))
             return
@@ -74,7 +76,19 @@ class DeveloperConsole:
                 cast_args = []
                 for arg, (param_name, param) in zip(args, inspect.signature(func).parameters.items()):
                     param_type = get_type_hints(func).get(param_name, "undef")
-                    cast_args.append(param_type(arg)) if param_type != "undef" else cast_args.append(arg)
+                    if param_type == "undef":
+                        cast_args.append(arg)
+                    elif type(param_type) is types.UnionType:
+                        cast_arg = arg
+                        for unioned_type in sorted(param_type.__args__, key=lambda t: t is str):
+                            try:
+                                cast_arg = unioned_type(arg)
+                            except ValueError:
+                                continue
+                            break
+                        cast_args.append(cast_arg)
+                    else:
+                        cast_args.append(param_type(arg))
                 result = func(*cast_args)
             self.log(str(result))
         except TypeError as e:
@@ -86,7 +100,14 @@ class DeveloperConsole:
         string = f"Usage: {func.__name__} "
         for param_name, param in inspect.signature(func).parameters.items():
             param_type = get_type_hints(func).get(param_name, "undef")
-            param_type_name = param_type.__name__ if param_type != "undef" else "undef"
+
+            if param_type == "undef":
+                param_type_name = "undef"
+            elif hasattr(param_type, "__name__"):
+                param_type_name = param_type.__name__
+            else:
+                param_type_name = str(param_type).replace(" ", "")
+
             param_default = param.default if param.default is not inspect.Parameter.empty else None
             if type(param_default) is str:
                 param_default = "'" + param_default + "'"
