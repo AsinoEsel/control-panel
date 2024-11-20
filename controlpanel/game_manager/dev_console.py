@@ -139,6 +139,15 @@ class DeveloperConsole:
         self.log.history_index = 0
         self.log.render()
 
+    @console_command(is_cheat_protected=True, show_return_value=True)
+    def eval(self, exec_string: str):
+        game_manager = self.game_manager
+        game = self.game_manager.current_game
+        try:
+            return eval(exec_string)
+        except (NameError, AttributeError) as e:
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
+
     def handle_command(self, command: str):
         self.log.print(">>> " + command, color=self.primary_text_color)
         command_name, *args = command.split()
