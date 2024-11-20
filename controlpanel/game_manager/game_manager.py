@@ -1,7 +1,7 @@
 import pygame as pg
 from .games import BaseGame
 from controlpanel.shaders import Shaders
-from .dev_console import DeveloperConsole
+from .dev_console import DeveloperConsole, console_command
 from .utils import get_output_size, get_display_flags
 
 
@@ -14,6 +14,7 @@ class GameManager:
                                           flags=get_display_flags(is_fullscreen, use_shaders))
         self.use_shaders = use_shaders
         self.dev_console = DeveloperConsole(self, self.screen)
+        self.running = True
 
     def add_game(self, game: BaseGame, make_current: bool = False):
         if self.games.get(game.name) is not None:
@@ -22,8 +23,13 @@ class GameManager:
         if make_current:
             self.current_game = game
 
+    @console_command("toggleconsole")
     def toggle_dev_console(self):
         self.dev_console.open = not self.dev_console.open
+
+    @console_command("exit")
+    def quit(self):
+        self.running = False
 
     def run(self):
         if self.current_game is None and self.games:
@@ -31,7 +37,7 @@ class GameManager:
 
         clock = pg.time.Clock()
         dt: int = 0
-        while True:
+        while self.running:
 
             if self.current_game is None:
                 self.screen.fill((100, 100, 100))
@@ -66,3 +72,5 @@ class GameManager:
             pg.display.flip()
 
             dt = clock.tick(self.current_game.tick_rate)
+
+        pg.quit()

@@ -1,12 +1,12 @@
 import pygame as pg
 import os
 import inspect
-from typing import get_type_hints, TYPE_CHECKING, Callable, Any
+from typing import get_type_hints, TYPE_CHECKING, Callable, Any, Union
 from itertools import islice
 import types
 import sys
 if TYPE_CHECKING:
-    from controlpanel.game_manager import GameManager
+    from controlpanel.game_manager import GameManager, BaseGame
 
 
 ColorType = tuple[int, int, int]
@@ -27,6 +27,22 @@ class OutputRedirector:
         self.stdout.flush()
 
 
+def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False):
+    # This cursed if statement ensures that the decorator works even when used without parentheses
+    if len(aliases) == 1 and callable(aliases[0]) and not isinstance(aliases[0], str):
+        f = aliases[0]
+        f._is_console_command = True
+        return f
+
+    def decorator(func):
+        func._is_console_command = True
+        func._aliases = aliases
+        func._is_cheat_protected = is_cheat_protected
+        func._show_return_value = show_return_value
+        return func
+    return decorator
+
+
 class DeveloperConsole:
     DEFAULT_HEIGHT = 200
 
@@ -42,54 +58,93 @@ class DeveloperConsole:
         self.dark_surface = pg.Surface(screen_surface.get_size())
         self.dark_surface.fill((100, 100, 100))
 
-        self.primary_color = (100, 168, 100)
-        self.secondary_color = (32, 48, 32)
+        self.primary_color = (76, 88, 68)
+        self.secondary_color = (62, 70, 55)
+        self.primary_text_color = (255, 255, 255)
+        self.secondary_text_color = (216, 222, 211)
+        self.border_color_dark = (40, 46, 34)
+        self.border_color_bright = (136, 145, 128)
+        self.highlight_color = (150, 135, 50)
         self.error_color = (255, 64, 64)
-        self.text_color = (200, 200, 200)
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
         self.char_height = self.font.render("A", False, (255, 255, 255)).get_height()
-        self.border_thickness = 2
+        self.border_offset = 6
 
         self.surface = pg.Surface((screen_surface.get_width(), self.DEFAULT_HEIGHT))
 
         input_box_height = int(self.char_height * 1.5)
-        log_width = input_box_width = screen_surface.get_width() - 2 * self.border_thickness
-        max_log_height = self.game_manager.screen.get_height() - input_box_height - 3 * self.border_thickness
+        log_width = input_box_width = screen_surface.get_width() - 2 * self.border_offset
+        max_log_height = self.game_manager.screen.get_height() - input_box_height - 3 * self.border_offset
 
         self.input_box = InputBox(self, (input_box_width, input_box_height))
         self.log = Log(self, (log_width, max_log_height))
 
         sys.stdout = OutputRedirector(self.log.print)
 
-    def handle_command(self, command: str):
-        self.log.print(">>> " + command, color=self.text_color)
-        func_name, *args = command.split()
-        func = self.game_manager.current_game.get_methods().get(func_name)
-        if func_name == "help":
-            if not args:
-                self.log.print("List of all available commands: (type help <command> for help)")
-                all_methods = self.game_manager.current_game.get_methods().keys()
-                column_gap = 2
-                column_width = max(len(method_name) for method_name in all_methods) + column_gap
-                column_count = self.input_box.max_chars//column_width
-                method_iterator = iter(all_methods)
-                while True:
-                    chunk = list(islice(method_iterator, column_count))
-                    if not chunk:
-                        break
-                    self.log.print("".join(f"{method_name:<{column_width}}" for method_name in chunk), color=self.text_color)
-            elif (target_func := self.game_manager.current_game.get_methods().get(args[0])) is not None:
-                if target_func.__doc__:
-                    self.log.print(target_func.__doc__.strip())
-                self.print_usage_string(target_func)
-            else:
-                self.log.print(f"No method {args[0]} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
+    @staticmethod
+    def find_commands(instance: Union["GameManager", "BaseGame", "DeveloperConsole"]) -> dict[str: Callable[..., Any]]:
+        commands = dict()
+        for name, method in inspect.getmembers(instance, predicate=inspect.ismethod):
+            if not getattr(method, "_is_console_command", False):
+                continue
+            commands[name] = method
+            aliases = getattr(method, "_aliases", False)
+            if aliases is not False:
+                for alias in aliases:
+                    commands[alias] = method
+        return commands
+
+    def get_all_commands(self) -> dict[str: Callable[..., Any]]:
+        return (self.find_commands(self) |
+                self.find_commands(self.game_manager) |
+                self.find_commands(self.game_manager.current_game))
+
+    def list_all_commands(self):
+        all_commands = (self.find_commands(self) |
+                        self.find_commands(self.game_manager) |
+                        self.find_commands(self.game_manager.current_game)).keys()
+        if not all_commands:
+            self.log.print("No console commands found.", color=self.error_color)
             return
-        elif func_name == "exit" or func_name == "quit":
-            pg.quit()
-        elif func is None:
-            self.log.print(f"No method {func_name} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
+        self.log.print("List of all available commands: (type help <command> for help)")
+        column_gap = 2
+        column_width = max(len(command_name) for command_name in all_commands) + column_gap
+        column_count = self.input_box.max_chars // column_width
+        command_iterator = iter(all_commands)
+        while True:
+            chunk = list(islice(command_iterator, column_count))
+            if not chunk:
+                break
+            self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
+                           color=self.secondary_text_color)
+
+    @console_command
+    def help(self, command_name: str = None) -> None:
+        if not command_name:
+            self.list_all_commands()
+        elif (command := self.get_all_commands().get(command_name)) is not None:
+            if command.__doc__:
+                self.log.print(command.__doc__.strip())
+            self.print_usage_string(command)
+        else:
+            self.log.print(
+                f"No command {command_name} exists in the game {self.game_manager.current_game.__class__.__name__}.",
+                color=self.error_color)
+        return
+
+    @console_command
+    def clear(self):
+        self.log.history.clear()
+        self.log.history_index = 0
+        self.log.render()
+
+    def handle_command(self, command: str):
+        self.log.print(">>> " + command, color=self.primary_text_color)
+        command_name, *args = command.split()
+        func = self.get_all_commands().get(command_name)
+        if func is None:
+            self.log.print(f"No command {command_name} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
             return
         try:
             cast_args = []
@@ -111,8 +166,9 @@ class DeveloperConsole:
                         cast_args.append(param_type(arg))
                     except ValueError as e:
                         self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
-            result = func(*cast_args)
-            self.log.print(str(result))
+            return_value = func(*cast_args)
+            if getattr(func, "_show_return_value", False):
+                self.log.print(str(return_value))
         except TypeError as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
             self.print_usage_string(func)
@@ -140,7 +196,7 @@ class DeveloperConsole:
         self.log.print(string)
 
     def resize(self, new_height: int = 100):
-        new_height = min(self.game_manager.screen.get_height(), max(self.input_box.surface.get_height() + 2*self.border_thickness, new_height))
+        new_height = min(self.game_manager.screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.border_offset, new_height))
         self.surface = pg.Surface((self.surface.get_width(), new_height))
 
     def handle_events(self, events: list[pg.event.Event]):
@@ -149,8 +205,6 @@ class DeveloperConsole:
                 self.resize(self.surface.get_height() - 50)
             elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
                 self.resize(self.surface.get_height() + 50)
-            elif event.type == pg.KEYDOWN and event.key == pg.K_r:
-                self.log.render()
             elif event.type == pg.MOUSEWHEEL:
                 self.log.history_index -= event.y
                 self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
@@ -161,15 +215,30 @@ class DeveloperConsole:
     def render(self, surface: pg.Surface):
         self.surface.fill(self.primary_color)
 
-        visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.border_thickness
-        self.surface.blit(self.log.surface, (2, 2),
+        visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.border_offset
+        self.surface.blit(self.log.surface, (self.border_offset, self.border_offset),
                           (0, self.log.surface.get_height() - visible_log_height, self.log.surface.get_width(), visible_log_height))
 
         self.input_box.render_body()
-        self.surface.blit(self.input_box.surface, (2, self.surface.get_height() - self.input_box.surface.get_height() - self.border_thickness))
+        input_box_x, input_box_y = (self.border_offset, self.surface.get_height() - self.input_box.surface.get_height() - self.border_offset)
+        self.surface.blit(self.input_box.surface, (input_box_x, input_box_y))
+
+        if visible_log_height > 0:
+            self.draw_border_rect(self.surface, (self.border_offset, self.border_offset, self.log.surface.get_width(), visible_log_height), -1, self.border_color_dark, self.border_color_bright)
+        self.draw_border_rect(self.surface, (input_box_x, input_box_y, self.input_box.surface.get_width(), self.input_box.surface.get_height()), -1, self.border_color_dark, self.border_color_bright)
+        self.draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.border_color_bright, self.border_color_dark)
 
         surface.blit(self.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
         surface.blit(self.surface, (0, 0))
+
+    @staticmethod
+    def draw_border_rect(surface: pg.Surface, vertices: tuple[int, int, int, int], offset: int, primary_color: ColorType, secondary_color: ColorType):
+        pixel_offset = 1 if offset % 2 == 0 else 0
+        left, top, width, height = vertices[0] + offset, vertices[1] + offset, vertices[2] - offset - pixel_offset, vertices[3] - offset - pixel_offset
+        pg.draw.line(surface, primary_color, (left, top), (left, top+height), 1)
+        pg.draw.line(surface, secondary_color, (left+width, top), (left+width, top+height), 1)
+        pg.draw.line(surface, primary_color, (left, top), (left+width, top), 1)
+        pg.draw.line(surface, secondary_color, (left, top+height), (left+width, top+height), 1)
 
 
 class Log:
@@ -192,7 +261,7 @@ class Log:
             self.history_index = len(self.history)
         if mirror_to_stdout:
             print("DEV: " + string, file=sys.__stdout__)
-        color = color if color is not None else self.dev_console.primary_color
+        color = color if color is not None else self.dev_console.secondary_text_color
         font_surface = self.dev_console.font.render(string, True, color, self.dev_console.secondary_color)
         dy = -font_surface.get_height()
         self.surface.scroll(0, dy)
@@ -204,12 +273,10 @@ class InputBox:
     def __init__(self, dev_console: DeveloperConsole, size: tuple[int, int]) -> None:
         self.dev_console = dev_console
         self.font = dev_console.font
-        self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
-        self.char_height = self.font.render("A", False, (255, 255, 255)).get_height()
         self.surface = pg.Surface(size)
         self.text = ''
         self.clipboard = ''
-        self.max_chars = self.surface.get_width()//self.char_width - 1
+        self.max_chars = self.surface.get_width()//self.dev_console.char_width - 1
         self.caret_position = 0
         self.draw_caret = True
         self.selection_range = None
@@ -313,27 +380,25 @@ class InputBox:
         self.selection_range = None
 
     def render_text(self):
-        text_surface = self.font.render(self.text, True, self.color)
-        self.surface.blit(text_surface, (self.char_width // 3, 5))
+        text_surface = self.font.render(self.text, True, self.color, None)
+        self.surface.blit(text_surface, (self.dev_console.char_width // 3, 5))
 
     def render_caret(self):
-        x = self.char_width * (self.caret_position + 1 / 3)
-        pg.draw.line(self.surface, self.color, (x, self.char_height // 6),
-                     (x, self.rect.height - self.char_height // 6), 2)
+        x = self.dev_console.char_width * (self.caret_position + 1 / 3)
+        pg.draw.line(self.surface, self.color, (x, self.dev_console.char_height // 6),
+                     (x, self.rect.height - self.dev_console.char_height // 6), 2)
 
     def render_selection(self):
-        x = int(self.char_width * (min(self.selection_range) + 1 / 3))
-        y = self.char_height // 8
-        w = self.char_width * (max(self.selection_range) - min(self.selection_range))
-        h = self.rect.height - 2 * self.char_height // 8
-        pixels = pg.surfarray.pixels3d(self.surface)
-        pixels[x:x + w, y:y + h, 1] = 255 - pixels[x:x + w, y:y + h, 1]
+        x = int(self.dev_console.char_width * (min(self.selection_range) + 1 / 3))
+        y = self.dev_console.char_height // 8
+        w = self.dev_console.char_width * (max(self.selection_range) - min(self.selection_range))
+        h = self.rect.height - 2 * self.dev_console.char_height // 8
+        pg.draw.rect(self.surface, self.dev_console.highlight_color, (x, y, w, h))
 
     def render_body(self):
         self.surface.fill(self.dev_console.secondary_color)
-        self.render_text()
         if self.selection_range:
             self.render_selection()
+        self.render_text()
         if self.draw_caret and not self.selection_range:
             self.render_caret()
-        pg.draw.rect(self.surface, self.dev_console.primary_color, self.rect, 2)

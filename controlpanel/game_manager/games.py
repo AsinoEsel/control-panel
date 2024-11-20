@@ -1,6 +1,4 @@
 import pygame as pg
-from typing import Callable, Any
-import inspect
 
 
 class BaseGame:
@@ -16,11 +14,6 @@ class BaseGame:
         self.is_running: bool = True
         # self.fallback_shaders = Shaders([resolution], [(-1, "To_BGRA", {"_MainTex": 0})])
         # self.shaders = shaders if shaders is not None else self.fallback_shaders
-
-    def get_methods(self):
-        return {
-            method.__name__: method for _, method in inspect.getmembers(self, predicate=inspect.ismethod)
-        }
 
     def handle_events(self, events: list[pg.event.Event]) -> None:
         pass
