@@ -1,5 +1,5 @@
 import asyncio
-from artnet import my_artnet, OpCode
+from artnet import ArtNet, OpCode
 from micropython import const
 import time
 
@@ -35,13 +35,15 @@ async def main_loop():
         await asyncio.sleep_ms(1000)
 
 
+artnet = ArtNet(ip="255.255.255.255")
+
 CHRONOMETER_PWM_PIN = const(4)
 BIG_RED_BUTTON_PIN = const(14)
 LED_STRIP_PIN = const(5)
 
-chronometer = PWM("Chronometer", CHRONOMETER_PWM_PIN, intensity=1.0)
-big_red_button = Button("BigRedButton", BIG_RED_BUTTON_PIN)
-status_led_strip = led_strip.LEDStrip("ChronometerLampen", LED_STRIP_PIN, 3)
+chronometer = PWM(artnet, "Chronometer", CHRONOMETER_PWM_PIN, intensity=0.0)
+big_red_button = Button(artnet, "BigRedButton", BIG_RED_BUTTON_PIN)
+status_led_strip = led_strip.LEDStrip(artnet, "ChronometerLampen", LED_STRIP_PIN, 3)
 status_led_strip._animation = led_animations.strobe(len(status_led_strip), 1, 0.5, (0, 0, 0), (100, 100, 0))
 
 
@@ -51,7 +53,7 @@ universe_dict = {
                  }
 
 
-my_artnet.subscribe_all(artnet_callback)
+artnet.subscribe_all(artnet_callback)
 
 
 asyncio.run(start_main_loop())

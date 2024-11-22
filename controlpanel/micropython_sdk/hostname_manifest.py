@@ -3,7 +3,7 @@ hostname_manifest = {
     "CC:DB:A7:6A:13:FC": "pilz",
     "": "kommunikation",
     "A0:DD:6C:0E:6F:B4": "kuehlwasser",
-    "": "bvgpanel",
+    "08:D1:F9:E1:03:CC": "bvgpanel",
     "08:D1:F9:E0:D8:E8": "mainframe",
     "08:D1:F9:E1:F6:94": "waehlscheibe",
     "08:D1:F9:E2:9D:DC": "chronometer",
