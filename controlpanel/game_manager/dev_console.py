@@ -140,11 +140,15 @@ class DeveloperConsole:
         self.log.render()
 
     @console_command(is_cheat_protected=True, show_return_value=True)
-    def eval(self, exec_string: str):
-        game_manager = self.game_manager
-        game = self.game_manager.current_game
+    def eval(self, eval_string: str):
+        from controlpanel.scripts import ControlAPI
+        locals().update({
+            "api": ControlAPI,
+            "game_manager": self.game_manager,
+            "game": self.game_manager.current_game,
+        })
         try:
-            return eval(exec_string)
+            return eval(eval_string)
         except (NameError, AttributeError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
 
@@ -210,7 +214,9 @@ class DeveloperConsole:
 
     def handle_events(self, events: list[pg.event.Event]):
         for event in events:
-            if event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
+            if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+                self.game_manager.toggle_dev_console()
+            elif event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
                 self.resize(self.surface.get_height() - 50)
             elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
                 self.resize(self.surface.get_height() + 50)

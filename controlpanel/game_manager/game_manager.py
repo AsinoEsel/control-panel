@@ -36,7 +36,6 @@ class GameManager:
             self.current_game = list(self.games.values())[0]
 
         clock = pg.time.Clock()
-        dt: int = 0
         while self.running:
 
             if self.current_game is None:
@@ -58,19 +57,19 @@ class GameManager:
             else:
                 self.current_game.handle_events(events)
 
-            self.current_game.update(dt)
+            self.current_game.update()
 
             self.current_game.render()
-            if self.dev_console.open:
-                self.dev_console.render(self.current_game.screen)
 
             if self.use_shaders:
                 self.current_game.shaders.apply([self.current_game.screen,])
             else:
                 pg.transform.scale(self.current_game.screen, self.screen.get_size(), self.screen)
+                if self.dev_console.open:
+                    self.dev_console.render(self.screen)
 
             pg.display.flip()
 
-            dt = clock.tick(self.current_game.tick_rate)
+            self.current_game._dt = clock.tick(self.current_game.tickrate) / 1000 * self.current_game.timescale
 
         pg.quit()

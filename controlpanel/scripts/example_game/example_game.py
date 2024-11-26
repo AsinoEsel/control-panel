@@ -4,7 +4,7 @@ from controlpanel.game_manager import BaseGame
 
 class ExampleGame(BaseGame):
     def __init__(self):
-        super().__init__("Example Game", (1920, 1080), tick_rate=30)
+        super().__init__("Example Game", (1920, 1080), tickrate=30)
         self.color = (255, 0, 0)  # example
 
     def handle_events(self, events: list[pg.event.Event]) -> None:
@@ -14,7 +14,7 @@ class ExampleGame(BaseGame):
             elif event.type == pg.KEYDOWN:
                 ...
 
-    def update(self, dt: int) -> None:
+    def update(self) -> None:
         pass
 
     def render(self) -> None:
