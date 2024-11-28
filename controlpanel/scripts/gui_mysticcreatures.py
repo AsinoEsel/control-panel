@@ -5,7 +5,10 @@ from controlpanel.scripts.gui.widgets import *
 
 
 def set_up_desktops():
-    window_manager: WindowManager = ControlAPI.game_manager.games["Window Manager"]
+    window_manager: WindowManager | None = ControlAPI.get_game("Window Manager")
+    if not window_manager:
+        raise ValueError()
+
     desktop = window_manager.create_new_desktop("main", make_selected=True)
     desktop.add_element(
         terminal := Terminal("Terminal", desktop, x=DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH // 2 - 2 * DEFAULT_GAP,

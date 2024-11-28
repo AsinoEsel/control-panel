@@ -24,6 +24,15 @@ class BaseGame:
     def tickrate(self) -> float:
         return self._tickrate
 
+    @tickrate.setter
+    def tickrate(self, tickrate: float):
+        self._base_tickrate = tickrate
+        self._tickrate = tickrate * self._timescale
+
+    @console_command("tickrate", is_cheat_protected=True)
+    def set_tickrate(self, tickrate: float):
+        self.tickrate = tickrate
+
     @property
     def timescale(self) -> float:
         return self._timescale
@@ -33,7 +42,7 @@ class BaseGame:
         self._timescale = new_timescale
         self._tickrate = self._base_tickrate * new_timescale
 
-    @console_command(is_cheat_protected=True)
+    @console_command("host_timescale", "timescale", is_cheat_protected=True)
     def set_timescale(self, timescale: float):
         self.timescale = timescale
 

@@ -1,5 +1,6 @@
 from controlpanel.scripts import ControlAPI, Event
 from controlpanel.scripts.gui.widgets import Desktop, Log
+from controlpanel.scripts.gui import WindowManager
 from itertools import islice
 from typing import Generator
 try:
@@ -11,7 +12,6 @@ try:
 except ImportError:
     display = None
     print("Failed to import fourteensegment package, some functionality will be missing.")
-
 
 
 COLOR = (255, 0, 0)
@@ -63,7 +63,10 @@ class ScrollingText(Animation):
 
 @ControlAPI.callback("TerminalInputBox", "TextInput")
 def console(event: Event):
-    desktop: Desktop = ControlAPI.game_manager.games["Window Manager"].desktops.get("main")
+    window_manager: WindowManager | None = ControlAPI.get_game("Window Manager")
+    if not window_manager:
+        raise ValueError()
+    desktop: Desktop = window_manager.desktops.get("main")
     log: Log = desktop.widget_manifest.get("TerminalLog")
     user_input = event.value
 

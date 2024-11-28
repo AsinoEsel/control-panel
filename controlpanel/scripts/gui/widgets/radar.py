@@ -120,7 +120,7 @@ class Radar(Widget):
     
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         # Increment angle for sweep movement
-        self.angle += dt*self.angle_speed/1000
+        self.angle += dt*self.angle_speed
         if self.angle >= 360:
             self.angle = self.angle % 360
         self.flag_as_needing_rerender()

@@ -57,12 +57,12 @@ class WindowManager(BaseGame):
                 continue
             self.desktop.handle_event(event)
 
-    def update(self, dt: int) -> None:
+    def update(self) -> None:
         if not self.desktop:
             return
         self.tick += 1
         self.event_queue.update()
-        self.desktop.propagate_update(self.tick, dt=dt, joysticks=dict())
+        self.desktop.propagate_update(self.tick, dt=self.dt, joysticks=dict())
 
     def render(self) -> None:
         if not self.desktop:

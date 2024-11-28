@@ -121,7 +121,7 @@ class Viewport(Widget):
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         rad_per_second = pi/4
         if self.active:
-            radians = rad_per_second*dt/1000
+            radians = rad_per_second*dt
             keys = pg.key.get_pressed()
             if keys[pg.K_LEFT]:
                 self.camera.yaw += radians
@@ -215,9 +215,9 @@ class LaserGame(Widget):
                 self.selected_relay.moving_head.gobo2 -= 1
         return super().handle_event(event)
     
-    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
-        max_distance = self.max_speed * dt/1000
-        camera_distance = pi/4 * dt/1000
+    def update(self, tick: int, dt: float, joysticks: dict[int: pg.joystick.JoystickType]):
+        max_distance = self.max_speed * dt
+        camera_distance = pi/4 * dt
         
         for joystick in joysticks.values():
             axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]   
@@ -281,7 +281,7 @@ if __name__ == "__main__":
                 running = False
             laser_game.handle_event(event)
         
-        laser_game.propagate_update(tick, dt, joysticks)
+        laser_game.propagate_update(tick, dt/1000, joysticks)
         
         laser_game.render()
         

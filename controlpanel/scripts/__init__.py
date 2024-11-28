@@ -32,6 +32,10 @@ class ControlAPI:
             cls.game_manager.add_game(game, make_current)
 
     @classmethod
+    def get_game(cls, name: str) -> BaseGame | None:
+        return cls.game_manager.get_game(name)
+
+    @classmethod
     def fire_event(cls, source: str, name: str, value: EventValueType = None):
         cls.event_manager.fire_event(Event(source, name, value, None, time.time()))
 

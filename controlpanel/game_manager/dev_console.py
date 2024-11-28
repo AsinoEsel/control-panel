@@ -1,3 +1,4 @@
+import time
 import pygame as pg
 import os
 import inspect
@@ -5,6 +6,7 @@ from typing import get_type_hints, TYPE_CHECKING, Callable, Any, Union
 from itertools import islice
 import types
 import sys
+from collections import deque
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager, BaseGame
 
@@ -15,13 +17,14 @@ ColorType = tuple[int, int, int]
 class OutputRedirector:
     stdout = sys.stdout
 
-    def __init__(self, func):
-        self.func = func
+    def __init__(self, *custom_redirects: Callable[[str], None]):
+        self.custom_redirects: tuple[Callable[[str], None], ...] = custom_redirects
 
     def write(self, text):
         self.stdout.write(text)
         if text.strip():  # Ignore empty lines
-            self.func(text, mirror_to_stdout=False)
+            for redirect in self.custom_redirects:
+                redirect(text)
 
     def flush(self):
         self.stdout.flush()
@@ -41,6 +44,46 @@ def console_command(*aliases: str, is_cheat_protected: bool = False, show_return
         func._show_return_value = show_return_value
         return func
     return decorator
+
+
+class Logger:
+    def __init__(self,
+                 screen_surface: pg.Surface,
+                 max_relative_height: float = 0.3,
+                 *,
+                 font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
+                 font_size: int = 20
+                 ):
+        self.font = pg.font.Font(font_name, font_size)
+        max_lines = int(screen_surface.get_height() * max_relative_height / self.font.get_height())
+
+        self.surface = pg.Surface((screen_surface.get_width(), max_lines * self.font.get_height()), flags=pg.SRCALPHA)
+        self.surface.fill((0, 0, 0, 0))
+
+        self.max_alpha: int = 200
+        self.fade_start_time = 5.0
+        self.fade_duration = 2.0
+
+        self.log: deque[tuple[str, float]] = deque((("", 0.0) for _ in range(max_lines)), maxlen=max_lines)
+
+    def print(self, text: str):
+        self.log.append((text, time.time()))
+
+    def render(self, surface: pg.Surface):
+        self.surface.fill((0, 0, 0, 0))
+        current_time: float = time.time()
+        for i, (text, timestamp) in enumerate(reversed(self.log)):
+            age: float = current_time - timestamp
+            if age > self.fade_start_time + self.fade_duration:
+                continue
+            if age > self.fade_start_time:
+                alpha = int(pg.math.lerp(self.max_alpha, 0.0, (age - self.fade_start_time) / self.fade_duration))
+            else:
+                alpha = self.max_alpha
+            font_surface = self.font.render(text, True, (255, 255, 255))
+            font_surface.set_alpha(alpha)
+            self.surface.blit(font_surface, (0, self.surface.get_height() - (i+1) * font_surface.get_height()))
+        surface.blit(self.surface, (0, surface.get_height() - self.surface.get_height()))
 
 
 class DeveloperConsole:
@@ -68,19 +111,17 @@ class DeveloperConsole:
         self.error_color = (255, 64, 64)
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
-        self.char_height = self.font.render("A", False, (255, 255, 255)).get_height()
+        self.char_height = self.font.get_height()
         self.border_offset = 6
 
         self.surface = pg.Surface((screen_surface.get_width(), self.DEFAULT_HEIGHT))
 
         input_box_height = int(self.char_height * 1.5)
         log_width = input_box_width = screen_surface.get_width() - 2 * self.border_offset
-        max_log_height = self.game_manager.screen.get_height() - input_box_height - 3 * self.border_offset
+        max_log_height = screen_surface.get_height() - input_box_height - 3 * self.border_offset
 
         self.input_box = InputBox(self, (input_box_width, input_box_height))
         self.log = Log(self, (log_width, max_log_height))
-
-        sys.stdout = OutputRedirector(self.log.print)
 
     @staticmethod
     def find_commands(instance: Union["GameManager", "BaseGame", "DeveloperConsole"]) -> dict[str: Callable[..., Any]]:
@@ -88,26 +129,27 @@ class DeveloperConsole:
         for name, method in inspect.getmembers(instance, predicate=inspect.ismethod):
             if not getattr(method, "_is_console_command", False):
                 continue
-            commands[name] = method
             aliases = getattr(method, "_aliases", False)
-            if aliases is not False:
+            if aliases is not False and len(aliases) > 0:
                 for alias in aliases:
                     commands[alias] = method
+            else:
+                commands[name] = method
         return commands
 
     def get_all_commands(self) -> dict[str: Callable[..., Any]]:
         return (self.find_commands(self) |
                 self.find_commands(self.game_manager) |
-                self.find_commands(self.game_manager.current_game))
+                self.find_commands(self.game_manager.get_game()))
 
     def list_all_commands(self):
         all_commands = (self.find_commands(self) |
                         self.find_commands(self.game_manager) |
-                        self.find_commands(self.game_manager.current_game)).keys()
+                        self.find_commands(self.game_manager.get_game())).keys()
         if not all_commands:
-            self.log.print("No console commands found.", color=self.error_color)
+            self.log.print("No console commands found.", color=self.error_color, mirror_to_stdout=True)
             return
-        self.log.print("List of all available commands: (type help <command> for help)")
+        self.log.print("List of all available commands: (type help <command> for help)", mirror_to_stdout=True)
         column_gap = 2
         column_width = max(len(command_name) for command_name in all_commands) + column_gap
         column_count = self.input_box.max_chars // column_width
@@ -117,7 +159,7 @@ class DeveloperConsole:
             if not chunk:
                 break
             self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
-                           color=self.secondary_text_color)
+                           color=self.secondary_text_color, mirror_to_stdout=True)
 
     @console_command
     def help(self, command_name: str = None) -> None:
@@ -125,12 +167,12 @@ class DeveloperConsole:
             self.list_all_commands()
         elif (command := self.get_all_commands().get(command_name)) is not None:
             if command.__doc__:
-                self.log.print(command.__doc__.strip())
+                self.log.print(command.__doc__.strip(), mirror_to_stdout=True)
             self.print_usage_string(command)
         else:
             self.log.print(
-                f"No command {command_name} exists in the game {self.game_manager.current_game.__class__.__name__}.",
-                color=self.error_color)
+                f"No command {command_name} exists in the game {self.game_manager.get_game().__class__.__name__}.",
+                color=self.error_color, mirror_to_stdout=True)
         return
 
     @console_command
@@ -145,19 +187,23 @@ class DeveloperConsole:
         locals().update({
             "api": ControlAPI,
             "game_manager": self.game_manager,
-            "game": self.game_manager.current_game,
+            "game": self.game_manager.get_game(),
         })
         try:
             return eval(eval_string)
         except (NameError, AttributeError) as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
 
-    def handle_command(self, command: str):
-        self.log.print(">>> " + command, color=self.primary_text_color)
+    def handle_command(self, command: str, *, suppress_logging: bool = False):
+        if not suppress_logging:
+            self.log.print(">>> " + command, color=self.primary_text_color, mirror_to_stdout=True)
         command_name, *args = command.split()
         func = self.get_all_commands().get(command_name)
         if func is None:
-            self.log.print(f"No command {command_name} exists in the game {self.game_manager.current_game.__class__.__name__}.", color=self.error_color)
+            self.log.print(f"No command {command_name} exists in the game {self.game_manager._current_game.__class__.__name__}.", color=self.error_color, mirror_to_stdout=True)
+            return
+        if getattr(func, "_is_console_command", False) and not self.game_manager.cheats_enabled:
+            self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
             return
         try:
             cast_args = []
@@ -178,12 +224,12 @@ class DeveloperConsole:
                     try:
                         cast_args.append(param_type(arg))
                     except ValueError as e:
-                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
+                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
             return_value = func(*cast_args)
             if getattr(func, "_show_return_value", False):
-                self.log.print(str(return_value))
+                self.log.print(str(return_value), mirror_to_stdout=True)
         except TypeError as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
             self.print_usage_string(func)
             return
 
@@ -206,10 +252,10 @@ class DeveloperConsole:
         return_type = get_type_hints(func).get('return', "undef")
         return_type_name = return_type.__name__ if return_type != "undef" else "undef"
         string += f"-> {return_type_name}"
-        self.log.print(string)
+        self.log.print(string, mirror_to_stdout=True)
 
     def resize(self, new_height: int = 100):
-        new_height = min(self.game_manager.screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.border_offset, new_height))
+        new_height = min(self.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.border_offset, new_height))
         self.surface = pg.Surface((self.surface.get_width(), new_height))
 
     def handle_events(self, events: list[pg.event.Event]):
@@ -270,7 +316,7 @@ class Log:
         for line, color in reversed(self.history[self.history_index::-1]):
             self.print(line, color, mirror_to_stdout=False, append_to_history=False)
 
-    def print(self, string: str, color: ColorType | None = None, *, mirror_to_stdout: bool = True, append_to_history: bool = True):
+    def print(self, string: str, color: ColorType | None = None, *, mirror_to_stdout: bool = False, append_to_history: bool = True):
         if append_to_history:
             self.history.append((string, color))
             self.history_index = len(self.history)

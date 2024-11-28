@@ -55,10 +55,10 @@ class Widget:
             current = current.parent
         return current
 
-    def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+    def update(self, tick: int, dt: float, joysticks: dict[int: pg.joystick.JoystickType]):
         pass
     
-    def propagate_update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
+    def propagate_update(self, tick: int, dt: float, joysticks: dict[int: pg.joystick.JoystickType]):
         self.update(tick, dt, joysticks)
         for element in self.elements:
             element.propagate_update(tick, dt, joysticks)
