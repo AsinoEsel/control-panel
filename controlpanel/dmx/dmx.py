@@ -89,7 +89,7 @@ class DMXUniverse:
         try:
             self.port.close()
         except AttributeError:
-            print("Cannot close port because no port exists.")
+            pass
 
     def __setitem__(self, idx, val):
         assert (1 <= idx <= 512)
