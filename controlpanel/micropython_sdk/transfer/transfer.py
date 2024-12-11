@@ -99,19 +99,23 @@ def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool):
 def transfer():
     parser = argparse.ArgumentParser(description='Control Panel File Transfer Tool')
     parser.add_argument("hostname", help="The IP or hostname of the device to send the files to.")
+    parser.add_argument("--IP", help="IP override")
     parser.add_argument("paths", nargs="*", help="Optional: the files to transfer. Default is all in CWD.")
     parser.add_argument('-f', '--force', action='store_true', help='Ignore the checksums.')
     parser.add_argument('-p', '--password', default=PASSWORD, help='The webrepl password.')
     args = parser.parse_args()
 
-    print("Getting ip... ")
-    import socket
-    try:
-        ip = socket.gethostbyname(args.hostname)
-        print(f"IP is {ip}")
-    except socket.gaierror:
-        print(f"Hostname {args.hostname} could not be resolved.")
-        return
+    if args.IP is not None:
+        ip = args.IP
+    else:
+        print("Getting ip... ")
+        import socket
+        try:
+            ip = socket.gethostbyname(args.hostname)
+            print(f"IP is {ip}")
+        except socket.gaierror:
+            print(f"Hostname {args.hostname} could not be resolved.")
+            return
 
     flash_esp(args.hostname, ip, args.password, args.force)
 
