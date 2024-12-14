@@ -1,5 +1,5 @@
 from ....widgets import Widget, Image
-from controlpanel.micropython_sdk.devices.base.rotary_dial import BaseRotaryDial
+from controlpanel.shared.base.rotary_dial import BaseRotaryDial
 import pygame as pg
 from artnet import ArtNet
 
@@ -8,9 +8,9 @@ class VirtualRotaryDial(Image, BaseRotaryDial):
     ROTARY_DIAL_IMAGE_PATH = "controlpanel/gui/media/controlpanel_simulation/rotary_dial.png"
     SIZE = 30
 
-    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, callback=None):
+    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str):
         super().__init__(name, parent, position[0], position[1], self.ROTARY_DIAL_IMAGE_PATH, self.SIZE, self.SIZE)
-        BaseRotaryDial.__init__(self, artnet, name, callback=callback)
+        BaseRotaryDial.__init__(self, artnet, name)
         self.ms_since_last_input = 0
 
     def send_numbers(self):

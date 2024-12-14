@@ -17,4 +17,5 @@ class SubKey(IntEnum):
     Digits = 7  # 8 bit: 0-9
     BitMask = 8  # n bits -> bool array
     Digit = 9  # 8 bit: 0-9
+    BananaPlugs = 10  # 2 times 8 bit -> tuple[int, int]
     Any = 255  # n bits raw bytearray

@@ -1,5 +1,5 @@
 import pygame as pg
-from controlpanel.micropython_sdk.devices.base.shift_register import BasePisoShiftRegister
+from controlpanel.shared.base.shift_register import BasePisoShiftRegister
 from ....widgets import Widget
 from artnet import ArtNet
 
@@ -7,9 +7,9 @@ from artnet import ArtNet
 class VirtualPisoShiftRegister(Widget, BasePisoShiftRegister):
     SIZE = 16
 
-    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, callback, count=1):
+    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, count=1):
         super().__init__(name, parent, position[0], position[1], count*8*self.SIZE, self.SIZE, None)
-        BasePisoShiftRegister.__init__(self, artnet, name, count, callback=callback)
+        BasePisoShiftRegister.__init__(self, artnet, name, count)
         self.rects = [pg.Rect(i*self.SIZE, 0, self.SIZE, self.SIZE) for i in range(count*8)]
 
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):

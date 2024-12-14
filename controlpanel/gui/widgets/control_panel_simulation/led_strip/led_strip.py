@@ -1,5 +1,5 @@
 from ....widgets import Widget
-from controlpanel.micropython_sdk.devices.dummy.led_strip import DummyLEDStrip
+from controlpanel.event_manager.dummy.led_strip import DummyLEDStrip
 import pygame as pg
 from artnet import ArtNet
 

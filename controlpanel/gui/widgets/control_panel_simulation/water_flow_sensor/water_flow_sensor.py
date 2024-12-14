@@ -1,5 +1,5 @@
 from ....widgets import Widget, Image
-from controlpanel.micropython_sdk.devices.base.water_flow_sensor import BaseWaterFlowSensor
+from controlpanel.shared.base.water_flow_sensor import BaseWaterFlowSensor
 import pygame as pg
 from artnet import ArtNet
 
@@ -14,9 +14,9 @@ class VirtualWaterFlowSensor(Image, BaseWaterFlowSensor):
     TRASH03_IMAGE_PATH = "controlpanel/gui/media/controlpanel_simulation/water_flow_sensor_trash03.png"
     TRASH_STAGES_PATHS = [EMPTY_IMAGE_PATH, TRASH01_IMAGE_PATH, TRASH02_IMAGE_PATH, TRASH03_IMAGE_PATH]
 
-    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, callback):
+    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str):
         super().__init__(name, parent, position[0], position[1], self.EMPTY_IMAGE_PATH, self.SIZE, self.SIZE)
-        BaseWaterFlowSensor.__init__(self, artnet, name, callback=callback)
+        BaseWaterFlowSensor.__init__(self, artnet, name)
         self.flowing = False
         self.accumulated_dt = 0
         self.trash_level = 0

@@ -1,5 +1,5 @@
 from ....widgets import Widget, Image
-from controlpanel.micropython_sdk.devices.dummy.button import DummyButton
+from controlpanel.event_manager.dummy.button import DummyButton
 import pygame as pg
 from artnet import ArtNet
 
@@ -8,9 +8,9 @@ class VirtualButton(Image, DummyButton):
     ACTIVE_STATE_IMAGE_PATH = "controlpanel/gui/media/controlpanel_simulation/button_pressed.png"
     INACTIVE_STATE_IMAGE_PATH = "controlpanel/gui/media/controlpanel_simulation/button_unpressed.png"
 
-    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, callback=None) -> None:
+    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str) -> None:
         super().__init__(name, parent, position[0], position[1], self.INACTIVE_STATE_IMAGE_PATH)
-        DummyButton.__init__(self, artnet, name, callback=callback)
+        DummyButton.__init__(self, artnet, name)
 
     @property
     def state(self):

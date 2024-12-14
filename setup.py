@@ -9,7 +9,7 @@ setup(
     entry_points={
         "console_scripts": [
             "controlpanel = controlpanel.main:main",
-            "transfer = controlpanel.micropython_sdk.transfer.transfer:transfer",
+            "transfer = controlpanel.upy.transfer.transfer:transfer",
         ]
     },
     python_requires=">=3.12",

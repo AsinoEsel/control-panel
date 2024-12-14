@@ -1,7 +1,7 @@
 import pygame as pg
 from ...widgets import Widget, Desktop
 from controlpanel.gui.window_manager.window_manager_setup import BACKGROUND_COLOR
-from controlpanel.micropython_sdk.devices import base
+from controlpanel.shared import base
 from artnet import ArtNet
 
 
@@ -29,16 +29,16 @@ class ControlPanelSimulation(Widget):
 
         test_led_strip = VirtualLEDStrip(artnet, self, (50, 20), "TestLEDStrip", 30)
                                          # animation=base.led_strip.animations.looping_line(30, 0.2, (255, 255, 255), (0, 0, 0), 1000))
-        test_button = VirtualSwitch(artnet, self, (20, 20), "TestButton", None)
-        test_pwm = VirtualLED(artnet, self, (100, 50), "TestPWM", (255, 0, 0), None)  # lambda t: abs(sin(t / 1000))
-        test_voltmeter = VirtualVoltmeter(artnet, self, (200, 300), "TestVoltmeter", intensity_function=None, noise_intensity=0.1)  # lambda t: abs(sin(t / 3000))
-        test_waterflowsensor = VirtualWaterFlowSensor(artnet, self, (250, 50), "TestWaterFlowSensor", None)  # lambda water: print(water)
-        test_rotarydial = VirtualRotaryDial(artnet, self, (200, 200), "TestRotaryDial", None)  # lambda numbers: print(numbers)
-        test_sevensegmentdisplay = VirtualSevenSegmentDisplay(artnet, self, (300, 250), "TestSevenSegmentDisplay")
-        test_rfidreader = VirtualRFIDReader(artnet, self, (20, 300), "TestRFIDReader", None)  # lambda uid: print(uid)
+        test_button = VirtualSwitch(artnet, self, (20, 20), "TestButton")
+        test_pwm = VirtualLED(artnet, self, (100, 50), "TestPWM", (255, 0, 0))  # lambda t: abs(sin(t / 1000))
+        test_voltmeter = VirtualVoltmeter(artnet, self, (200, 300), "TestVoltmeter", noise_intensity=0.1)  # lambda t: abs(sin(t / 3000))
+        test_waterflowsensor = VirtualWaterFlowSensor(artnet, self, (250, 50), "TestWaterFlowSensor")  # lambda water: print(water)
+        test_rotarydial = VirtualRotaryDial(artnet, self, (200, 200), "TestRotaryDial")  # lambda numbers: print(numbers)
+        test_sevensegmentdisplay = VirtualSevenSegmentDisplay(artnet, self, (300, 250), "TestSevenSegmentDisplay", 16)
+        test_rfidreader = VirtualRFIDReader(artnet, self, (20, 300), "TestRFIDReader")  # lambda uid: print(uid)
         test_siposhiftregister = VirtualSipoShiftRegister(artnet, self, (200, 400), "TestSipoShiftRegister", 1)
-        test_pisoshiftregister = VirtualPisoShiftRegister(artnet, self, (200, 450), "TestPisoShiftRegister", None, 2)
-        test_pisosipomodule = VirtualPisoSipoModule(artnet, self, (200, 500), "TestPisoSipoModule", None, 2)
+        test_pisoshiftregister = VirtualPisoShiftRegister(artnet, self, (200, 450), "TestPisoShiftRegister", 2)
+        test_pisosipomodule = VirtualPisoSipoModule(artnet, self, (200, 500), "TestPisoSipoModule", 2)
         test_bvgpanel = VirtualBVGPanel(artnet, self, (400, 300), "TestBVGPanel")
         test_bananaplugs = VirtualBananaPlugs(artnet, self, (600, 50), 4, 6, "TestBananaPlugs")
 

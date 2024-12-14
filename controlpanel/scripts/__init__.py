@@ -15,7 +15,7 @@ import glob
 import importlib
 from functools import wraps
 import inspect
-from controlpanel.micropython_sdk.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
+from controlpanel.shared.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
 
 
 class ControlAPI:

@@ -1,5 +1,5 @@
 from ....widgets import Widget
-from controlpanel.micropython_sdk.devices.dummy.pwm import DummyPWM
+from controlpanel.event_manager.dummy.pwm import DummyPWM
 import pygame as pg
 from artnet import ArtNet
 
@@ -7,9 +7,9 @@ from artnet import ArtNet
 class VirtualPWM(Widget, DummyPWM):
     SIZE = 16
 
-    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str, intensity_function=None) -> None:
+    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str) -> None:
         super().__init__(name, parent, position[0], position[1], self.SIZE, self.SIZE, None)
-        DummyPWM.__init__(self, artnet, name, intensity_function=intensity_function)
+        DummyPWM.__init__(self, artnet, name)
 
     def get_color(self) -> tuple[int, int, int]:
         brightness = int(self.intensity * 255)
@@ -29,8 +29,8 @@ class VirtualPWM(Widget, DummyPWM):
 
 
 class VirtualLED(VirtualPWM):
-    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str, led_color: tuple[int, int, int] = (255, 255, 255), intensity_function=None) -> None:
-        super().__init__(artnet, parent, position, name, intensity_function)
+    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str, led_color: tuple[int, int, int] = (255, 255, 255)) -> None:
+        super().__init__(artnet, parent, position, name)
         self.led_color = led_color
 
     def get_color(self) -> tuple[int, int, int]:

@@ -75,14 +75,14 @@ class EventManager:
                 data = reply.get("Data", b"")
 
                 try:
-                    self._parse_sub_key(sender, subkey, data, ts)
+                    self._parse_subkey(sender, subkey, data, ts)
                 except struct.error as exc:
                     print(f"Parsing of {subkey.name} failed: {exc}")
 
             case OpCode.ArtDmx:
                 self.fire_event(Event("DMX", reply.get("Universe"), reply.get("Data"), sender, ts))
 
-    def _parse_sub_key(self, sender: tuple[str, int], subkey: SubKey, data: bytes, ts: float) -> None:
+    def _parse_subkey(self, sender: tuple[str, int], subkey: SubKey, data: bytes, ts: float) -> None:
         data_fields = data.split(b"\x00", maxsplit=1)
 
         if len(data_fields) < 2:
@@ -91,7 +91,7 @@ class EventManager:
         event_source = data_fields[0].decode("ascii")
         raw_value = data_fields[1]
         event_name = subkey.name
-        parsed_value = self.get_processed_value(raw_value, subkey, data)
+        parsed_value: EventValueType = self.get_processed_value(raw_value, subkey, data)
 
         self.fire_event(Event(event_source, event_name, parsed_value, sender, ts))
 
@@ -125,6 +125,8 @@ class EventManager:
                 return raw_value[0]
             case SubKey.BitMask:
                 return tuple(bool(v >> i & 0b1) for v in raw_value for i in range(8))
+            case SubKey.BananaPlugs:
+                return struct.unpack('BB', raw_value)
             case SubKey.Any:
                 return raw_value
             case _:

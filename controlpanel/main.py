@@ -1,8 +1,9 @@
 from threading import Thread
 from controlpanel.event_manager import EventManager
+from controlpanel.shared.base import Fixture, Sensor
 from controlpanel.gui.window_manager import WindowManager
 from controlpanel.scripts import load_scripts, ControlAPI
-from controlpanel.micropython_sdk.device_manifest import get_instantiated_devices
+from controlpanel.shared.device_manifest import get_instantiated_devices
 from controlpanel.dmx import DMXUniverse, device_list
 from artnet import ArtNet
 import argparse
@@ -30,7 +31,12 @@ def main():
 
     ControlAPI.artnet = artnet
     ControlAPI.event_manager = event_manager
-    ControlAPI.devices = get_instantiated_devices(ControlAPI.artnet)
+    ControlAPI.devices = get_instantiated_devices(artnet)
+    for device in ControlAPI.devices:
+        if isinstance(device, Fixture):
+            ControlAPI.subscribe(lambda event: device.parse_dmx_data(event.data), "DMX", device.universe, None)
+        if isinstance(device, Sensor):
+            ControlAPI.subscribe(lambda event: device.parse_trigger_data(event.data), device.name, None, None)
     ControlAPI.window_manager = window_manager
     try:
         ControlAPI.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)

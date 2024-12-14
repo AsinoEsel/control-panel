@@ -1,0 +1,14 @@
+.venv
+.idea
+.git
+*.md
+setup.py
+webrepl
+firmware
+.old
+transfer
+.webreplignore
+.gitignore
+devices/dummy
+/__init__.py
+__pycache__

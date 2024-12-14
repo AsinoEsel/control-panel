@@ -1,5 +1,5 @@
 from ....widgets import Widget
-from controlpanel.micropython_sdk.devices.dummy.seven_segment import DummySevenSegmentDisplay
+from controlpanel.event_manager.dummy.seven_segment import DummySevenSegmentDisplay
 import pygame as pg
 from artnet import ArtNet
 
@@ -11,9 +11,9 @@ class VirtualSevenSegmentDisplay(Widget, DummySevenSegmentDisplay):
     TEXT_COLOR = (255, 0, 0)
     BACKGROUND_COLOR = (0, 0, 0)
 
-    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str):
+    def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, digits: int):
         super().__init__(name, parent, position[0], position[1], self.WIDTH, self.HEIGHT, None)
-        DummySevenSegmentDisplay.__init__(self, artnet, name, text="DONKEY")
+        DummySevenSegmentDisplay.__init__(self, artnet, name, digits)
         self.font = pg.font.Font("controlpanel/gui/media/DSEG7Classic-Italic.ttf", 32)
 
     def parse_dmx_data(self, data: bytes):

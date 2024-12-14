@@ -1,6 +1,6 @@
 import pygame as pg
 
-from controlpanel.micropython_sdk.devices.base.shift_register import BaseSipoShiftRegister
+from controlpanel.shared.base.shift_register import BaseSipoShiftRegister
 from ....widgets import Widget
 from artnet import ArtNet
 

@@ -1,6 +1,6 @@
 from controlpanel.gui.widgets import Widget
 import pygame as pg
-from controlpanel.micropython_sdk.devices.dummy.control_panel import DummyBVGPanel
+from controlpanel.event_manager.dummy.control_panel import DummyBVGPanel
 from dataclasses import dataclass
 from artnet import ArtNet
 
