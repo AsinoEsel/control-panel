@@ -202,7 +202,7 @@ class DeveloperConsole:
         if func is None:
             self.log.print(f"No command {command_name} exists in the game {self.game_manager._current_game.__class__.__name__}.", color=self.error_color, mirror_to_stdout=True)
             return
-        if getattr(func, "_is_console_command", False) and not self.game_manager.cheats_enabled:
+        if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled:
             self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
             return
         try:
