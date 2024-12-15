@@ -1,15 +1,13 @@
 from controlpanel.scripts import ControlAPI, Event
 import time
 
-lever_flipped = False
-flip_time: float = 0.0
+rfid_scan_time: float = 0.0
 
 
 @ControlAPI.callback("TestRFIDReader", "RFID", (98, 97, 100, 100, 97, 116, 97))
-def flip_lever(event: Event):
-    global lever_flipped, flip_time
-    lever_flipped = True
-    flip_time = event.timestamp
+def rfid_scanned(event: Event):
+    global rfid_scan_time
+    rfid_scan_time = event.timestamp
 
 
 def start_countdown():
@@ -21,8 +19,8 @@ def start_countdown():
         time.sleep(1)
 
 
-@ControlAPI.callback("TestButton", None, True, allow_parallelism=True)
-def print_dog(event: Event):
-    if not lever_flipped or time.time() - flip_time > 10.0:
+@ControlAPI.callback("TestButton", None, True, allow_parallelism=False)
+def dostuff(event: Event):
+    if time.time() - rfid_scan_time > 10.0:
         return
     start_countdown()

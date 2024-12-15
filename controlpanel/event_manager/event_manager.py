@@ -133,7 +133,7 @@ class EventManager:
                 return None
 
     def fire_event(self, event: Event):
-        print(f"{"Firing event:":<16}{event.source:^15} -> {event.name:^15} -> {str(event.value):^15} from {event.sender}")
+        print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")
         for key_func in self.POSSIBLE_EVENT_TYPES:
             source, name, value = key_func(event.source, event.name, event.value)
             listeners: list[Subscriber] = self.register.get(Condition(source, name, value), [])
@@ -142,7 +142,7 @@ class EventManager:
                     if listener.thread is not None and listener.thread.is_alive():
                         print("Cannot start thread: old thread is still alive.")
                         return
-                print(f"{"Receiving event:":<16}{event.source:^15} -> {event.name:^15} -> {str(event.value):^15} -> {listener.callback.__name__:^15}")
+                print(f"{"Receiving event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} -> {listener.callback.__name__:<20}")
                 listener.thread = Thread(target=listener.callback, args=(event,), daemon=True)
                 listener.thread.start()
                 if listener.fire_once:

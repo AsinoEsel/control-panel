@@ -29,14 +29,10 @@ async def main_loop():
     asyncio.create_task(authorization_key.run(updates_per_second=10))
     asyncio.create_task(button_battery.run(10))
     asyncio.create_task(battery_led_strip.run(10))
-    # asyncio.create_task(powertube_led_strip.run(20))
-    
+
     print("MAIN LOOP!")
 
     while True:
-        # global current_led
-        # current_led += 1
-        # bvg_panel[current_led] = 1
         await asyncio.sleep_ms(60000//120)
 
 

@@ -8,13 +8,12 @@ import time
 import threading
 from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
-from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, Subscriber, CallbackType, SourceNameType
-from controlpanel.gui.window_manager import WindowManager
+from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
+# from controlpanel.gui.window_manager import WindowManager
+from controlpanel.game_manager import GameManager, BaseGame
 import os
-import glob
 import importlib
 from functools import wraps
-import inspect
 from controlpanel.shared.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
 
 
@@ -22,8 +21,19 @@ class ControlAPI:
     artnet: ArtNet = None
     event_manager: EventManager = None
     devices: DeviceManifestType = None
-    window_manager: WindowManager = None
+    game_manager: GameManager = None
     dmx: DMXUniverse = None
+
+    @classmethod
+    def add_game(cls, game: BaseGame, *, make_current: bool = False):
+        if cls.game_manager is None:
+            raise NotImplementedError
+        else:
+            cls.game_manager.add_game(game, make_current)
+
+    @classmethod
+    def get_game(cls, name: str) -> BaseGame | None:
+        return cls.game_manager.get_game(name)
 
     @classmethod
     def fire_event(cls, source: str, name: str, value: EventValueType = None):
