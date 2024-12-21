@@ -1,8 +1,5 @@
-import struct
-
 import machine
 from controlpanel.shared.base.pwm import BasePWM
-import asyncio
 
 
 class PWM(BasePWM):
@@ -14,7 +11,7 @@ class PWM(BasePWM):
         self.pwm.duty(int(1023*intensity))
 
     def parse_dmx_data(self, data: bytes):
-        self.pwm.duty(data[0] * 4)
+        self.pwm.duty(int(data[0]/255*1023))
 
     # async def run(self, updates_per_second: int):
     #     sleep_time = 1 / updates_per_second

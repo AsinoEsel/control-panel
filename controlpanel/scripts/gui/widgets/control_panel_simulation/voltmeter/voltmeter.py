@@ -14,7 +14,7 @@ class VirtualVoltmeter(Widget, DummyVoltmeter):
 
     def __init__(self, artnet: ArtNet, parent: Widget, position: tuple[int, int], name: str, *, universe: int | None = None, noise_intensity: float = 0.02):
         super().__init__(name, parent, position[0], position[1], self.SIZE, self.SIZE, elements=None)
-        DummyVoltmeter.__init__(self, artnet, name, universe=universe, noise_intensity=noise_intensity)
+        DummyVoltmeter.__init__(self, artnet, name, universe=universe)
 
     def update(self, tick: int, dt: int, joysticks: dict[int: pg.joystick.JoystickType]):
         DummyVoltmeter.update(self)

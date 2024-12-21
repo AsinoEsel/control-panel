@@ -14,14 +14,6 @@ class BaseVoltmeter(BasePWM):
         # self.noise_intensity = noise_intensity
         # self._standard_duty = self._duty  # used to store the original duty value
 
-    @property
-    def voltage(self) -> float:
-        return self.intensity * 3.3
-
-    @voltage.setter
-    def voltage(self, value):
-        self.intensity = min(1.0, max(0.0, value / 3.3))
-
     def parse_dmx_data(self, data: bytes):
         super().parse_dmx_data(data)
         self._standard_duty = self.duty

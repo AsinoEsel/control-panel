@@ -1,5 +1,5 @@
-from ...base.control_panel import BaseBVGPanel
-from ...phys.shift_register import PisoSipoModule
+from controlpanel.shared.base.control_panel import BaseBVGPanel
+from controlpanel.upy.phys.shift_register import PisoSipoModule
 from micropython import const
 from machine import Pin
 import asyncio
@@ -27,7 +27,6 @@ class BVGPanel(PisoSipoModule, BaseBVGPanel):
             serial_in: int,
             serial_out: int,
             *,
-            callback=None,
             universe: list[int] | None = None,
     ):
 
@@ -38,14 +37,12 @@ class BVGPanel(PisoSipoModule, BaseBVGPanel):
                          serial_in,
                          serial_out,
                          BaseBVGPanel.SHIFT_REGISTER_COUNT,
-                         callback=callback,
                          universe=universe,
                          piso_remapping=self.PISO_REMAPPING,
                          sipo_remapping=self.SIPO_REMAPPING)
         BaseBVGPanel.__init__(self,
                               artnet,
                               name,
-                              callback=callback,
                               universe=universe,
                               piso_remapping=self.PISO_REMAPPING,
                               sipo_remapping=self.SIPO_REMAPPING)
@@ -77,7 +74,7 @@ class BVGPanel(PisoSipoModule, BaseBVGPanel):
                     button_changed = True
                     self.send_button_data(button_id, not self._input_states[i])
             if button_changed:
-                self.send_data()
+                self.send_trigger_data(bytes(self._input_states))
 
             if old_address != self.address:
                 self.send_address_data(self.address)

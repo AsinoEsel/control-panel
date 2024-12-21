@@ -4,7 +4,6 @@ try:
     from time import ticks_ms, ticks_diff, ticks_add
 except ImportError:
     import time
-
     ticks_ms = lambda: int(time.time() * 1000)
     ticks_diff = lambda x, y: x - y
     ticks_add = lambda x, y: x + y
@@ -30,9 +29,9 @@ def set_leds_to_color(buffer: bytearray, led_range: range, color: tuple[int, int
 
 
 def set_leds_to_colors(buffer: bytearray, colors: list[tuple[int, int, int]]):
-    for color in colors:
+    for i, color in enumerate(colors):
         for channel in range(3):
-            buffer[color * 3 + channel] = color[channel]
+            buffer[i * 3 + channel] = color[channel]
 
 
 def strobe(led_count: int, frequency: float, duty: float, color1: tuple[int, int, int] = (255, 255, 255),

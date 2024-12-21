@@ -8,9 +8,9 @@ class VirtualLEDStrip(Widget, DummyLEDStrip):
     LED_SIZE = 16
     GRB_CHANNEL_ORDER = (1, 0, 2)
 
-    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str, length: int, *, universe: int | None = None, animation=None) -> None:
+    def __init__(self, artnet: ArtNet, parent, position: tuple[int, int], name: str, length: int, *, universe: int | None = None) -> None:
         super().__init__(name, parent, position[0], position[1], self.LED_SIZE * length, self.LED_SIZE, None)
-        DummyLEDStrip.__init__(self, artnet, name, length, universe=universe, animation=animation)
+        DummyLEDStrip.__init__(self, artnet, name, length, universe=universe)
         self._buffer = bytearray(3*length)
         self.led_colors = [(0, 0, 0) for _ in range(length)]
         self.led_rects = [pg.Rect(i * self.LED_SIZE, 0, self.LED_SIZE, self.LED_SIZE) for i in range(length)]

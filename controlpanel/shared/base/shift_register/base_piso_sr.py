@@ -1,7 +1,6 @@
-import math
-
 from ..sensor import Sensor
-from .base_shift_register import BaseShiftRegister
+from .base_sr import BaseShiftRegister
+import math
 
 
 class BasePisoShiftRegister(Sensor, BaseShiftRegister):
@@ -10,7 +9,7 @@ class BasePisoShiftRegister(Sensor, BaseShiftRegister):
     def __init__(self, artnet, name: str, count=1, *, remapping: list[int] | None = None):
         super().__init__(artnet, name)
         BaseShiftRegister.__init__(self, count, remapping=remapping)
-        self._input_states: list[int] = [0 for _ in range(count * 8)]
+        self._input_states: list[int] = [1 for _ in range(count * 8)]
 
     def __getitem__(self, index) -> bool:
         if self._remapping is not None:

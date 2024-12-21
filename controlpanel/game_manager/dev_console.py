@@ -191,8 +191,14 @@ class DeveloperConsole:
         })
         try:
             return eval(eval_string)
-        except (NameError, AttributeError) as e:
+        except (NameError, AttributeError, SyntaxError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+
+    @console_command(is_cheat_protected=True)
+    def send_dmx(self, device_name: str, *values: int) -> None:
+        from controlpanel.scripts import ControlAPI
+        data = bytes(values)
+        ControlAPI.send_dmx(device_name, data)
 
     def handle_command(self, command: str, *, suppress_logging: bool = False):
         if not suppress_logging:

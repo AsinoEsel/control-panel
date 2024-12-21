@@ -2,23 +2,23 @@ import asyncio
 from artnet import ArtNet, OpCode
 from micropython import const
 
-from machine import Pin
-
-from devices.phys.button import Button
-from devices.phys.rotary_dial import RotaryDial
-from devices.phys.shift_register import SipoShiftRegister
-from devices.phys.seven_segment import SevenSegmentDisplay
+from controlpanel.upy.phys.button import Button
+from controlpanel.upy.phys.rotary_dial import RotaryDial
+from controlpanel.upy.phys.shift_register import SipoShiftRegister
+from controlpanel.upy.phys.seven_segment import SevenSegmentDisplay
+from controlpanel.upy.phys.led_strip import LEDStrip
 # from devices.phys.rfid_reader import RFIDReader
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
+        print(universe)
         data = reply.get("Data")
         device = universe_dict.get(universe)
         if device is None:
             return
-        # print(f"Parsing dmx data {data} for device {device.name}")
+        print(f"Parsing dmx data {data} for device {device.name}")
         device.parse_dmx_data(data)
 
 
@@ -28,16 +28,17 @@ async def start_main_loop():
 
 async def main_loop():
     
-    asyncio.create_task(rotary_dial.run(updates_per_second=5))
     asyncio.create_task(power_switch.run(updates_per_second=10))
+    asyncio.create_task(reset_switch.run(updates_per_second=10))
     asyncio.create_task(sipo_register.run(updates_per_second=5))
+    asyncio.create_task(status_led.run(updates_per_second=2))
 
     tick = 0
     while True:
         import time
         tick += 1
         sipo_register._output_states = [1 if tick % 2 == 0 else 0 for _ in range(sipo_register._number_of_bits)]
-        seven_segment.text("CUR TICK" + str(tick))
+        # seven_segment.text("CUR TICK" + str(tick))
         # keeping the loop alive
         await asyncio.sleep_ms(1000)
 
@@ -54,6 +55,9 @@ if __name__ == "__main__":
     SIPO_CLOCK_PIN = const(22)
 
     POWER_SWITCH_PIN = const(32)
+    DIAL_SWITCH_PIN = const(5)
+
+    STATUS_LED_STRIP_PIN = const(33)
 
     # BAUDRATE = const(100000)
     DISPLAY_CS_PIN = const(19)  # LODA
@@ -66,11 +70,15 @@ if __name__ == "__main__":
     rotary_dial = RotaryDial(artnet, "RotaryDial", DIAL_COUNTER_PIN, DIAL_RESET_PIN)
     sipo_register = SipoShiftRegister(artnet, "RedYellowLEDs", SIPO_CLOCK_PIN, SIPO_LATCH_PIN, SIPO_SERIALOUT_PIN, 1)
     power_switch = Button(artnet, "PowerSwitch", POWER_SWITCH_PIN)
+    reset_switch = Button(artnet, "DialReset", DIAL_SWITCH_PIN)
+    status_led = LEDStrip(artnet, "StatusLED", STATUS_LED_STRIP_PIN, 1)
     # rfid_reader = RFIDReader("RFIDLogin", spi, RFID_RST_PIN, RFID_CS_PIN)
 
     universe_dict = {
-        # seven_segment.universe: seven_segment,
+        seven_segment.universe: seven_segment,
         sipo_register.universe: sipo_register,
+        status_led.universe: status_led,
+
         }
 
     artnet.subscribe_all(artnet_callback)

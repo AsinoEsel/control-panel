@@ -1,11 +1,10 @@
 import asyncio
-from artnet import ArtNet, OpCode
+from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
 
-from devices.phys.control_panel.bvg_panel import BVGPanel
-from devices.phys.button import Button
-from devices.phys.led_strip import led_strip
-from devices.base.led_strip import animations
+from controlpanel.upy.phys.control_panel.bvg_panel import BVGPanel
+from controlpanel.upy.phys.button import Button
+from controlpanel.upy.phys.led_strip import led_strip
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
@@ -15,7 +14,7 @@ def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
         device = universe_dict.get(universe)
         if device is None:
             return
-        # print(f"Parsing dmx data {data} for device {device.name}")
+        print(f"Parsing dmx data {data} for device {device.name}")
         device.parse_dmx_data(data)
 
 
@@ -24,7 +23,7 @@ async def start_main_loop():
 
 
 async def main_loop():
-    
+
     asyncio.create_task(bvg_panel.run(updates_per_second=10))
     asyncio.create_task(authorization_key.run(updates_per_second=10))
     asyncio.create_task(button_battery.run(10))
@@ -41,7 +40,7 @@ CLOCK_PIN = const(19)
 SERIAL_OUT_PIN = const(4)
 SERIAL_IN_PIN = const(14)
 
-LED_PIN = const(32)
+LED_PIN = const(22)
 
 BATTERY_BUTTON = const(13)
 
@@ -53,7 +52,7 @@ if __name__ == "__main__":
 
     bvg_panel = BVGPanel(artnet, "TestBVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_IN_PIN, SERIAL_OUT_PIN)
     battery_led_strip = led_strip.LEDStrip(artnet, "BatterySlotBVG-LEDStrip", LED_PIN, 30)
-    battery_led_strip._animation = animations.strobe(len(battery_led_strip), 1, 0.5, (100, 0, 0), (0, 0, 0))
+    # battery_led_strip._animation = animations.strobe(len(battery_led_strip), 1, 0.5, (100, 0, 0), (0, 0, 0))
     button_battery = Button(artnet, "BatteryButton", BATTERY_BUTTON)
     authorization_key = Button(artnet, "AuthorizationKeyBVG", KEY_PIN)
 

@@ -1,5 +1,5 @@
 from ..fixture import Fixture
-from .base_shift_register import BaseShiftRegister
+from .base_sr import BaseShiftRegister
 
 
 class BaseSipoShiftRegister(Fixture, BaseShiftRegister):

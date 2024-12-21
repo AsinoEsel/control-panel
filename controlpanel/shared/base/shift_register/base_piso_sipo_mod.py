@@ -1,5 +1,5 @@
-from .base_piso_shift_register import BasePisoShiftRegister
-from .base_sipo_shift_register import BaseSipoShiftRegister
+from .base_piso_sr import BasePisoShiftRegister
+from .base_sipo_sr import BaseSipoShiftRegister
 
 
 class BasePisoSipoModule(BasePisoShiftRegister, BaseSipoShiftRegister):

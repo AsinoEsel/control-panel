@@ -12,11 +12,10 @@ class PisoSipoModule(PisoShiftRegister, SipoShiftRegister):
                  serial_out: int,
                  count: int = 1,
                  *,
-                 callback=None,
                  universe: int | None = None,
                  piso_remapping: list[int | None] | None = None,
                  sipo_remapping: list[int | None] | None = None):
-        PisoShiftRegister.__init__(self, artnet, name, clock, latch, serial_in, count, callback=callback, remapping=piso_remapping)
+        PisoShiftRegister.__init__(self, artnet, name, clock, latch, serial_in, count, remapping=piso_remapping)
         SipoShiftRegister.__init__(self, artnet, name, clock, latch, serial_out, count, universe=universe, remapping=sipo_remapping)
         self._piso_remapping = piso_remapping
         self._sipo_remapping = sipo_remapping
@@ -34,4 +33,4 @@ class PisoSipoModule(PisoShiftRegister, SipoShiftRegister):
         self._update_states()
         for i in range(self._number_of_bits):
             if old_states[i] != self._input_states[i]:
-                self.callback(i, not self._input_states[i])
+                self.send_trigger_data(bytes(self._input_states))

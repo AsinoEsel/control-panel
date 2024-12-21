@@ -11,12 +11,13 @@ from controlpanel.upy.phys.led_strip import led_strip
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
     if op_code == OpCode.ArtDmx:
+        print(f"Received DMX at universe {reply.get("Universe")}...")
         universe = reply.get("Universe")
         data = reply.get("Data")
         device = universe_dict.get(universe)
         if device is None:
             return
-        # print(f"Parsing dmx data {data} for device {device.name}")
+        print(f"Parsing dmx data {data} for device {device.name}")
         device.parse_dmx_data(data)
 
 
@@ -28,7 +29,7 @@ async def main_loop():
     
     asyncio.create_task(big_red_button.run(updates_per_second=10))
     # asyncio.create_task(chronometer.run(updates_per_second=10))
-    # asyncio.create_task(status_led_strip.run(updates_per_second=2))
+    asyncio.create_task(status_led_strip.run(updates_per_second=2))
     
     while True:
         # keeping the loop alive
@@ -44,7 +45,7 @@ LED_STRIP_PIN = const(5)
 chronometer = PWM(artnet, "Chronometer", CHRONOMETER_PWM_PIN, intensity=0.6)
 big_red_button = Button(artnet, "BigRedButton", BIG_RED_BUTTON_PIN)
 status_led_strip = led_strip.LEDStrip(artnet, "ChronometerLampen", LED_STRIP_PIN, 3)
-# status_led_strip._animation = led_animations.strobe(len(status_led_strip), 1, 0.5, (0, 0, 0), (100, 100, 0))
+# status_led_strip._animation = led_animations.strobe(len-(status_led_strip), 1, 0.5, (0, 0, 0), (100, 100, 0))
 
 
 universe_dict = {

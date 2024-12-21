@@ -6,5 +6,5 @@ from .shift_register import DummySipoShiftRegister, DummyPisoSipoModule, DummyPi
 from .voltmeter import DummyVoltmeter
 from .control_panel import DummyBVGPanel, DummyBananaPlugs
 from .rfid_reader import DummyRFIDReader
-from .water_flow_sensor import DummyWaterFlowSensor
+from .water_flow_sensor import DummyWaterSensor
 from .rotary_dial import DummyRotaryDial

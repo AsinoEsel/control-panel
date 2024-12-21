@@ -15,3 +15,6 @@ class DummySevenSegmentDisplay(BaseSevenSegmentDisplay):
     def text(self, txt: str):
         self._text = txt[:self._digits]
         self.send_dmx_data(txt.encode('ASCII'))
+
+    def set_text(self, text: str):
+        self.text = text

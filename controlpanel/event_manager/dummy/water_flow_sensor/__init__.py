@@ -1,1 +1,1 @@
-from .dummy_water_flow_sensor import DummyWaterFlowSensor
+from .dummy_water_flow_sensor import DummyWaterSensor

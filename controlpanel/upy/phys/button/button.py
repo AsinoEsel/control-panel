@@ -16,7 +16,7 @@ class Button(BaseButton):
     def state(self) -> int:
         return not self.pin.value() ^ self.invert
 
-    async def run(self, updates_per_second):
+    async def run(self, updates_per_second):  # TODO: code review
         """
         Listens on pin value. Changes in this value cause callbacks.
         Prevents callbacks that happen too rapidly in succession (<min_switch_delay)

@@ -9,8 +9,8 @@ import threading
 from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
 from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
-# from controlpanel.gui.window_manager import WindowManager
 from controlpanel.game_manager import GameManager, BaseGame
+from controlpanel.shared.base import Device, Fixture
 import os
 import importlib
 from functools import wraps
@@ -62,7 +62,7 @@ class ControlAPI:
         cls.event_manager.subscribe(callback, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
     @classmethod
-    def callback(cls, source_name: SourceNameType | None, event_name: EventNameType | None, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
+    def callback(cls, source_name: SourceNameType | None, event_name: EventNameType | None = None, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -74,6 +74,17 @@ class ControlAPI:
             return wrapper
 
         return decorator
+
+    @classmethod
+    def send_dmx(cls, device_name: str, data: bytes):
+        device: Device = cls.devices.get(device_name)
+        if device is None:
+            raise ValueError("No device with that name exists in the Device Manifest.")
+        if not isinstance(device, Fixture):
+            raise ValueError(f"Device {device_name} is not a Fixture and hence does not receive DMX signals.")
+        universe = device.universe
+        print(f"Sending DMX Package to {device_name} @ {universe} with data {data}")
+        cls.artnet.send_dmx(universe, 0, bytearray(data))
 
 
 def load_scripts(args: list[str]) -> None:

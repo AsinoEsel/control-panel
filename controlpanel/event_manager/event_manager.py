@@ -2,9 +2,11 @@ from artnet import ArtNet, OpCode
 from typing import Callable, Any
 from dataclasses import dataclass
 import time
-import struct
 from .commons import SubKey, KEY_CONTROL_PANEL_PROTOCOL
 from threading import Thread
+from collections import defaultdict
+from controlpanel.shared.device_manifest import get_instantiated_devices
+from controlpanel.shared.base import Sensor, Fixture, Device
 
 
 SourceNameType = str
@@ -54,11 +56,16 @@ class EventManager:
     def __init__(self, artnet: ArtNet):
         self.artnet = artnet
         self.artnet.subscribe_all(self.receive)
-        self.register: dict[Condition:list[Subscriber]] = dict()
+        self.register: dict[Condition:list[Subscriber]] = defaultdict(list)
+        self.devices: dict[str: Device] = get_instantiated_devices(artnet)
+        self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
+        self.fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
 
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
         match op_code:
             case OpCode.ArtTrigger:
+                # print(f"Receiving ArtTrigger event: {reply}")
+
                 key = reply.get("Key")
                 if key != KEY_CONTROL_PANEL_PROTOCOL:
                     return
@@ -72,65 +79,29 @@ class EventManager:
                     print(f"Invalid sub key {subkey_raw}!")
                     return
 
-                data = reply.get("Data", b"")
+                data: bytes = reply.get("Data", b"")
+                data_fields = data.split(b"\x00", maxsplit=1)
+                if len(data_fields) != 2:
+                    return
 
-                try:
-                    self._parse_subkey(sender, subkey, data, ts)
-                except struct.error as exc:
-                    print(f"Parsing of {subkey.name} failed: {exc}")
+                sensor_name: str = data_fields[0].decode("ascii")
+                sensor_data: bytes = data_fields[1]
+
+                sensor: Sensor | None = self.sensor_dict.get(sensor_name)
+                if sensor:
+                    event_name, event_value = sensor.parse_trigger_data(sensor_data)
+                    self.fire_event(Event(sensor_name, event_name, event_value, sender, ts))
+                else:
+                    self.fire_event(Event("Trigger", sensor_name, sensor_data, sender, ts))
 
             case OpCode.ArtDmx:
-                self.fire_event(Event("DMX", reply.get("Universe"), reply.get("Data"), sender, ts))
-
-    def _parse_subkey(self, sender: tuple[str, int], subkey: SubKey, data: bytes, ts: float) -> None:
-        data_fields = data.split(b"\x00", maxsplit=1)
-
-        if len(data_fields) < 2:
-            return
-
-        event_source = data_fields[0].decode("ascii")
-        raw_value = data_fields[1]
-        event_name = subkey.name
-        parsed_value: EventValueType = self.get_processed_value(raw_value, subkey, data)
-
-        self.fire_event(Event(event_source, event_name, parsed_value, sender, ts))
-
-    @staticmethod
-    def get_processed_value(raw_value: bytes, subkey: int, data: bytes) -> EventValueType:
-
-        match subkey:
-            case SubKey.PushButton:
-                return bool(struct.unpack("B", raw_value)[0])
-            case SubKey.RotaryEncoder:
-                return struct.unpack("B", raw_value)[0]
-            case SubKey.Integer:
-                return tuple(
-                    struct.unpack("<i", raw_value[i: i + 4])[0]
-                    for i in range(0, len(raw_value), 4)
-                )
-            case SubKey.Double:
-                return tuple(
-                    struct.unpack("<d", raw_value[i: i + 8])[0]
-                    for i in range(0, len(raw_value), 8)
-                )
-            case SubKey.String:
-                return data.split(b"\x00", maxsplit=1)[0].decode("ascii")
-            case SubKey.RFID:
-                return tuple(raw_value)
-            case SubKey.ASCII:
-                return struct.unpack("c", raw_value)[0].decode("ascii")
-            case SubKey.Digits:
-                return tuple(raw_value)
-            case SubKey.Digit:
-                return raw_value[0]
-            case SubKey.BitMask:
-                return tuple(bool(v >> i & 0b1) for v in raw_value for i in range(8))
-            case SubKey.BananaPlugs:
-                return struct.unpack('BB', raw_value)
-            case SubKey.Any:
-                return raw_value
-            case _:
-                return None
+                universe = reply.get("Universe")
+                data = reply.get("Data", b"")
+                fixture: Fixture | None = self.fixture_dict.get(universe)
+                # if fixture:
+                #     print(f"Parsing data for {fixture}")
+                #     fixture.parse_dmx_data(data)
+                self.fire_event(Event("DMX", reply.get("Universe"), data, sender, ts))
 
     def fire_event(self, event: Event):
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")
@@ -161,8 +132,4 @@ class EventManager:
     def subscribe(self, callback: CallbackType, source: SourceNameType, event_name: EventNameType, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
         listener = Subscriber(callback, fire_once, allow_parallelism)
         condition = Condition(source, event_name, condition_value)
-        if self.register.get(condition) is None:
-            self.register[condition] = [listener, ]
-        else:
-            self.register[condition].append(listener)
-        # print(f"registered condition {condition}")
+        self.register[condition].append(listener)
