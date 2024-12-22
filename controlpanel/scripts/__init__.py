@@ -79,9 +79,11 @@ class ControlAPI:
     def send_dmx(cls, device_name: str, data: bytes):
         device: Device = cls.devices.get(device_name)
         if device is None:
-            raise ValueError("No device with that name exists in the Device Manifest.")
+            print("No device with that name exists in the Device Manifest.")
+            return
         if not isinstance(device, Fixture):
-            raise ValueError(f"Device {device_name} is not a Fixture and hence does not receive DMX signals.")
+            print("Device {device_name} is not a Fixture and hence does not receive DMX signals.")
+            return
         universe = device.universe
         print(f"Sending DMX Package to {device_name} @ {universe} with data {data}")
         cls.artnet.send_dmx(universe, 0, bytearray(data))
