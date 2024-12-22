@@ -1,0 +1,1 @@
+from controlpanel.event_manager.commons import CONTROL_PANEL_EVENT
