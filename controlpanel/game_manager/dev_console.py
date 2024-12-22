@@ -91,14 +91,14 @@ class DeveloperConsole:
 
     def __init__(self,
                  game_manager: "GameManager",
-                 screen_surface: pg.Surface,
+                 render_size: tuple[int, int],
                  *,
                  font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
                  font_size: int = 20):
         self.font = pg.font.Font(font_name, font_size)
         self.game_manager = game_manager
         self.open: bool = False
-        self.dark_surface = pg.Surface(screen_surface.get_size())
+        self.dark_surface = pg.Surface(render_size)
         self.dark_surface.fill((100, 100, 100))
 
         self.primary_color = (76, 88, 68)
@@ -114,11 +114,11 @@ class DeveloperConsole:
         self.char_height = self.font.get_height()
         self.border_offset = 6
 
-        self.surface = pg.Surface((screen_surface.get_width(), self.DEFAULT_HEIGHT))
+        self.surface = pg.Surface((render_size[0], self.DEFAULT_HEIGHT))
 
         input_box_height = int(self.char_height * 1.5)
-        log_width = input_box_width = screen_surface.get_width() - 2 * self.border_offset
-        max_log_height = screen_surface.get_height() - input_box_height - 3 * self.border_offset
+        log_width = input_box_width = render_size[0] - 2 * self.border_offset
+        max_log_height = render_size[0] - input_box_height - 3 * self.border_offset
 
         self.input_box = InputBox(self, (input_box_width, input_box_height))
         self.log = Log(self, (log_width, max_log_height))
