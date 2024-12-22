@@ -1,9 +1,11 @@
 from enum import IntEnum
+import pygame as pg
 
 # Atomic numbers: iron = 26, oxygen = 8
 # Iron(II) oxide (FeO): 32 protons
 # Iron(III) oxide (Fe22O3): 76 protons
 KEY_CONTROL_PANEL_PROTOCOL = 76
+CONTROL_PANEL_EVENT = pg.event.custom_type()
 
 
 class SubKey(IntEnum):

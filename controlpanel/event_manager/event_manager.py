@@ -7,6 +7,8 @@ from threading import Thread
 from collections import defaultdict
 from controlpanel.shared.device_manifest import get_instantiated_devices
 from controlpanel.shared.base import Sensor, Fixture, Device
+from controlpanel.event_manager.commons import CONTROL_PANEL_EVENT
+import pygame as pg
 
 
 SourceNameType = str
@@ -105,6 +107,7 @@ class EventManager:
 
     def fire_event(self, event: Event):
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")
+        pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.name, value=event.value, sender=event.sender))
         for key_func in self.POSSIBLE_EVENT_TYPES:
             source, name, value = key_func(event.source, event.name, event.value)
             listeners: list[Subscriber] = self.register.get(Condition(source, name, value), [])
