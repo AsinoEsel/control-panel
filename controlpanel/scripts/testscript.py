@@ -12,8 +12,12 @@ def rfid_scanned(event: Event):
 
 
 @ControlAPI.callback("BigRedButton", None, None)
-def turn_off_lights(event: Event):
-    print("BIG RED BUTTON EVENT")
+def turn_on_motor(event: Event):
+    chronometer: DummyPWM = ControlAPI.devices.get("Chronometer")
+    if event.value:
+        chronometer.intensity = 1.0
+    else:
+        chronometer.intensity = 0.0
     # color_val = (255, 255, 255) if event.value else (0, 0, 0)
     # leds: DummyLEDStrip = ControlAPI.devices.get("ChronometerLampen")
     # leds[0] = color_val

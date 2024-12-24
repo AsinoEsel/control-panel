@@ -1,4 +1,5 @@
 from controlpanel.scripts import ControlAPI, Event
+from controlpanel.dmx.devices import MovingHead
 
 
 # These variables keep track of the states of the switches
@@ -8,27 +9,28 @@ BLUE = False
 POWER = False
 
 
-@ControlAPI.callback("ButtonRed", "PushButton", None)
-@ControlAPI.callback("ButtonGreen", "PushButton", None)
-@ControlAPI.callback("ButtonBlue", "PushButton", None)
-@ControlAPI.callback("ButtonPower", "PushButton", None)
+@ControlAPI.callback("ButtonRed", "ButtonPressed", None)
+@ControlAPI.callback("ButtonGreen", "ButtonPressed", None)
+@ControlAPI.callback("ButtonBlue", "ButtonPressed", None)
+@ControlAPI.callback("ButtonPower", "ButtonPressed", None)
 def callback_rgb(event: Event):
     global RED, GREEN, BLUE, POWER
 
     if "red" in event.name.lower():
-        RED = event.value
+        RED = True
     if "green" in event.name.lower():
-        GREEN = event.value
+        GREEN = True
     if "blue" in event.name.lower():
-        BLUE = event.value
+        BLUE = True
     if "power" in event.name.lower():
-        POWER = event.value
+        POWER = True
 
     calculate_color_of_moving_head()
 
 
 def calculate_color_of_moving_head():
-    moving_head = ControlAPI.dmx.devices.get("Laser")
+    moving_head: MovingHead = ControlAPI.dmx.devices.get("Laser")
+    print(RED, GREEN, BLUE, POWER)
     if not POWER or (not RED and not GREEN and not BLUE):
         moving_head.intensity = 0
     else:

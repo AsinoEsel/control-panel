@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from .ignore_patterns import IGNORE_PATTERNS, should_ignore
 from .checksumtest import file_has_changed, update_checksum
+from artnet import ArtNet
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -91,8 +92,8 @@ def send_all_files(esp_name: str, ip: str, password: str, directory: str | Path,
     return successful_transfers, failed_transfers
 
 
-def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool):
-    successful_transfers, failed_transfers = send_all_files(esp_name, ip, password, Path.cwd(), give_up_on_failed_attempt=False, ignore_checksums=ignore_checksums)
+def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool, give_up_on_failed_attempt: bool):
+    successful_transfers, failed_transfers = send_all_files(esp_name, ip, password, Path.cwd(), give_up_on_failed_attempt=give_up_on_failed_attempt, ignore_checksums=ignore_checksums)
     if not successful_transfers and not failed_transfers:
         print(f"{esp_name} appears to be up to date.")
     elif not failed_transfers:
@@ -101,6 +102,8 @@ def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool):
         print(f"Failed to transfer any files to {esp_name} (Aborted)")
     else:
         print(f"Failed to transfer some files to {esp_name}")
+    artnet = ArtNet(ip)
+    artnet.send_command(b"RESET")
 
 
 def transfer():
@@ -110,6 +113,7 @@ def transfer():
     parser.add_argument("paths", nargs="*", help="Optional: the files to transfer. Default is all in CWD.")
     parser.add_argument('-f', '--force', action='store_true', help='Ignore the checksums.')
     parser.add_argument('-p', '--password', default=PASSWORD, help='The webrepl password.')
+    parser.add_argument("--give-up-on-failed-attempt", action='store_true', help="Stop transferring files if a single file failed to transfer.")
     args = parser.parse_args()
 
     if args.IP is not None:
@@ -124,7 +128,7 @@ def transfer():
             print(f"Hostname {args.hostname} could not be resolved.")
             return
 
-    flash_esp(args.hostname, ip, args.password, args.force)
+    flash_esp(args.hostname, ip, args.password, args.force, args.give_up_on_failed_attempt)
 
 
 if __name__ == "__main__":

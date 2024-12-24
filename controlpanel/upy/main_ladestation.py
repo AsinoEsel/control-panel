@@ -1,15 +1,11 @@
 import asyncio
-from artnet import my_artnet, OpCode
+from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
-import _thread
-import time
-from machine import Pin, SoftSPI
 
 
-from devices.phys.button import Button
-from devices.phys.led_strip import LEDStrip
-from devices.base.led_strip import animations as led_animations
-from devices.phys.pwm import PWM
+from controlpanel.upy.phys.button import Button
+from controlpanel.upy.phys.led_strip import LEDStrip
+from controlpanel.upy.phys.pwm import PWM
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
@@ -28,19 +24,19 @@ async def start_main_loop():
 
 async def main_loop():
     
-    asyncio.create_task(battery_socket_led_strip.run(10))
-    asyncio.create_task(button_battery.run(10))
-    asyncio.create_task(authorization_key.run(10))
-    asyncio.create_task(switch_pos1.run(10))
-    asyncio.create_task(switch_pos2.run(10))
-    asyncio.create_task(battery_pwm.run(15))
-    for voltmeter in voltmeters:
-        asyncio.create_task(voltmeter.run(updates_per_second=10))
+    asyncio.create_task(battery_socket_led_strip.run(updates_per_second=10))
+    asyncio.create_task(button_battery.run(updates_per_second=10))
+    asyncio.create_task(authorization_key.run(updates_per_second=10))
+    asyncio.create_task(switch_pos1.run(updates_per_second=10))
+    asyncio.create_task(switch_pos2.run(updates_per_second=10))
+    # asyncio.create_task(battery_pwm.run(updates_per_second=15))
+    # for voltmeter in voltmeters:
+    #     asyncio.create_task(voltmeter.run(updates_per_second=10))
         
     print("MAIN LOOP!")
     
     while True:
-        print(battery_pwm.intensity)
+        # print(battery_pwm.intensity)
         await asyncio.sleep_ms(1000)
 
 
@@ -53,15 +49,15 @@ SWITCH_POS2_PIN = const(18)
 VOLTMETER_PINS = (2, 4, 16, 17)
 
 
-battery_socket_led_strip = LEDStrip("BatterySlotLadestation-LEDStrip", BATTERY_LED_STRIP_PIN, 30)
-battery_socket_led_strip._animation = led_animations.strobe(len(battery_socket_led_strip), 1, 0.5, (100, 0, 0), (0, 0, 0))
-authorization_key = Button("AuthorizationKeyCharge", AUTHORIZATION_KEY_PIN)
-button_battery = Button("BatteryButtonLadestation", BATTERY_BUTTON_PIN, invert=True)
-switch_pos1 = Button("SwitchPos1", SWITCH_POS1_PIN)
-switch_pos2 = Button("SwitchPos2", SWITCH_POS2_PIN)
-from math import sin
-battery_pwm = PWM("Batterie", BATTERY_PWM_PIN, 1.0, intensity_function=lambda t: abs(sin(t/5000)))
-voltmeters = [PWM(f"Voltmeter{i+1}", pin, intensity_function=lambda t: abs(sin(t/1000))) for i, pin in enumerate(VOLTMETER_PINS)]
+artnet = ArtNet("255.255.255.255")
+
+battery_socket_led_strip = LEDStrip(artnet, "BatterySlotLadestation-LEDStrip", BATTERY_LED_STRIP_PIN, 30)
+authorization_key = Button(artnet, "AuthorizationKeyCharge", AUTHORIZATION_KEY_PIN)
+button_battery = Button(artnet, "BatteryButtonLadestation", BATTERY_BUTTON_PIN, invert=True)
+switch_pos1 = Button(artnet, "SwitchPos1", SWITCH_POS1_PIN)
+switch_pos2 = Button(artnet, "SwitchPos2", SWITCH_POS2_PIN)
+battery_pwm = PWM(artnet, "Batterie", BATTERY_PWM_PIN, 1.0)
+voltmeters = [PWM(artnet, f"Voltmeter{i+1}", pin) for i, pin in enumerate(VOLTMETER_PINS)]
 
 
 universe_dict = {
@@ -73,7 +69,7 @@ universe_dict = {
     }
 
 
-my_artnet.subscribe_all(artnet_callback)
+artnet.subscribe_all(artnet_callback)
 
 
 asyncio.run(start_main_loop())

@@ -15,6 +15,7 @@ class BaseGame:
         self._base_tickrate = tickrate
         self._tickrate = tickrate * timescale
         self._timescale = timescale
+        self._joysticks: dict[int: pg.joystick.JoystickType] = {}
         self.is_running: bool = True
         self._dt: float = 1 / tickrate * timescale
         # self.fallback_shaders = Shaders([resolution], [(-1, "To_BGRA", {"_MainTex": 0})])

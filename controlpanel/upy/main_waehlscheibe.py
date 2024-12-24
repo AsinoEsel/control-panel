@@ -1,5 +1,5 @@
 import asyncio
-from artnet import ArtNet, OpCode
+from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
 
 from controlpanel.upy.phys.button import Button
@@ -32,6 +32,7 @@ async def main_loop():
     asyncio.create_task(reset_switch.run(updates_per_second=10))
     asyncio.create_task(sipo_register.run(updates_per_second=5))
     asyncio.create_task(status_led.run(updates_per_second=2))
+    asyncio.create_task(lever.run(updates_per_second=2))
 
     tick = 0
     while True:
@@ -59,6 +60,8 @@ if __name__ == "__main__":
 
     STATUS_LED_STRIP_PIN = const(33)
 
+    LEVER_PIN = const(16)
+
     # BAUDRATE = const(100000)
     DISPLAY_CS_PIN = const(19)  # LODA
 
@@ -72,6 +75,7 @@ if __name__ == "__main__":
     power_switch = Button(artnet, "PowerSwitch", POWER_SWITCH_PIN)
     reset_switch = Button(artnet, "DialReset", DIAL_SWITCH_PIN)
     status_led = LEDStrip(artnet, "StatusLED", STATUS_LED_STRIP_PIN, 1)
+    lever = Button(artnet, "TestHebel", LEVER_PIN)
     # rfid_reader = RFIDReader("RFIDLogin", spi, RFID_RST_PIN, RFID_CS_PIN)
 
     universe_dict = {

@@ -64,7 +64,7 @@ class MovingHead(DMXDevice):
               6: (0, 255, 255),
               }
 
-    def __init__(self, name: str, chan_no: int):
+    def __init__(self, name: str, chan_no: int, *, yaw_limit: tuple[float, float] | None = None, pitch_limit: tuple[float, float] | None = None):
         super().__init__(name, chan_no, num_chans=14)
         self._intensity: float = 1.0
         self._strobe: int = 255
@@ -87,7 +87,9 @@ class MovingHead(DMXDevice):
         self.prism_speed: float = 0
 
         self._animation = None
-    
+        self.yaw_limit: tuple[float, float] | None = yaw_limit
+        self.pitch_limit: tuple[float, float] | None = pitch_limit
+
     def get_rgb(self):
         return self.COLORS[self.color]
     
@@ -108,14 +110,13 @@ class MovingHead(DMXDevice):
     
     @yaw.setter
     def yaw(self, radians: float):
-        # angle = radians % (2*np.pi)
-        # self._yaw = radians
         self._pan = radians / (3*np.pi)  # 3pi = 540°
         if self._pan > 540/540:
             self._pan -= 360/540
         elif self._pan < 0/540:
             self._pan += 360/540
-        self._yaw = self._pan * 3*np.pi
+        unclamped_yaw = self._pan * 3*np.pi
+        self._yaw = max(min(unclamped_yaw, self.yaw_limit[1]), self.yaw_limit[0]) if self.yaw_limit else unclamped_yaw
 
     @property
     def pitch(self) -> float:

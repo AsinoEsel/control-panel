@@ -194,11 +194,53 @@ class DeveloperConsole:
         except (NameError, AttributeError, SyntaxError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
 
+    @console_command(is_cheat_protected=True, show_return_value=False)
+    def exec(self, exec_string: str):
+        from controlpanel.scripts import ControlAPI
+        locals().update({
+            "api": ControlAPI,
+            "game_manager": self.game_manager,
+            "game": self.game_manager.get_game(),
+        })
+        try:
+            return exec(exec_string)
+        except (NameError, AttributeError, SyntaxError) as e:
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+
     @console_command(is_cheat_protected=True)
     def send_dmx(self, device_name: str, *values: int) -> None:
         from controlpanel.scripts import ControlAPI
         data = bytes(values)
         ControlAPI.send_dmx(device_name, data)
+
+    @console_command(is_cheat_protected=True)
+    def send_cmd(self, cmd: str):
+        from controlpanel.scripts import ControlAPI
+        ControlAPI.artnet.send_command(cmd.encode("ascii"))
+
+    # @console_command(is_cheat_protected=True)
+    # def set_dmx_channel(self, device_name: str, channel: int, value: int):
+    #     from controlpanel.scripts import ControlAPI
+    #     if ControlAPI.dmx is None:
+    #         print("DMX Universe is not initialized.")
+    #         return
+    #     if not 0 <= value <= 255:
+    #         print("Value needs to be in range 0..255")
+    #         return
+    #     from controlpanel.dmx import DMXDevice
+    #     device: DMXDevice | None = ControlAPI.dmx.devices.get(device_name)
+    #     if not device:
+    #         print(f"No DMX device with name {device_name} found in DMX manifest")
+    #         return
+    #     if not 0 < channel <= device.num_chans:
+    #         print(f"Channel {channel} outside of device channel range")
+    #         return
+    #     ControlAPI.dmx.set_int(device.chan_no, channel, value)
+
+    @console_command(is_cheat_protected=True)
+    def set_dmx_attr(self, device_name: str, attribute: str, value):
+        from controlpanel.scripts import ControlAPI
+        setattr(ControlAPI.dmx.devices.get(device_name), attribute, value)
 
     def handle_command(self, command: str, *, suppress_logging: bool = False):
         if not suppress_logging:

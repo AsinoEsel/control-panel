@@ -10,6 +10,7 @@ setup(
         "console_scripts": [
             "controlpanel = controlpanel.main:main",
             "transfer = controlpanel.upy.transfer.transfer:transfer",
+            "flash_firmware = controlpanel.upy.firmware.flash_firmware:main",
         ]
     },
     python_requires=">=3.12",

@@ -39,7 +39,7 @@ async def main_loop():
 artnet = ArtNet(ip="255.255.255.255")
 
 CHRONOMETER_PWM_PIN = const(4)
-BIG_RED_BUTTON_PIN = const(14)
+BIG_RED_BUTTON_PIN = const(32)
 LED_STRIP_PIN = const(5)
 
 chronometer = PWM(artnet, "Chronometer", CHRONOMETER_PWM_PIN, intensity=0.6)

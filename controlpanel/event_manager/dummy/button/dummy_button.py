@@ -13,4 +13,4 @@ class DummyButton(BaseButton):
     def parse_trigger_data(self, data: bytes) -> tuple[str, bool]:
         print("Parsing Button Data")
         self._state = True if data[0] == 255 else False
-        return ("ButtonPressed", bool(self._state)) if self._state else ("ButtonReleased", self._state)
+        return ("ButtonPressed", self._state) if self._state else ("ButtonReleased", self._state)

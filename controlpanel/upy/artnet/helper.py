@@ -539,3 +539,10 @@ def pack_sync() -> bytes:
     packet = ART_NET_HEADER + op_code + ART_NET_VERSION + aux
 
     return packet
+
+
+def pack_cmd(command_data: bytearray | bytes) -> bytes:
+    aux = b"\x00" * 4
+    op_code = struct.pack("<H", OpCode.ArtCommand)
+    packet: bytes = ART_NET_HEADER + op_code + ART_NET_VERSION + aux + command_data + b"\x00"
+    return packet

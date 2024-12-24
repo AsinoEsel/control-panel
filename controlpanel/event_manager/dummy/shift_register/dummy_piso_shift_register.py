@@ -7,7 +7,7 @@ class DummyPisoShiftRegister(BasePisoShiftRegister):
         updates = []
         for i in range(0, len(data), 2):
             button_id = data[i]
-            button_state = bool(data[i + 1])
+            button_state = not bool(data[i + 1])
             updates.append((button_id, button_state))
 
         return "ButtonsChanged", tuple(updates)

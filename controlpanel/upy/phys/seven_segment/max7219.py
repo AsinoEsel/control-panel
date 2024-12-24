@@ -1,7 +1,7 @@
 from machine import Pin, SPI
 import time
 
-from seven_segment_ascii import get_char2
+from .seven_segment_ascii import get_char2
 
 
 MAX7219_DIGITS = 8

@@ -1,7 +1,7 @@
 import asyncio
 from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
-from machine import Pin, SoftSPI, freq
+from machine import Pin, SoftSPI, freq, reset
 
 from controlpanel.upy.phys.shift_register import PisoShiftRegister
 from controlpanel.upy.phys.led_strip import LEDStrip
@@ -10,7 +10,16 @@ freq(240000000)
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
-    if op_code == OpCode.ArtDmx:
+    if op_code == OpCode.ArtCommand:
+        command = reply.get("Command")
+        if command == "RESET":
+            reset()
+        if command == "MATRIX-LOCALMODE":
+            keyboard_led_strip.set_animation(0) # hi
+        if command == "MATRIX-NETWORKMODE":
+            ...
+        print(command)
+    elif op_code == OpCode.ArtDmx:
         print(f"Received DMX at universe {reply.get("Universe")}...")
         universe = reply.get("Universe")
         data = reply.get("Data")

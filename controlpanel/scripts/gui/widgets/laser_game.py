@@ -220,7 +220,7 @@ class LaserGame(Widget):
         camera_distance = pi/4 * dt
         
         for joystick in joysticks.values():
-            axes = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]   
+            axes: list[float] = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]
             self.selected_relay.moving_head.yaw += axes[0] * abs(axes[0]) * max_distance
             self.selected_relay.moving_head.pitch -= axes[1] * abs(axes[1]) * max_distance
             self.selected_relay.moving_head.gobo2_rotation = axes[2]
@@ -254,39 +254,3 @@ class LaserGame(Widget):
             self.selected_relay = self.relays[0]
             self.selected_relay.selected = True
             super().next_element()
-
-
-if __name__ == "__main__":
-    pg.mouse.set_visible(True)
-    laser_game = LaserGame(parent=None, x=0, y=0, w=RENDER_WIDTH, h=RENDER_HEIGHT)
-    
-    pg.init()
-    laser_game.surface = pg.display.set_mode((RENDER_WIDTH,RENDER_HEIGHT))
-    running = True
-    clock = pg.time.Clock()
-    dt = 0
-    tick = 0
-    
-    joysticks = {}
-
-    while running:
-        tick += 1
-        
-        for event in pg.event.get():
-            if event.type == pg.JOYDEVICEADDED:
-                joy = pg.joystick.Joystick(event.device_index)
-                joysticks[joy.get_instance_id()] = joy
-                print(f"Joystick {joy.get_instance_id()} connected")
-            if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                running = False
-            laser_game.handle_event(event)
-        
-        laser_game.propagate_update(tick, dt/1000, joysticks)
-        
-        laser_game.render()
-        
-        print(laser_game.selected_relay.beam_vector)
-        
-        pg.display.flip()
-        pg.event.pump()
-        dt = clock.tick(60)
