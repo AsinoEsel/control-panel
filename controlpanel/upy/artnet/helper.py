@@ -541,8 +541,27 @@ def pack_sync() -> bytes:
     return packet
 
 
-def pack_cmd(command_data: bytearray | bytes) -> bytes:
-    aux = b"\x00" * 4
-    op_code = struct.pack("<H", OpCode.ArtCommand)
-    packet: bytes = ART_NET_HEADER + op_code + ART_NET_VERSION + aux + command_data + b"\x00"
+def pack_command(command_data: bytearray | bytes) -> bytes:
+    if not command_data.endswith(b"\x00"):
+        command_data += b"\x00"  # ensure that data is null-terminated
+
+    # size = 512
+    size = len(command_data)
+
+    if size > 512:
+        raise ValueError("data too long")
+
+    # Length of Command data
+    command_length = struct.pack(">H", size)
+
+    op_code = struct.pack("<H", OpCode.ArtCommand.value)
+    packet: bytes = (
+            ART_NET_HEADER +
+            op_code +
+            ART_NET_VERSION +
+            ART_NET_ESTA_MAN +
+            command_length +
+            command_data
+    )
+
     return packet

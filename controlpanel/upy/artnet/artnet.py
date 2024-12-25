@@ -13,6 +13,7 @@ from .helper import (
     pack_poll,
     pack_sync,
     pack_trigger,
+    pack_command,
 )
 
 ART_NET_PORT = 6454
@@ -112,6 +113,10 @@ class ArtNet:
     def send_sync(self) -> None:
         """Sends a Sync packet."""
         self.sock.sendto(pack_sync(), self.address)
+
+    def send_command(self, command_data: bytearray | bytes = b""):
+        """Sends an ArtCommand packet."""
+        self.sock.sendto(pack_command(command_data), self.address)
 
     def configure_ip(
             self,
