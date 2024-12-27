@@ -1,3 +1,4 @@
+import controlpanel.dmx.devices
 from .window_manager_setup import *
 from .event_queue import event_queue
 from controlpanel.scripts.gui.widgets import Desktop
@@ -58,6 +59,20 @@ class WindowManager(BaseGame):
             self.desktop.handle_event(event)
 
     def update(self) -> None:
+        from math import sin, cos, radians, pi
+        from controlpanel.scripts import ControlAPI
+        max_speed = radians(45)
+        max_distance = max_speed * self.dt
+
+        for joystick in self._joysticks.values():
+            axes: list[float] = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]
+            laser: controlpanel.dmx.devices.MovingHead = ControlAPI.dmx.devices.get("Laser")
+            laser.yaw += axes[0] * abs(axes[0]) * max_distance
+            laser.pitch -= axes[1] * abs(axes[1]) * max_distance
+            laser.gobo2_rotation = axes[2]
+            laser.focus = (axes[3] + 1) / 2
+            hat = joystick.get_hat(0)
+
         if not self.desktop:
             return
         self.tick += 1
