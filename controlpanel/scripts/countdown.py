@@ -10,10 +10,10 @@ DISPLAY_COUNT = 3
 
 @ControlAPI.callback(event_name="StartCountdown")
 def start_countdown(event: Event):
-    # target = datetime.now() + timedelta(seconds=event.value)
+    target = datetime.datetime.now() + datetime.timedelta(seconds=event.value)
 
-    today = datetime.datetime.now()
-    target = datetime.datetime.combine(today.date(), datetime.time(18, 0))
+    # today = datetime.datetime.now()
+    # target = datetime.datetime.combine(today.date(), datetime.time(18, 0))
 
     display = Display(DISPLAY_COUNT)
     display.clear()

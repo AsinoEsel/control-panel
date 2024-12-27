@@ -1,4 +1,6 @@
 import contextlib
+import time
+
 with contextlib.redirect_stdout(None):
     import pygame  # This gets rid of the pygame "support prompt" on import by redirecting it into the void
 from threading import Thread
@@ -58,19 +60,20 @@ def main():
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
 
+    artnet_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
+    artnet_thread.start()
+    print("Start listening...")
+
     if args.load_scripts is not None:
         load_scripts(args.load_scripts)
-
-    artnet_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
-    print("Start listening...")
-    artnet_thread.start()
-    # artnet_thread.join()
 
     if game_manager is not None:
         game_manager_thread = Thread(target=game_manager.run, daemon=False)
         game_manager_thread.run()
     else:
         pygame.quit()
+
+    # artnet_thread.join()
 
 
 if __name__ == "__main__":
