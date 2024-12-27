@@ -15,6 +15,9 @@ class SipoShiftRegister(BaseSipoShiftRegister, ShiftRegister):
             self._serialout_pin.value(self._output_states[self._number_of_bits - 1 - i])
             self._shift()
         self._latch()
+
+    def parse_dmx_data(self, data: bytes):
+        self._output_states = bytearray(data)
     
     def update(self):
         self._update_states()

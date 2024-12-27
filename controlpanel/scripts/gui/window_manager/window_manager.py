@@ -6,8 +6,8 @@ from controlpanel.game_manager.dev_console import console_command
 
 
 class WindowManager(BaseGame):
-    def __init__(self):
-        super().__init__(name="Window Manager", resolution=RENDER_SIZE)
+    def __init__(self, name: str = "Window Manager"):
+        super().__init__(name=name, resolution=RENDER_SIZE)
         self.desktops: dict[str: Desktop] = dict()
         self.desktop: Desktop | None = None
         self.event_queue = event_queue

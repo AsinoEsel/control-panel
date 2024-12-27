@@ -1,20 +1,19 @@
 import asyncio
 from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
-from machine import Pin, SoftSPI
+from machine import Pin, SoftSPI, reset
 
 # from controlpanel.upy.phys.rfid_reader import RFIDReader
 from controlpanel.upy.phys.led_strip import LEDStrip
 from controlpanel.upy.phys.control_panel import BananaPlugs
 from controlpanel.upy.phys.pwm import PWM
-from controlpanel.upy.phys.button import Button
-
-
-def banana_plug_callback(plug_id: int, connection: int|None):
-    print(f"Plug {plug_id} connected with {connection}")
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
+    if op_code == OpCode.ArtCommand:
+        command = reply.get("Command")
+        if command == "RESET":
+            reset()
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
         data = reply.get("Data")
@@ -35,7 +34,7 @@ async def main_loop():
     asyncio.create_task(pilz_leds.run(updates_per_second=10))
     # asyncio.create_task(uv_strobe.run(updates_per_second=10))
     asyncio.create_task(banana_plugs.run(updates_per_second=10))
-    asyncio.create_task(light_switch.run(updates_per_second=5))
+    # asyncio.create_task(light_switch.run(updates_per_second=5))
 
     while True:
         # keeping the loop alive
@@ -55,7 +54,7 @@ PILZ_LED_PIN = const(16)
 
 UV_LED = const(21)
 
-LIGHT_SWITCH_PIN = const(35)
+# LIGHT_SWITCH_PIN = const(35)
 
 # spi = SoftSPI(baudrate=BAUDRATE, polarity=1, phase=0, sck=Pin(RFID_CLOCK_PIN), mosi=Pin(RFID_MOSI_PIN), miso=Pin(RFID_MISO_PIN))
 # pilz_rfid_reader = RFIDReader("PilzRFID", spi, RFID_RST_PIN, RFID_CS_PIN)
@@ -64,7 +63,7 @@ LIGHT_SWITCH_PIN = const(35)
 artnet = ArtNet("255.255.255.255")
 
 pilz_leds = LEDStrip(artnet, "PilzLEDs", PILZ_LED_PIN, 10)
-light_switch = Button(artnet, "LightSwitch", LIGHT_SWITCH_PIN)
+# light_switch = Button(artnet, "LightSwitch", LIGHT_SWITCH_PIN)
 # pilz_leds._animation = led_animations.strobe(len(pilz_leds), 1, 0.5, (100, 100, 0), (0, 0, 0))
 
 banana_plugs = BananaPlugs(artnet, "BananaPlugs", [4, 2, 33, 32], [15, 13, 12, 14, 27, 26])

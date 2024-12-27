@@ -36,7 +36,7 @@ class ControlAPI:
         return cls.game_manager.get_game(name)
 
     @classmethod
-    def fire_event(cls, source: str, name: str, value: EventValueType = None):
+    def fire_event(cls, source: str = "", name: str = "", value: EventValueType = None):
         cls.event_manager.fire_event(Event(source, name, value, None, time.time()))
 
     @staticmethod
@@ -45,7 +45,9 @@ class ControlAPI:
             def wrapper(*args, **kwargs):
                 def run_function():
                     interval = 1 / frequency  # Calculate interval based on frequency
-                    while True:
+                    setattr(wrapper, "_is_running", True)
+                    setattr(wrapper, "stop", lambda: setattr(wrapper, "_is_running", False))
+                    while getattr(wrapper, "_is_running"):
                         func(*args, **kwargs)
                         time.sleep(interval)  # Wait for the calculated interval
 
@@ -62,7 +64,7 @@ class ControlAPI:
         cls.event_manager.subscribe(callback, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
     @classmethod
-    def callback(cls, source_name: SourceNameType | None, event_name: EventNameType | None = None, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
+    def callback(cls, source_name: SourceNameType | None = None, event_name: EventNameType | None = None, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -105,7 +107,7 @@ def load_scripts(args: list[str]) -> None:
                 break
 
     failed: list[tuple[str, Exception]] = []
-    success = []
+    success: list[str] = []
     for arg in args:
         if arg.endswith(".py"):
             arg = arg.removesuffix(".py")
@@ -121,6 +123,6 @@ def load_scripts(args: list[str]) -> None:
             print(f"- {script}")
 
     if failed:
-        print("Failed to the following scripts:")
+        print("Failed to load the following scripts:")
         for script, error in failed:
-            print(f"- {script} ({error.__class__.__name__})")
+            print(f"- {script} ({error.__class__.__name__}: {str(error)})")

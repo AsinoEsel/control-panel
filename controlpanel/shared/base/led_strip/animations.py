@@ -1,12 +1,24 @@
+import math
 import random
 
 try:
-    from time import ticks_ms, ticks_diff, ticks_add
+    from time import ticks_ms, ticks_diff, ticks_add, time
 except ImportError:
     import time
     ticks_ms = lambda: int(time.time() * 1000)
     ticks_diff = lambda x, y: x - y
     ticks_add = lambda x, y: x + y
+
+
+def interpolate_rgb(color1: tuple[int, int, int], color2: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    if not (0.0 <= t <= 1.0):
+        raise ValueError("Interpolation factor t must be between 0.0 and 1.0")
+
+    r = int(color1[0] + (color2[0] - color1[0]) * t)
+    g = int(color1[1] + (color2[1] - color1[1]) * t)
+    b = int(color1[2] + (color2[2] - color1[2]) * t)
+
+    return r, g, b
 
 
 def clamp(val, a, b):
@@ -69,6 +81,31 @@ def random_strobe(led_count: int, min_strobe_length_ms: int, max_strobe_length_m
                 yield buffer2
             else:
                 yield None
+
+
+def twinkle(led_count: int):
+    """Picks a random color for each LED, then does a sine wave animation on it"""
+    buffer = bytearray(led_count * 3)
+    colors: list[tuple[float, float, float]] = [(random.uniform(0.0, 1.0), random.uniform(0.0, 1.0), random.uniform(0.0, 1.0)) for _ in range(led_count)]
+    while True:
+        for i in range(led_count):
+            brightness = (math.sin(time()) + 1) * 128
+            for channel in range(3):
+                buffer[i + channel] = int(brightness * colors[i][channel])
+        yield buffer
+
+
+def scrolling_gradient(led_count: int, color1: tuple[int, int, int], color2: tuple[int, int, int], speed: float):
+    buffer = bytearray(led_count * 3)
+    while True:
+        current_time = time()
+        t = (math.sin(speed * current_time) + 1)/2
+        new_color = interpolate_rgb(color1, color2, t)
+        buffer[3:] = buffer[:-3]
+        for i in range(3):
+            buffer[i] = new_color[i]
+        print(i for i in buffer)
+        yield buffer
 
 
 def looping_line(led_count: int, line_length: int | float, color1: tuple[int, int, int], color2: tuple[int, int, int],

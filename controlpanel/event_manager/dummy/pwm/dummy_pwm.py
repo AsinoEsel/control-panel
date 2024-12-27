@@ -15,3 +15,6 @@ class DummyPWM(BasePWM):
         assert 0.0 <= val <= 1.0
         self._intensity = val
         self.send_dmx_data(int(val * 255).to_bytes())
+
+    def blackout(self) -> None:
+        self.intensity = 0.0

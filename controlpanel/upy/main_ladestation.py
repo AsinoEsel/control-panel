@@ -1,6 +1,7 @@
 import asyncio
 from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
+from machine import reset
 
 
 from controlpanel.upy.phys.button import Button
@@ -9,6 +10,10 @@ from controlpanel.upy.phys.pwm import PWM
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
+    if op_code == OpCode.ArtCommand:
+        command = reply.get("Command")
+        if command == "RESET":
+            reset()
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
         data = reply.get("Data")
@@ -27,8 +32,7 @@ async def main_loop():
     asyncio.create_task(battery_socket_led_strip.run(updates_per_second=10))
     asyncio.create_task(button_battery.run(updates_per_second=10))
     asyncio.create_task(authorization_key.run(updates_per_second=10))
-    asyncio.create_task(switch_pos1.run(updates_per_second=10))
-    asyncio.create_task(switch_pos2.run(updates_per_second=10))
+    asyncio.create_task(phi_switch.run(updates_per_second=10))
     # asyncio.create_task(battery_pwm.run(updates_per_second=15))
     # for voltmeter in voltmeters:
     #     asyncio.create_task(voltmeter.run(updates_per_second=10))
@@ -44,8 +48,7 @@ BATTERY_LED_STRIP_PIN = const(13)
 BATTERY_PWM_PIN = const(19)
 AUTHORIZATION_KEY_PIN = const(15)
 BATTERY_BUTTON_PIN = const(21)
-SWITCH_POS1_PIN = const(5)
-SWITCH_POS2_PIN = const(18)
+PHI_SWITCH_PIN = const(5)
 VOLTMETER_PINS = (2, 4, 16, 17)
 
 
@@ -54,8 +57,7 @@ artnet = ArtNet("255.255.255.255")
 battery_socket_led_strip = LEDStrip(artnet, "BatterySlotLadestation-LEDStrip", BATTERY_LED_STRIP_PIN, 30)
 authorization_key = Button(artnet, "AuthorizationKeyCharge", AUTHORIZATION_KEY_PIN)
 button_battery = Button(artnet, "BatteryButtonLadestation", BATTERY_BUTTON_PIN, invert=True)
-switch_pos1 = Button(artnet, "SwitchPos1", SWITCH_POS1_PIN)
-switch_pos2 = Button(artnet, "SwitchPos2", SWITCH_POS2_PIN)
+phi_switch = Button(artnet, "PhiSwitch", PHI_SWITCH_PIN, invert=True)
 battery_pwm = PWM(artnet, "Batterie", BATTERY_PWM_PIN, 1.0)
 voltmeters = [PWM(artnet, f"Voltmeter{i+1}", pin) for i, pin in enumerate(VOLTMETER_PINS)]
 

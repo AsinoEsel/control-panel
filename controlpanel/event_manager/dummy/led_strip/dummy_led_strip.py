@@ -34,3 +34,7 @@ class DummyLEDStrip(BaseLEDStrip):
         self._pixels = [color for _ in range(len(self._pixels))]
         compressed_color: int = self.compress_rgb(color)
         self.send_dmx_data(self._animation_index.to_bytes() + bytearray(compressed_color for _ in range(len(self._pixels))))
+
+    def blackout(self):
+        self._pixels = [(0, 0, 0) for _ in self._pixels]
+        self.send_dmx_data(self._animation_index.to_bytes() + bytearray(self.compress_rgb(color) for color in self._pixels))

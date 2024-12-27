@@ -8,6 +8,7 @@ class LEDStrip(BaseLEDStrip):
     ANIMATIONS: list[None | tuple] = [
         None,
         (animations.strobe, 2.0, 0.5, (0, 15, 0), (0, 0, 0)),
+        (animations.scrolling_gradient, (255, 0, 64), (64, 0, 255), 1.0),
     ]
 
     def __init__(self, artnet, name: str, pin: int, length: int, *, universe: int | None = None) -> None:

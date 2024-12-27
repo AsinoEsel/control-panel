@@ -96,14 +96,14 @@ class EventManager:
                 else:
                     self.fire_event(Event("Trigger", sensor_name, sensor_data, sender, ts))
 
-            case OpCode.ArtDmx:
-                universe = reply.get("Universe")
-                data = reply.get("Data", b"")
-                fixture: Fixture | None = self.fixture_dict.get(universe)
-                # if fixture:
-                #     print(f"Parsing data for {fixture}")
-                #     fixture.parse_dmx_data(data)
-                self.fire_event(Event("DMX", reply.get("Universe"), data, sender, ts))
+            # case OpCode.ArtDmx:
+            #     universe = reply.get("Universe")
+            #     data = reply.get("Data", b"")
+            #     fixture: Fixture | None = self.fixture_dict.get(universe)
+            #     # if fixture:
+            #     #     print(f"Parsing data for {fixture}")
+            #     #     fixture.parse_dmx_data(data)
+            #     self.fire_event(Event("DMX", reply.get("Universe"), data, sender, ts))
 
     def fire_event(self, event: Event):
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")

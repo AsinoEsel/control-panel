@@ -15,7 +15,11 @@ class Fixture(Device):
         return int.from_bytes(hash_object.digest(), "big") & 0x7FFF
 
     def send_dmx_data(self, payload: bytes):
+        # for i in range(5):
         self.artnet.send_dmx(self.universe, 0, payload)
 
     def parse_dmx_data(self, data: bytes):
         raise NotImplementedError("Needs to be implemented by subclass!")
+
+    def blackout(self) -> None:
+        pass

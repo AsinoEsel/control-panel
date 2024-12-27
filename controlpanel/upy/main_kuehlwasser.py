@@ -1,6 +1,7 @@
 import asyncio
 from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
+from machine import reset
 
 
 from controlpanel.upy.phys.led_strip import LEDStrip
@@ -16,6 +17,10 @@ WARNING_LED_PIN = const(2)
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
+    if op_code == OpCode.ArtCommand:
+        command = reply.get("Command")
+        if command == "RESET":
+            reset()
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
         data = reply.get("Data")

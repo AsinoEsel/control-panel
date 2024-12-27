@@ -6,7 +6,7 @@ class BaseSipoShiftRegister(Fixture, BaseShiftRegister):
     def __init__(self, artnet, name: str, count=1, *, universe: int | None = None, remapping: list[int | None] | None = None):
         super().__init__(artnet, name, universe=universe)
         BaseShiftRegister.__init__(self, count, remapping=remapping)
-        self._output_states: list[int] = [0 for _ in range(count * 8)]
+        self._output_states: bytearray = bytearray(count * 8)
 
     def __setitem__(self, index, value: int | bool):
         if isinstance(index, slice):

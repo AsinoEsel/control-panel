@@ -1,6 +1,7 @@
 import asyncio
 from controlpanel.upy.artnet import ArtNet, OpCode
 from micropython import const
+from machine import reset
 
 from controlpanel.upy.phys.control_panel.bvg_panel import BVGPanel
 from controlpanel.upy.phys.button import Button
@@ -9,6 +10,10 @@ from controlpanel.upy.phys.shift_register import PisoShiftRegister, SipoShiftReg
 
 
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
+    if op_code == OpCode.ArtCommand:
+        command = reply.get("Command")
+        if command == "RESET":
+            reset()
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
         data = reply.get("Data")
@@ -33,9 +38,9 @@ async def main_loop():
     print("MAIN LOOP!")
     tick = 0
     while True:
-        tick += 1
-        print("tick")
-        bvg_panel._output_states = [1 if tick % 2 == 0 else 0 for _ in range(bvg_panel._number_of_bits)]
+        # tick += 1
+        # print("tick")
+        # bvg_panel._output_states = [1 if tick % 2 == 0 else 0 for _ in range(bvg_panel._number_of_bits)]
         await asyncio.sleep_ms(60000//120)
 
 
@@ -56,15 +61,15 @@ if __name__ == "__main__":
 
     # bvg_panel = BVGPanel(artnet, "TestBVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_IN_PIN, SERIAL_OUT_PIN)
     # bvg_panel = PisoSipoModule(artnet, "BVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_IN_PIN, SERIAL_OUT_PIN, count=10)
-    bvg_panel = PisoShiftRegister(artnet, "BVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_IN_PIN, count=10)
-    # bvg_panel = SipoShiftRegister(artnet, "BVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_OUT_PIN, count=8)
+    # bvg_panel = PisoShiftRegister(artnet, "BVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_IN_PIN, count=10)
+    bvg_panel = SipoShiftRegister(artnet, "BVGPanel", CLOCK_PIN, LATCH_PIN, SERIAL_OUT_PIN, count=8)
     battery_led_strip = led_strip.LEDStrip(artnet, "BatterySlotBVG-LEDStrip", LED_PIN, 30)
     # battery_led_strip._animation = animations.strobe(len(battery_led_strip), 1, 0.5, (100, 0, 0), (0, 0, 0))
     button_battery = Button(artnet, "BatteryButton", BATTERY_BUTTON)
     authorization_key = Button(artnet, "AuthorizationKeyBVG", KEY_PIN)
 
     universe_dict = {
-                     # bvg_panel.universe: bvg_panel,
+                     bvg_panel.universe: bvg_panel,
                      battery_led_strip.universe: battery_led_strip
                      }
 

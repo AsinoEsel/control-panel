@@ -247,8 +247,19 @@ class VaritecColorsStarbar12(DMXDevice):
     
     @function.setter
     def function(self, value: int):
-        
         self._function = int(self.FUNCTIONS[value]) if 0<=value<len(self.FUNCTIONS) else 7
+
+    def turn_off_lights(self):
+        self.lights = [0 for _ in range(self.LED_COUNT)]
+
+    def set_leds_to_color(self, color: tuple[int, int, int]):
+        self.leds = [color for _ in range(self.LED_COUNT)]
+
+    def animate(self, dmx: DMXUniverse, t: float):
+        *color, light = self._animation(t)
+        self.leds = [color for _ in range(self.LED_COUNT)]
+        self.lights = [light for _ in range(self.LED_COUNT)]
+        self.update(dmx)
     
     def update(self, dmx: DMXUniverse):
         dmx.set_float(self.chan_no, 1, self.intensity)
@@ -265,14 +276,12 @@ class VaritecColorsStarbar12(DMXDevice):
 class RGBWLED(DMXDevice):
     NUM_CHANS = 4
 
-    def __init__(self, name: str, chan_no: int, *, animation: Callable[[float], tuple[int | float, ...]] | None = None):
+    def __init__(self, name: str, chan_no: int):
         super().__init__(name, chan_no, self.NUM_CHANS)
         self._r = 0
         self._g = 0
         self._b = 0
         self._w = 0
-
-        self._animation = animation
 
     @property
     def color(self):
@@ -319,12 +328,9 @@ class RGBWLED(DMXDevice):
         self._w = value
 
     def animate(self, dmx: DMXUniverse, t: float):
-        animation_data = self._animation(t)
-        for i, val in enumerate(animation_data):
-            if isinstance(val, float):
-                dmx.set_float(self.chan_no, i+1, val)
-            elif isinstance(val, int):
-                dmx.set_int(self.chan_no, i+1, val)
+        rgbw = self._animation(t)
+        self.color = rgbw
+        self.update(dmx)
 
     def update(self, dmx: DMXUniverse):
         dmx.set_int(self.chan_no, 1, self.r)

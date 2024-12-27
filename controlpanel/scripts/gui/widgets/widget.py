@@ -7,11 +7,9 @@ from controlpanel.event_manager import EventNameType, EventValueType
 
 
 class Widget:
-    def __init__(self, name: str, parent: Self | None, x=None, y=None, w=None, h=None, elements: list[Self] | None = None, *, do_render_border=True) -> None:
+    def __init__(self, name: str, parent: Self | None, x=None, y=None, w=None, h=None, elements: list["Widget"] | None = None, *, do_render_border=True) -> None:
         self.name = name
-        if elements is None:
-            elements = []
-        x = x if x is not None else DEFAULT_GAP 
+        x = x if x is not None else DEFAULT_GAP
         y = y if y is not None else DEFAULT_GAP
         w = w if w is not None else parent.surface.get_width()-2*DEFAULT_GAP
         h = h if h is not None else parent.surface.get_height()-2*DEFAULT_GAP
@@ -23,7 +21,7 @@ class Widget:
         self.active = False
         self.color = COLOR_INACTIVE
         self.accent_color = ACCENT_COLOR_INACTIVE
-        self.elements = elements if elements is not None else []
+        self.elements: list["Widget"] = elements if elements is not None else []
         self.active_element = elements[0] if elements else None
         self.needs_reblit = True
         self.needs_rerender = True
@@ -192,25 +190,25 @@ class Desktop(Widget):
         
         
 class Window(Widget):
-    def __init__(self, parent, title: str, w: int, h: int, text: str|None = None, x: int|None = None, y: int|None = None, font=DEFAULT_FONT) -> None:
+    def __init__(self, name: str, parent: Widget, title: str, w: int, h: int, text: str|None = None, x: int|None = None, y: int|None = None, font=DEFAULT_FONT) -> None:
         x = parent.rect.w//2 - w//2 if x is None else x
         y = parent.rect.h//2 - h//2 if y is None else y
-        super().__init__(parent, x, y, w, h)
+        super().__init__(name, parent, x, y, w, h)
         self.inner_rect = pg.Rect(DEFAULT_GAP, CHAR_HEIGHT[font] + DEFAULT_GAP,
                                   w - 2*DEFAULT_GAP, h - CHAR_HEIGHT[font] - 2*DEFAULT_GAP)
         self.font = font
         self.title = title
         if text:
-            self.elements.append(TextField(self, self.inner_rect.left + DEFAULT_GAP, self.inner_rect.top + DEFAULT_GAP, 
+            self.elements.append(TextField("WarningText", self, self.inner_rect.left + DEFAULT_GAP, self.inner_rect.top + DEFAULT_GAP,
                                            self.inner_rect.width - 2*DEFAULT_GAP, self.inner_rect.height//2, text, True))
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.MOUSEMOTION:
             if event.buttons[0] and self.rect.collidepoint(self.global_to_local_position((event.pos[0]-event.rel[0], event.pos[1]-event.rel[1]))):
                 self.position += pg.Vector2(event.rel)
-                self.position.x = max(0, self.position.x)
+                self.position.x = max(0.0, self.position.x)
                 self.position.x = min(self.parent.surface.get_width()-self.rect.w, self.position.x)
-                self.position.y = max(0, self.position.y)
+                self.position.y = max(0.0, self.position.y)
                 self.position.y = min(self.parent.surface.get_height()-self.rect.h, self.position.y)
                 self.parent.flag_as_needing_rerender()
             return

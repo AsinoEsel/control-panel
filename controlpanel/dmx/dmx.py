@@ -5,6 +5,7 @@ import random
 import threading
 from pyftdi.ftdi import Ftdi
 import numpy as np
+from typing import Callable
 
 
 def get_device_url() -> str | None:
@@ -171,7 +172,7 @@ class DMXDevice:
         self.chan_no = chan_no
         self.num_chans = num_chans
 
-        self._animation = None
+        self._animation: Callable[[float], tuple[int, ...]] | None = None
 
     def chan_overlap(self, other: 'DMXDevice'):
         """
@@ -187,4 +188,4 @@ class DMXDevice:
         )
 
     def animate(self, dmx: DMXUniverse, t: float):
-        pass
+        raise NotImplementedError
