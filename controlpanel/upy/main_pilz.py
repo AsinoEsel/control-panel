@@ -29,45 +29,23 @@ async def start_main_loop():
 
 
 async def main_loop():
-    
-    # asyncio.create_task(pilz_rfid_reader.run(updates_per_second=10))
     asyncio.create_task(pilz_leds.run(updates_per_second=10))
-    # asyncio.create_task(uv_strobe.run(updates_per_second=10))
     asyncio.create_task(banana_plugs.run(updates_per_second=10))
-    # asyncio.create_task(light_switch.run(updates_per_second=5))
 
     while True:
         # keeping the loop alive
         await asyncio.sleep_ms(1000)
 
-
-# BAUDRATE = const(100000)
-# RFID_CLOCK_PIN = const(18)  # grau
-# RFID_MOSI_PIN = const(23)  # lila
-# RFID_MISO_PIN = const(19)  # blau
-# RFID_RST_PIN = const(17)  # gelb  # 27
-# RFID_CS_PIN = const(5)  # SDA weiß  # 26
-# 3.3 ORANGE
-# GND GRÜN
-
 PILZ_LED_PIN = const(16)
 
 UV_LED = const(21)
 
-# LIGHT_SWITCH_PIN = const(35)
-
-# spi = SoftSPI(baudrate=BAUDRATE, polarity=1, phase=0, sck=Pin(RFID_CLOCK_PIN), mosi=Pin(RFID_MOSI_PIN), miso=Pin(RFID_MISO_PIN))
-# pilz_rfid_reader = RFIDReader("PilzRFID", spi, RFID_RST_PIN, RFID_CS_PIN)
-
-
 artnet = ArtNet("255.255.255.255")
 
 pilz_leds = LEDStrip(artnet, "PilzLEDs", PILZ_LED_PIN, 10)
-# light_switch = Button(artnet, "LightSwitch", LIGHT_SWITCH_PIN)
-# pilz_leds._animation = led_animations.strobe(len(pilz_leds), 1, 0.5, (100, 100, 0), (0, 0, 0))
 
-banana_plugs = BananaPlugs(artnet, "BananaPlugs", [4, 2, 33, 32], [15, 13, 12, 14, 27, 26])
-# orange, gelb, rot, blau, schwarz, grün
+banana_plugs = BananaPlugs(artnet, "BananaPlugs", [33, 2, 32, 4], [15, 13, 12, 14, 27, 26])
+# orange, blau, rot, gelb, schwarz, grün
 
 uv_strobe = PWM(artnet, "UVStrobe", UV_LED, 1.0)
 

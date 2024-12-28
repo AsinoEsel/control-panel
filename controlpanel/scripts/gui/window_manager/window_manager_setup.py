@@ -17,6 +17,7 @@ ACCENT_COLOR_INACTIVE = pg.Color((0,32,0))
 ACCENT_COLOR_ACTIVE = pg.Color((0, 64, 0))
 DEBUG_COLOR = pg.Color((255,20,147))
 DEBUG_LONG_TEXT = "What the dog doin. " * 10
+FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "media", "clacon2.ttf")
 DEFAULT_FONT = pg.font.Font(os.path.join(os.path.dirname(__file__), "..", "media", "clacon2.ttf"), 20)
 SMALL_FONT = pg.font.Font(os.path.join(os.path.dirname(__file__), "..", "media", "clacon2.ttf"), 12)
 

@@ -15,6 +15,7 @@ class WaterFlowSensor(BaseWaterSensor):
         self.flow_counter += 1
 
     def update(self):
+        print(self.flow_counter)
         if self.flow_counter > 0:
             self.send_trigger_data(struct.pack("<l", int(self.flow_counter * self.CORRECTION_FACTOR)))
             self.flow_counter = 0

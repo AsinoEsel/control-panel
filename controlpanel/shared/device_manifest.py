@@ -64,6 +64,7 @@ esp_device_manifest: dict[ESPNameType: list[tuple[DeviceNameType, DeviceKwargsTy
         ("RotaryDial", {"name": "RotaryDial"}),
         ("Button", {"name": "PowerSwitch"}),
         ("Button", {"name": "DialReset"}),
+        ("Button", {"name": "TestHebel"}),
         ("LEDStrip", {"name": "StatusLED", "length": 1}),
         # ("RFIDReader", {"name": "RFIDLogin"}),
     ],

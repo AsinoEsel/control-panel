@@ -11,3 +11,7 @@ class DummySipoShiftRegister(BaseSipoShiftRegister):
 
     def whiteout(self) -> None:
         self.send_dmx_data(b"\xff" * self._number_of_bits)
+
+    def set_bit(self, bit: int):
+        self._output_states[bit] = 255
+        self.send_dmx_data(bytes(self._output_states))

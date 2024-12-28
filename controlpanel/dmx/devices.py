@@ -252,6 +252,9 @@ class VaritecColorsStarbar12(DMXDevice):
     def turn_off_lights(self):
         self.lights = [0 for _ in range(self.LED_COUNT)]
 
+    def turn_on_lights(self):
+        self.lights = [255 for _ in range(self.LED_COUNT)]
+
     def set_leds_to_color(self, color: tuple[int, int, int]):
         self.leds = [color for _ in range(self.LED_COUNT)]
 
