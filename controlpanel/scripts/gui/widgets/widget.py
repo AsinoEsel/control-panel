@@ -39,6 +39,7 @@ class Widget:
     
     def close_window(self, window: 'Window'):
         self.elements.remove(window)
+        del self.get_desktop().widget_manifest[window.name]  # TODO: sucks hard
         if self.active_element is window:
             if self.elements:
                 self.active_element = self.elements[0]
@@ -172,7 +173,7 @@ class Desktop(Widget):
 
     def register_widget(self, widget: Widget):
         if self.widget_manifest.get(widget.name) is not None:
-            raise ValueError(f"Widget with name {widget.name} already exists.")  # TODO: Specify desktop name
+            raise ValueError(f"Widget with name {widget.name} already exists.")
         self.widget_manifest[widget.name] = widget
 
     def render_body(self):
@@ -214,7 +215,7 @@ class Window(Widget):
             return
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
-                self.close()
+                # self.close()  # TODO: make ability to ESCAPE an attribute?
                 return
         super().handle_event(event)
     

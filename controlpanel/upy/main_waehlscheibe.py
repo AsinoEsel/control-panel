@@ -13,7 +13,6 @@ from controlpanel.upy.phys.led_strip import LEDStrip
 def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
     if op_code == OpCode.ArtDmx:
         universe = reply.get("Universe")
-        print(universe)
         data = reply.get("Data")
         device = universe_dict.get(universe)
         if device is None:

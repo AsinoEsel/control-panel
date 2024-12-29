@@ -11,7 +11,11 @@ class Log(Widget):
         self.max_chars = w // CHAR_WIDTH[font]
         self.surface.fill(BACKGROUND_COLOR)
     
-    def print_to_log(self, text, color = COLOR_ACTIVE):
+    def print_to_log(self, text, color=COLOR_ACTIVE, add_timestamp: bool = False):
+        if add_timestamp:
+            from datetime import datetime
+            text = datetime.now().strftime("%H:%M > ") + text
+
         if len(text) > self.max_chars:
             first_half, second_half = utils.break_up_string(text, self.max_chars)
             self.print_to_log(first_half, color)

@@ -5,13 +5,12 @@ from machine import reset
 
 
 from controlpanel.upy.phys.led_strip import LEDStrip
-# from controlpanel.upy.phys.voltmeter import Voltmeter
 from controlpanel.upy.phys.water_flow_sensor import WaterFlowSensor
 from controlpanel.upy.phys.pwm import PWM
 
 WATER_FLOW_SENSOR_PIN = const(4)
-VOLTMETER_PRESSURE_PIN = const(12)
-VOLTMETER_TEMPERATURE_PIN = const(13)
+VOLTMETER_PRESSURE_PIN = const(13)
+VOLTMETER_TEMPERATURE_PIN = const(12)
 LED_STRIPE_PIN = const(14)
 WARNING_LED_PIN = const(2)
 
@@ -27,7 +26,7 @@ def artnet_callback(op_code: OpCode, ip: str, port: int, reply):
         device = universe_dict.get(universe)
         if device is None:
             return
-        print(f"Parsing dmx data {data} for device {device.name}")
+        # print(f"Parsing dmx data {data} for device {device.name}")
         device.parse_dmx_data(data)
         
 
@@ -37,11 +36,11 @@ async def start_main_loop():
 
 async def main_loop():
     
-    asyncio.create_task(water_flow_sensor.run(updates_per_second=0.1))
+    asyncio.create_task(water_flow_sensor.run(updates_per_second=5))
     # asyncio.create_task(voltmeter_pressure.run(updates_per_second=5))
     # asyncio.create_task(voltmeter_temperature.run(updates_per_second=5))
     # asyncio.create_task(warning_led.run(updates_per_second=10))
-    asyncio.create_task(led_strip.run(updates_per_second=10))
+    asyncio.create_task(led_strip.run(updates_per_second=4))
 
     while True:
         # keeping the loop alive

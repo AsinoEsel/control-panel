@@ -1,3 +1,4 @@
+import controlpanel.dmx.devices
 from controlpanel.scripts import ControlAPI, Event
 from controlpanel.dmx.devices import MovingHead
 
@@ -12,7 +13,14 @@ def callback_rgb(event: Event):
     blue = "blue" in event.name.lower()
     power = "power" in event.name.lower()
     print(red, green, blue, power)
-    calculate_color_of_moving_head(red, green, blue, power)
+
+    starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar1")
+    r = 255 if red else 0
+    g = 255 if green else 0
+    b = 255 if blue else 0
+    color = (r, g, b) if power else (0, 0, 0)
+    starbar.set_leds_to_color(color)
+    # calculate_color_of_moving_head(red, green, blue, power)
 
 
 def calculate_color_of_moving_head(red, green, blue, power):

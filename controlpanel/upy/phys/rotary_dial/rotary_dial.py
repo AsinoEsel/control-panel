@@ -3,7 +3,7 @@ import time
 from micropython import const
 from controlpanel.shared.base.rotary_dial import BaseRotaryDial
 
-DEBOUNCE_TIME = const(90)
+DEBOUNCE_TIME = const(50)
 DIGIT_CONFIRMATION_TIME = const(500)
 
 

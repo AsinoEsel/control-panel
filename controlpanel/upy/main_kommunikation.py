@@ -1,7 +1,6 @@
 import asyncio
 from artnet import ArtNet, OpCode
 from micropython import const
-# from machine import Pin, SoftSPI
 from controlpanel.upy.phys.button import Button
 
 

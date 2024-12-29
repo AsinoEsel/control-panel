@@ -31,7 +31,10 @@ PATH_TO_WEBREPL = os.path.join(os.path.dirname(script_dir), "webrepl", "webrepl_
 
 
 def send_file(esp_name: str, ip: str, password: str, file_path: str, new_file_path: str|None = None) -> subprocess.CompletedProcess:
-    assert "/" not in file_path, "Make sure to replace '/' with '\\' to make webrepl happy."
+    if new_file_path is None:
+        new_file_path = file_path.replace("/", "\\")
+
+    # assert "/" not in file_path, "Make sure to replace '/' with '\\' to make webrepl happy."
 
     print(f'Sending file {file_path} to {esp_name} at {ip}{f" as {new_file_path}" if new_file_path else ""}...')
     executable = (
