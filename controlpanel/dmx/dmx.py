@@ -84,7 +84,7 @@ class DMXUniverse:
             self.start_dmx_thread()
             print(f"Successfully initiated a DMX universe @ {url}.")
         else:
-            raise ConnectionError("Was unable to initiate physical DMX Universe: no USB to DMX devices discovered.")
+            print("Was unable to initiate physical DMX Universe: no USB to DMX devices discovered.")
 
     def __del__(self):
         try:

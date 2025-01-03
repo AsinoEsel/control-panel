@@ -171,7 +171,7 @@ class DeveloperConsole:
             self.print_usage_string(command)
         else:
             self.log.print(
-                f"No command {command_name} exists in the game {self.game_manager.get_game().__class__.__name__}.",
+                f"No command {command_name} exists in the game {self.game_manager.get_game().name}.",
                 color=self.error_color, mirror_to_stdout=True)
         return
 
@@ -189,6 +189,7 @@ class DeveloperConsole:
             "game_manager": self.game_manager,
             "game": self.game_manager.get_game(),
         })
+        locals().update(ControlAPI.loaded_scripts)
         try:
             return eval(eval_string)
         except (NameError, AttributeError, SyntaxError) as e:
@@ -202,6 +203,7 @@ class DeveloperConsole:
             "game_manager": self.game_manager,
             "game": self.game_manager.get_game(),
         })
+        locals().update(ControlAPI.loaded_scripts)
         try:
             return exec(exec_string)
         except (NameError, AttributeError, SyntaxError) as e:
@@ -248,7 +250,7 @@ class DeveloperConsole:
         command_name, *args = command.split()
         func = self.get_all_commands().get(command_name)
         if func is None:
-            self.log.print(f"No command {command_name} exists in the game {self.game_manager._current_game.__class__.__name__}.", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"No command {command_name} exists in the game {self.game_manager._current_game.name}.", color=self.error_color, mirror_to_stdout=True)
             return
         if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled:
             self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)

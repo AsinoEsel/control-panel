@@ -1,8 +1,3 @@
-import contextlib
-import time
-
-with contextlib.redirect_stdout(None):
-    import pygame  # This gets rid of the pygame "support prompt" on import by redirecting it into the void
 from threading import Thread
 from controlpanel.event_manager import EventManager
 from controlpanel.game_manager import GameManager
@@ -35,11 +30,10 @@ def main():
                         help='Enable cheat-protected console commands (disabled by default)')
     args, unknown_args = parser.parse_known_args()
 
-    artnet = ArtNet()
+    artnet = ArtNet()  # This is where we initialise our one and ONLY ArtNet instance for the entire program.
 
     event_manager = EventManager(artnet)
 
-    # window_manager = WindowManager() if not args.no_gui else None
     game_manager = GameManager(resolution=(args.width, args.height),
                                dev_args=unknown_args,
                                is_fullscreen=not args.windowed,
@@ -54,26 +48,18 @@ def main():
     ControlAPI.game_manager = game_manager
     try:
         ControlAPI.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
-    except ConnectionError as err:
-        print(err)
     except ValueError as err:
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
 
     artnet_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
     artnet_thread.start()
-    print("Start listening...")
 
     if args.load_scripts is not None:
         load_scripts(args.load_scripts)
 
-    if game_manager is not None:
-        game_manager_thread = Thread(target=game_manager.run, daemon=False)
-        game_manager_thread.run()
-    else:
-        pygame.quit()
-
-    # artnet_thread.join()
+    game_manager_thread = Thread(target=game_manager.run, daemon=False)
+    game_manager_thread.run()
 
 
 if __name__ == "__main__":

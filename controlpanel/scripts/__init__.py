@@ -6,12 +6,14 @@ The scripts are run on execution of the "load_scripts" function in this package.
 
 import time
 import threading
+import types
 from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
 from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
 from controlpanel.game_manager import GameManager, BaseGame
 from controlpanel.shared.base import Device, Fixture
 import os
+import sys
 import importlib
 from functools import wraps
 from controlpanel.shared.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
@@ -23,6 +25,7 @@ class ControlAPI:
     devices: DeviceManifestType = None
     game_manager: GameManager = None
     dmx: DMXUniverse = None
+    loaded_scripts: dict[str, types.ModuleType] = {}
 
     @classmethod
     def add_game(cls, game: BaseGame, *, make_current: bool = False):
@@ -92,8 +95,11 @@ class ControlAPI:
 
 
 def load_scripts(args: list[str]) -> None:
+    """
+    This is where we load our "user scripts" on boot, by taking in a list of script file names, and then importing them.
+    """
 
-    # First, unpack all .txt files
+    # First, we "unpack" all .txt files
     while any(arg.endswith(".txt") for arg in args):
         for arg in args:
             if arg.endswith(".txt"):
@@ -107,20 +113,39 @@ def load_scripts(args: list[str]) -> None:
                 break
 
     failed: list[tuple[str, Exception]] = []
-    success: list[str] = []
+    success: list[tuple[str, set[str]]] = []
     for arg in args:
         if arg.endswith(".py"):
             arg = arg.removesuffix(".py")
         try:
-            importlib.import_module(f".{arg}", package=__name__)
-            success.append(arg)
+            original_modules = set(sys.modules.keys())
+            imported_module = importlib.import_module(f".{arg}", package=__name__)
+            ControlAPI.loaded_scripts[arg] = imported_module
+            new_modules = set(sys.modules.keys()) - original_modules
+            if not new_modules:
+                continue  # Skip this module because it has apparently already been imported before as a dependency
+            dependencies = set()
+            for new_module in new_modules:
+                if not new_module.startswith("controlpanel.scripts."):  # are only interested in our scripts
+                    continue
+                new_module_name = new_module.removeprefix("controlpanel.scripts.")
+                script_name, *submodules = new_module_name.split(".", maxsplit=1)
+                if arg == script_name:  # Don't count imported module as dependency of itself
+                    continue
+                dependencies.add(script_name)
+                if not submodules:
+                    ControlAPI.loaded_scripts[script_name] = sys.modules.get(new_module)
+
+            success.append((arg, dependencies))
         except (ModuleNotFoundError, ImportError) as e:
             failed.append((arg, e))
 
     if success:
         print("Successfully loaded the following scripts:")
-        for script in success:
+        for script, dependencies in success:
             print(f"- {script}")
+            for dependency in dependencies:
+                print(f"    - {dependency}")
 
     if failed:
         print("Failed to load the following scripts:")
