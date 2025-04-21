@@ -3,6 +3,8 @@ from array import array
 import moderngl
 # from controlpanel.scripts.gui.window_manager.window_manager_setup import RENDER_SIZE, QUARTER_RENDER_SIZE
 from .shader_manifest import shader_params
+from pathlib import Path
+current_dir = Path(__file__).parent
 
 
 class Shaders:
@@ -57,9 +59,11 @@ class Shaders:
                 
 
 def get_shader_program(ctx: moderngl.Context, vert_shader_path: str, frag_shader_path: str, shader_parameters: dict[str: int | float]) -> moderngl.Program:
-    with open(vert_shader_path) as v:
+    full_vert_shader_path = current_dir / vert_shader_path
+    full_frag_shader_path = current_dir / frag_shader_path
+    with open(full_vert_shader_path) as v:
         vert_shader = v.read()
-    with open(frag_shader_path) as f:
+    with open(full_frag_shader_path) as f:
         frag_shader = f.read()
     program = ctx.program(vertex_shader=vert_shader, fragment_shader=frag_shader)
     for name, value in shader_parameters.items():

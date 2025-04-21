@@ -2,12 +2,11 @@ import pygame as pg
 from controlpanel.scripts.gui.window_manager.window_manager_setup import DEBUG_COLOR, COLOR_ACTIVE, COLOR_INACTIVE, ACCENT_COLOR_ACTIVE, ACCENT_COLOR_INACTIVE, LINE_THICKNESS_THIN, RENDER_WIDTH, RENDER_HEIGHT, DEFAULT_GAP, BACKGROUND_COLOR, CHAR_WIDTH, CHAR_HEIGHT, DEFAULT_FONT
 from controlpanel.scripts.gui import utils
 from controlpanel.scripts.gui.window_manager.event_queue import event_queue, Delay, Event
-from typing import Self
 from controlpanel.event_manager import EventNameType, EventValueType
 
 
 class Widget:
-    def __init__(self, name: str, parent: Self | None, x=None, y=None, w=None, h=None, elements: list["Widget"] | None = None, *, do_render_border=True) -> None:
+    def __init__(self, name: str, parent: "Widget", x=None, y=None, w=None, h=None, elements: list["Widget"] | None = None, *, do_render_border=True) -> None:
         self.name = name
         x = x if x is not None else DEFAULT_GAP
         y = y if y is not None else DEFAULT_GAP

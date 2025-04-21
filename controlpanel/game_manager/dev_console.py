@@ -1,3 +1,4 @@
+import importlib
 import time
 import pygame as pg
 import os
@@ -30,7 +31,7 @@ class OutputRedirector:
         self.stdout.flush()
 
 
-def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False):
+def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list[str]]] | None = None):
     # This cursed if statement ensures that the decorator works even when used without parentheses
     if len(aliases) == 1 and callable(aliases[0]) and not isinstance(aliases[0], str):
         f = aliases[0]
@@ -42,6 +43,7 @@ def console_command(*aliases: str, is_cheat_protected: bool = False, show_return
         func._aliases = aliases
         func._is_cheat_protected = is_cheat_protected
         func._show_return_value = show_return_value
+        func._autocomplete_function = autocomplete_function
         return func
     return decorator
 
@@ -54,7 +56,10 @@ class Logger:
                  font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
                  font_size: int = 20
                  ):
-        self.font = pg.font.Font(font_name, font_size)
+        try:
+            self.font = pg.font.Font(font_name, font_size)
+        except FileNotFoundError:
+            self.font = None
         max_lines = int(screen_surface.get_height() * max_relative_height / self.font.get_height())
 
         self.surface = pg.Surface((screen_surface.get_width(), max_lines * self.font.get_height()), flags=pg.SRCALPHA)
@@ -95,7 +100,10 @@ class DeveloperConsole:
                  *,
                  font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
                  font_size: int = 20):
-        self.font = pg.font.Font(font_name, font_size)
+        try:
+            self.font: pg.font.Font = pg.font.Font(font_name, font_size)
+        except FileNotFoundError:
+            self.font: pg.font.Font = pg.font.Font(None, font_size)
         self.game_manager = game_manager
         self.open: bool = False
         self.dark_surface = pg.Surface(render_size)
@@ -114,7 +122,7 @@ class DeveloperConsole:
         self.char_height = self.font.get_height()
         self.border_offset = 6
 
-        self.surface = pg.Surface((render_size[0], self.DEFAULT_HEIGHT))
+        self.surface: pg.Surface = pg.Surface((render_size[0], self.DEFAULT_HEIGHT))
 
         input_box_height = int(self.char_height * 1.5)
         log_width = input_box_width = render_size[0] - 2 * self.border_offset
@@ -122,6 +130,54 @@ class DeveloperConsole:
 
         self.input_box = InputBox(self, (input_box_width, input_box_height))
         self.log = Log(self, (log_width, max_log_height))
+        self.autocomplete = Autocomplete(self)
+
+        self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
+
+    def _setup_namespace(self) -> types.SimpleNamespace:
+        """Updates the namespace that allows for the eval and exec commands to find the names of attributes and such."""
+        from controlpanel.scripts import ControlAPI
+        namespace = types.SimpleNamespace()
+        # setattr(self._namespace, "game", self.game_manager.get_game())  # deprecated
+        setattr(namespace, "api", ControlAPI)
+        setattr(namespace, "game_manager", self.game_manager)
+        setattr(namespace, "pg", pg)
+        for script_name, script in ControlAPI.loaded_scripts.items():
+            setattr(namespace, script_name, script)
+        return namespace
+
+    @console_command(show_return_value=True)
+    def get_cwd(self):
+        return os.getcwd()
+
+    @console_command(is_cheat_protected=True)
+    def load_game(self, module_name: str, *args: str):
+        """Takes in a dotted module path (i.e. module.main) and instantiates any "games" (subclasses of BaseGame)."""
+        from pathlib import Path
+        from controlpanel.game_manager import BaseGame
+        sys.path.append(str(Path.cwd()))
+        try:
+            game_module = importlib.import_module(module_name)
+        except ModuleNotFoundError:
+            print(f'Cannot load game: failed to find module named "{module_name}"')
+            return
+
+        # Scan the module for classes that inherit from BaseGame
+        games = []
+        for name, obj in inspect.getmembers(game_module, inspect.isclass):
+            # Make sure the class is defined in the module (not just imported into it)
+            if issubclass(obj, BaseGame) and obj is not BaseGame and obj.__module__ == game_module.__name__:
+                games.append(obj)
+        if not games:
+            print(f'Cannot load game: Successfully imported module {module_name},'
+                  f'but failed to find any instance of BaseGame inside.')
+            return
+
+        # Instantiate and use them
+        for cls in games:
+            instance = cls(*args)
+            print(f"Successfully loaded {cls.__name__}")
+            self.game_manager.add_game(instance, True)
 
     @staticmethod
     def find_commands(instance: Union["GameManager", "BaseGame", "DeveloperConsole"]) -> dict[str: Callable[..., Any]]:
@@ -161,7 +217,10 @@ class DeveloperConsole:
             self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
                            color=self.secondary_text_color, mirror_to_stdout=True)
 
-    @console_command
+    def help_autocomplete(self, text: str) -> tuple[int, list[str]]:
+        return 0, list(command for command in self.get_all_commands().keys() if command.startswith(text) and command != text)
+
+    @console_command(autocomplete_function=help_autocomplete)
     def help(self, command_name: str = None) -> None:
         if not command_name:
             self.list_all_commands()
@@ -176,36 +235,68 @@ class DeveloperConsole:
         return
 
     @console_command
-    def clear(self):
+    def clear(self) -> None:
         self.log.history.clear()
         self.log.history_index = 0
         self.log.render()
 
-    @console_command(is_cheat_protected=True, show_return_value=True)
+    def eval_exec_autocomplete(self, text: str) -> tuple[int, list[str]]:
+        def get_callable_args(callable_attr):
+            if not callable(callable_attr):
+                return None
+
+            try:
+                sig = inspect.signature(callable_attr)
+                formatted_params = []
+
+                for name, param in sig.parameters.items():
+                    if param.default is inspect.Parameter.empty:
+                        formatted_params.append(f"{name}")
+                    else:
+                        formatted_params.append(f"{name}={param.default!r}")
+
+                return f"({', '.join(formatted_params)})"
+            except (ValueError, TypeError):
+                # Handle case where signature can't be retrieved
+                return None
+
+
+        names = text.split(".")
+
+        current = self._namespace
+        for i, name in enumerate(names):
+            attr = getattr(current, name, None)
+            if i < len(names) - 1:
+                current = attr
+            else:
+                position = sum(len(name) for name in names[0:i]) + i
+                if hasattr(current, name):
+                    position = sum(len(name) for name in names) + i
+                    if inspect.ismethod(attr):
+                        return position, [get_callable_args(attr)]
+
+                # options = []
+                # for current_name in dir(current):
+                #     obj = getattr(current, current_name)
+                #     if not current_name.startswith(name) or current_name == name or current_name.startswith("__"):
+                #         continue
+                #     if str(obj).startswith("<") or str(attr).endswith(">"):
+                #         current_name += "."
+                #     options.append(current_name)
+                # return position, options
+                return position, [attr for attr in dir(current) if attr.startswith(name) and attr != name and not attr.startswith("__")]
+
+    @console_command(is_cheat_protected=True, show_return_value=True, autocomplete_function=eval_exec_autocomplete)
     def eval(self, eval_string: str):
-        from controlpanel.scripts import ControlAPI
-        locals().update({
-            "api": ControlAPI,
-            "game_manager": self.game_manager,
-            "game": self.game_manager.get_game(),
-        })
-        locals().update(ControlAPI.loaded_scripts)
         try:
-            return eval(eval_string)
+            return eval(eval_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
 
-    @console_command(is_cheat_protected=True, show_return_value=False)
+    @console_command(is_cheat_protected=True, show_return_value=False, autocomplete_function=eval_exec_autocomplete)
     def exec(self, exec_string: str):
-        from controlpanel.scripts import ControlAPI
-        locals().update({
-            "api": ControlAPI,
-            "game_manager": self.game_manager,
-            "game": self.game_manager.get_game(),
-        })
-        locals().update(ControlAPI.loaded_scripts)
         try:
-            return exec(exec_string)
+            return exec(exec_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
 
@@ -250,7 +341,7 @@ class DeveloperConsole:
         command_name, *args = command.split()
         func = self.get_all_commands().get(command_name)
         if func is None:
-            self.log.print(f"No command {command_name} exists in the game {self.game_manager._current_game.name}.", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"No command {command_name} exists in the current game.", color=self.error_color, mirror_to_stdout=True)
             return
         if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled:
             self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
@@ -284,7 +375,8 @@ class DeveloperConsole:
             return
 
     def print_usage_string(self, func: Callable[..., Any]):
-        string = f"Usage: {func.__name__} "
+        aliases = getattr(func, "_aliases", None)
+        string = f"Usage: {"/".join(aliases)} " if aliases else f"Usage: {func.__name__} "
         for param_name, param in inspect.signature(func).parameters.items():
             param_type = get_type_hints(func).get(param_name, "undef")
 
@@ -320,8 +412,10 @@ class DeveloperConsole:
                 self.log.history_index -= event.y
                 self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
                 self.log.render()
+            elif self.autocomplete.handle_event(event):
+                pass  # event got eaten by Autocompleter
             else:
-                self.input_box.handle_event(event)
+                self.input_box.handle_event(event)  # event gets passed down to input box
 
     def render(self, surface: pg.Surface):
         self.surface.fill(self.primary_color)
@@ -341,6 +435,8 @@ class DeveloperConsole:
 
         surface.blit(self.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
         surface.blit(self.surface, (0, 0))
+        if self.autocomplete.show:
+            surface.blit(self.autocomplete.surface, (self.border_offset + self.autocomplete.position * self.char_width, self.surface.get_height()))
 
     @staticmethod
     def draw_border_rect(surface: pg.Surface, vertices: tuple[int, int, int, int], offset: int, primary_color: ColorType, secondary_color: ColorType):
@@ -350,6 +446,80 @@ class DeveloperConsole:
         pg.draw.line(surface, secondary_color, (left+width, top), (left+width, top+height), 1)
         pg.draw.line(surface, primary_color, (left, top), (left+width, top), 1)
         pg.draw.line(surface, secondary_color, (left, top+height), (left+width, top+height), 1)
+
+
+class Autocomplete:
+    def __init__(self, dev_console: DeveloperConsole):
+        self.dev_console = dev_console
+        self.show: bool = False
+        self.options: list[str] = []
+        self.position: int = 0  # the position at which the autocomplete is inserted
+        self.surface: pg.Surface = pg.Surface((1, 1))
+        self.selection_index: int = 0
+
+    def handle_event(self, event: pg.event.Event) -> bool:
+        if self.show and event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+            self.selection_index = (self.selection_index + 1) % len(self.options)
+            self.draw()
+        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_UP:
+            self.selection_index = (self.selection_index - 1) % len(self.options)
+            self.draw()
+        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+            self.dev_console.input_box.text = self.dev_console.input_box.text[0:self.position] + self.options[self.selection_index]
+            if self.position == 0:
+                self.dev_console.input_box.text += " "
+            self.dev_console.input_box.caret_position = len(self.dev_console.input_box.text)
+            self.update()
+        else:
+            return False
+        return True
+
+    def update(self):
+        self.selection_index = 0
+        text = self.dev_console.input_box.text
+        if not text:
+            self.show = False
+            return
+        words = text.split(" ", maxsplit=1)
+        if len(words) == 1:
+            self.position = 0
+            self.options: list[str] = list(command for command in self.dev_console.get_all_commands().keys() if command.startswith(text) and command != text)
+            if not self.options:
+                self.show = False
+                return
+        elif len(words) > 1:
+            self.position = len(words[0]) + 1
+            command: Callable[[...], Any] | None = self.dev_console.get_all_commands().get(words[0])
+            if not command:
+                self.show = False
+                return
+            autocomplete_function: Callable[[str], list[str]] | None = getattr(command, "_autocomplete_function", None)
+            if not autocomplete_function:
+                self.show = False
+                return
+            offset, self.options = getattr(self.dev_console, autocomplete_function.__name__)(words[1])
+            self.position += offset
+            if not self.options:
+                self.show = False
+                return
+        self.show = True
+        self.draw()
+
+    def draw(self):
+        surface_border_width = 2
+        surface_width = max(len(option) for option in self.options) * self.dev_console.char_width + 2 * surface_border_width
+        surface_height = len(self.options) * self.dev_console.char_height + surface_border_width
+
+        self.surface = pg.Surface((surface_width, surface_height))
+        self.surface.fill(self.dev_console.primary_color)
+        for i, option in enumerate(self.options):
+            if i == self.selection_index:
+                pg.draw.rect(self.surface, self.dev_console.highlight_color, (0, i * self.dev_console.char_height, surface_width, self.dev_console.char_height))
+                text_color = self.dev_console.primary_text_color
+            else:
+                text_color = self.dev_console.secondary_text_color
+            self.surface.blit(self.dev_console.font.render(option, False, text_color, None), (surface_border_width, i * self.dev_console.char_height + surface_border_width))
+        self.dev_console.draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.border_color_bright, self.dev_console.border_color_dark)
 
 
 class Log:
@@ -402,22 +572,17 @@ class InputBox:
                 self.erase_selection_range()
             self.text = self.text[0:self.caret_position] + event.text + self.text[self.caret_position:]
             self.caret_position += 1
+            self.dev_console.autocomplete.update()
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_RETURN:
-                if self.text:
-                    self.dev_console.handle_command(self.text)
-                    if self.text in self.history:
-                        self.history.remove(self.text)
-                    self.history.append(self.text)
-                self.text = ''
-                self.caret_position = 0
-                self.selection_range = None
-                self.history_index = 0
+                self.enter(self.text)
+                self.dev_console.autocomplete.update()
             elif event.key == pg.K_BACKSPACE:
                 if self.selection_range:
                     self.erase_selection_range()
                 else:
                     self.move_caret(-1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
+                self.dev_console.autocomplete.update()
             elif event.key == pg.K_DELETE:
                 if self.selection_range:
                     self.erase_selection_range()
@@ -453,14 +618,28 @@ class InputBox:
                     self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
                     self.move_caret(len(clipboard))
 
+    def enter(self, text: str):
+        if text:
+            self.dev_console.handle_command(text)
+            if text in self.history:
+                self.history.remove(text)
+            self.history.append(text)
+        self.text = ''
+        self.caret_position = 0
+        self.selection_range = None
+        self.history_index = 0
+
     def move_caret(self, amount: int, holding_shift: bool = False, holding_ctrl: bool = False, delete=False):
         original_position = self.caret_position
         if holding_ctrl:
             if amount > 0:
-                space_index = self.text.find(' ', self.caret_position)
-                space_index = space_index if space_index != -1 else len(self.text)
+                space_index = min(self.text.find(' ', self.caret_position),
+                                  self.text.find('.', self.caret_position))
+                if space_index == -1:
+                    space_index = len(self.text)
             elif amount < 0:
-                space_index = self.text.rfind(' ', 0, max(0, self.caret_position - 1))
+                space_index = max(self.text.rfind(' ', 0, max(0, self.caret_position - 1)),
+                                  self.text.rfind('.', 0, max(0, self.caret_position - 1)))
             else:
                 return
             amount = space_index - self.caret_position + 1

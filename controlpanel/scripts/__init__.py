@@ -7,6 +7,7 @@ The scripts are run on execution of the "load_scripts" function in this package.
 import time
 import threading
 import types
+from typing import TypeVar
 from artnet import ArtNet
 from controlpanel.dmx import DMXUniverse
 from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
@@ -19,6 +20,9 @@ from functools import wraps
 from controlpanel.shared.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
 
 
+T = TypeVar("T", bound="BaseGame")
+
+
 class ControlAPI:
     artnet: ArtNet = None
     event_manager: EventManager = None
@@ -28,14 +32,14 @@ class ControlAPI:
     loaded_scripts: dict[str, types.ModuleType] = {}
 
     @classmethod
-    def add_game(cls, game: BaseGame, *, make_current: bool = False):
+    def add_game(cls, game: T, *, make_current: bool = False) -> T:
         if cls.game_manager is None:
             raise NotImplementedError
         else:
-            cls.game_manager.add_game(game, make_current)
+            return cls.game_manager.add_game(game, make_current)
 
     @classmethod
-    def get_game(cls, name: str) -> BaseGame | None:
+    def get_game(cls, name: str | None = None) -> BaseGame | None:
         return cls.game_manager.get_game(name)
 
     @classmethod
@@ -145,7 +149,7 @@ def load_scripts(args: list[str]) -> None:
         for script, dependencies in success:
             print(f"- {script}")
             for dependency in dependencies:
-                print(f"    - {dependency}")
+                print(f"- {dependency:<15} (dependency of {script})")
 
     if failed:
         print("Failed to load the following scripts:")

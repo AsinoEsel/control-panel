@@ -1,8 +1,10 @@
 import pygame as pg
 from controlpanel.game_manager.dev_console import console_command
+import random
 
 
 class BaseGame:
+    """Base class to be used for all games as inheritance."""
     def __init__(self,
                  name: str,
                  resolution: tuple[int, int],
@@ -32,6 +34,7 @@ class BaseGame:
 
     @console_command("tickrate", is_cheat_protected=True)
     def set_tickrate(self, tickrate: float):
+        """Sets the tickrate (updates per second) of the game. Ideally has no impact on simulation speed."""
         self.tickrate = tickrate
 
     @property
@@ -45,6 +48,7 @@ class BaseGame:
 
     @console_command("host_timescale", "timescale", is_cheat_protected=True)
     def set_timescale(self, timescale: float):
+        """Sets the tick speed (game simulation speed). Default is 1.0"""
         self.timescale = timescale
 
     @property
@@ -61,6 +65,8 @@ class BaseGame:
         pass
 
     def standalone_run(self):
+        """This method makes it possible for a game to be run without the controlpanel overhead.
+        It is a self-contained game loop in its most vanilla and bare-bone form."""
         import argparse
         parser = argparse.ArgumentParser(description=self.name)
         parser.add_argument('-w', '--windowed', action='store_true', help='Run in windowed mode (fullscreen is default)')
@@ -76,3 +82,44 @@ class BaseGame:
 
             pg.display.flip()
             self._dt = clock.tick(self._tickrate) / 1000 * self._timescale
+
+
+class FallbackGame(BaseGame):
+    """Bouncing DVD Logo inspired text animation. No inputs, just used as a fallback."""
+    COLORS = [(255, 0, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255),]
+
+    def __init__(self):
+        super().__init__("Fallback Game", resolution=(960, 540))
+        self.error_color_index: int = 0
+        self.error_velocity: pg.Vector2 = pg.Vector2(150, 150)
+        self.error_text = "No game script loaded. Use --load-scripts [...] to load scripts"
+        self.error_surf = self._get_error_surf()
+        self.error_position: pg.Vector2 = (pg.Vector2(self.screen.get_rect().center) -
+                                           pg.Vector2(self.error_surf.get_rect().center))
+
+    def _get_error_surf(self) -> pg.Surface:
+        return pg.font.Font(None, 36).render(
+            self.error_text,
+            True, self.COLORS[self.error_color_index], None)
+
+    def update(self) -> None:
+        self.error_position += self.error_velocity * self.dt
+        bounce_count = 0
+        if self.error_position.x + self.error_surf.get_width() > self.screen.get_width() or self.error_position.x < 0:
+            self.error_velocity.x *= -1
+            bounce_count += 1
+        if self.error_position.y + self.error_surf.get_height() > self.screen.get_height() or self.error_position.y < 0:
+            bounce_count += 1
+            self.error_velocity.y *= -1
+        if bounce_count == 1:
+            self.error_color_index += 1
+            if self.error_color_index >= len(self.COLORS):
+                self.error_color_index = 0
+                random.shuffle(self.COLORS)
+            self.error_surf = self._get_error_surf()
+        elif bounce_count == 2:
+            print("pog")
+
+    def render(self) -> None:
+        self.screen.fill((0, 0, 0))
+        self.screen.blit(self.error_surf, self.error_position)

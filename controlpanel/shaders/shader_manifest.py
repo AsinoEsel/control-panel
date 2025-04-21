@@ -52,12 +52,12 @@ to_bgra_uniforms = {
 }
 
 shader_params: dict[str: tuple[str, str, dict]] = {
-    "Downscale": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/downscale.frag", downscale_uniforms),
-    "Threshold": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/threshold.frag", threshold_shader_uniforms),
-    "Blur_H": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/blur_h.frag", blur_shader_uniforms),
-    "Blur_V": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/blur_v.frag", blur_shader_uniforms),
-    "Ghost": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/ghost.frag", ghost_shader_uniforms),
-    "Add": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/add.frag", add_shader_uniforms),
-    "CRT": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/crt.frag", crt_shader_uniforms),
-    "To_BGRA": ("controlpanel/shaders/quad.vert", "controlpanel/shaders/to_bgra.frag", to_bgra_uniforms),
+    "Downscale": ("quad.vert", "downscale.frag", downscale_uniforms),
+    "Threshold": ("quad.vert", "threshold.frag", threshold_shader_uniforms),
+    "Blur_H": ("quad.vert", "blur_h.frag", blur_shader_uniforms),
+    "Blur_V": ("quad.vert", "blur_v.frag", blur_shader_uniforms),
+    "Ghost": ("quad.vert", "ghost.frag", ghost_shader_uniforms),
+    "Add": ("quad.vert", "add.frag", add_shader_uniforms),
+    "CRT": ("quad.vert", "crt.frag", crt_shader_uniforms),
+    "To_BGRA": ("quad.vert", "to_bgra.frag", to_bgra_uniforms),
 }
