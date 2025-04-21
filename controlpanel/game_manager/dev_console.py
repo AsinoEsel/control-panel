@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import importlib
 import time
 import pygame as pg
@@ -31,7 +32,7 @@ class OutputRedirector:
         self.stdout.flush()
 
 
-def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list[str]]] | None = None):
+def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None, hint: Callable[[Union["GameManager", "BaseGame","DeveloperConsole"]], Any] | None = None):
     # This cursed if statement ensures that the decorator works even when used without parentheses
     if len(aliases) == 1 and callable(aliases[0]) and not isinstance(aliases[0], str):
         f = aliases[0]
@@ -44,6 +45,7 @@ def console_command(*aliases: str, is_cheat_protected: bool = False, show_return
         func._is_cheat_protected = is_cheat_protected
         func._show_return_value = show_return_value
         func._autocomplete_function = autocomplete_function
+        if hint: setattr(func, "_hint", hint)
         return func
     return decorator
 
@@ -147,11 +149,12 @@ class DeveloperConsole:
         return namespace
 
     @console_command(show_return_value=True)
-    def get_cwd(self):
+    def get_cwd(self) -> str:
+        """Gives the path of the current working directory"""
         return os.getcwd()
 
     @console_command(is_cheat_protected=True)
-    def load_game(self, module_name: str, *args: str):
+    def load_game(self, module_name: str, *args: str) -> None:
         """Takes in a dotted module path (i.e. module.main) and instantiates any "games" (subclasses of BaseGame)."""
         from pathlib import Path
         from controlpanel.game_manager import BaseGame
@@ -217,11 +220,12 @@ class DeveloperConsole:
             self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
                            color=self.secondary_text_color, mirror_to_stdout=True)
 
-    def help_autocomplete(self, text: str) -> tuple[int, list[str]]:
-        return 0, list(command for command in self.get_all_commands().keys() if command.startswith(text) and command != text)
+    def help_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
+        return 0, list(Autocomplete.Option(command, str(func.__doc__ or "")) for command, func in self.get_all_commands().items() if command.startswith(text) and command != text)
 
     @console_command(autocomplete_function=help_autocomplete)
     def help(self, command_name: str = None) -> None:
+        """¯\\_(ツ)_/¯"""
         if not command_name:
             self.list_all_commands()
         elif (command := self.get_all_commands().get(command_name)) is not None:
@@ -236,11 +240,12 @@ class DeveloperConsole:
 
     @console_command
     def clear(self) -> None:
+        """Clears the dev console"""
         self.log.history.clear()
         self.log.history_index = 0
         self.log.render()
 
-    def eval_exec_autocomplete(self, text: str) -> tuple[int, list[str]]:
+    def eval_exec_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         def get_callable_args(callable_attr):
             if not callable(callable_attr):
                 return None
@@ -260,7 +265,6 @@ class DeveloperConsole:
                 # Handle case where signature can't be retrieved
                 return None
 
-
         names = text.split(".")
 
         current = self._namespace
@@ -273,21 +277,28 @@ class DeveloperConsole:
                 if hasattr(current, name):
                     position = sum(len(name) for name in names) + i
                     if inspect.ismethod(attr):
-                        return position, [get_callable_args(attr)]
+                        return position, [Autocomplete.Option(get_callable_args(attr), "")]
 
-                # options = []
-                # for current_name in dir(current):
-                #     obj = getattr(current, current_name)
-                #     if not current_name.startswith(name) or current_name == name or current_name.startswith("__"):
-                #         continue
-                #     if str(obj).startswith("<") or str(attr).endswith(">"):
-                #         current_name += "."
-                #     options.append(current_name)
-                # return position, options
-                return position, [attr for attr in dir(current) if attr.startswith(name) and attr != name and not attr.startswith("__")]
+                options = []
+                for current_name in dir(current):
+                    obj = getattr(current, current_name)
+                    if not current_name.startswith(name) or current_name == name or current_name.startswith("__"):
+                        continue
+                    if (str(obj).startswith("<") or str(obj).endswith(">")) and not callable(obj):
+                        current_name += "."
+                    if len(str(obj)) <= max(self.autocomplete.MAX_UNSHORTENED_HINT_LENGTH, len(type(obj).__name__)):
+                        hint: str = str(obj)
+                        cursive = False
+                    else:
+                        hint: str = type(obj).__name__
+                        cursive = True
+                    options.append(Autocomplete.Option(current_name, hint, cursive))
+                return position, options
+                # return position, [attr for attr in dir(current) if attr.startswith(name) and attr != name and not attr.startswith("__")]
 
     @console_command(is_cheat_protected=True, show_return_value=True, autocomplete_function=eval_exec_autocomplete)
     def eval(self, eval_string: str):
+        """Evaluate an arbitrary string"""
         try:
             return eval(eval_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
@@ -295,6 +306,7 @@ class DeveloperConsole:
 
     @console_command(is_cheat_protected=True, show_return_value=False, autocomplete_function=eval_exec_autocomplete)
     def exec(self, exec_string: str):
+        """Execute an arbitrary string"""
         try:
             return exec(exec_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
@@ -302,12 +314,14 @@ class DeveloperConsole:
 
     @console_command(is_cheat_protected=True)
     def send_dmx(self, device_name: str, *values: int) -> None:
+        """Sends any number of integer values (0-255) to the universe of the given device"""
         from controlpanel.scripts import ControlAPI
         data = bytes(values)
         ControlAPI.send_dmx(device_name, data)
 
     @console_command(is_cheat_protected=True)
     def send_cmd(self, cmd: str):
+        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
         from controlpanel.scripts import ControlAPI
         ControlAPI.artnet.send_command(cmd.encode("ascii"))
 
@@ -332,10 +346,11 @@ class DeveloperConsole:
 
     @console_command(is_cheat_protected=True)
     def set_dmx_attr(self, device_name: str, attribute: str, value):
+        """Sets any attribute of any DMX device to any value"""
         from controlpanel.scripts import ControlAPI
         setattr(ControlAPI.dmx.devices.get(device_name), attribute, value)
 
-    def handle_command(self, command: str, *, suppress_logging: bool = False):
+    def handle_command(self, command: str, *, suppress_logging: bool = False, ignore_cheat_protection: bool = False):
         if not suppress_logging:
             self.log.print(">>> " + command, color=self.primary_text_color, mirror_to_stdout=True)
         command_name, *args = command.split()
@@ -343,7 +358,7 @@ class DeveloperConsole:
         if func is None:
             self.log.print(f"No command {command_name} exists in the current game.", color=self.error_color, mirror_to_stdout=True)
             return
-        if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled:
+        if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled and not ignore_cheat_protection:
             self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
             return
         try:
@@ -393,7 +408,7 @@ class DeveloperConsole:
             string += f"<{param_type_name} {param_name}{"=" + str(param_default) if param_default else ""}> "
         return_type = get_type_hints(func).get('return', "undef")
         return_type_name = return_type.__name__ if return_type != "undef" else "undef"
-        string += f"-> {return_type_name}"
+        string += f"-> {return_type_name}" if return_type_name != "NoneType" else ""
         self.log.print(string, mirror_to_stdout=True)
 
     def resize(self, new_height: int = 100):
@@ -449,10 +464,19 @@ class DeveloperConsole:
 
 
 class Autocomplete:
+    MAX_HINT_LENGTH = 32
+    MAX_UNSHORTENED_HINT_LENGTH = 16
+
+    @dataclass
+    class Option:
+        name: str
+        type_hint: str
+        italics: bool = True
+
     def __init__(self, dev_console: DeveloperConsole):
         self.dev_console = dev_console
         self.show: bool = False
-        self.options: list[str] = []
+        self.options: list[Autocomplete.Option] = []
         self.position: int = 0  # the position at which the autocomplete is inserted
         self.surface: pg.Surface = pg.Surface((1, 1))
         self.selection_index: int = 0
@@ -465,7 +489,7 @@ class Autocomplete:
             self.selection_index = (self.selection_index - 1) % len(self.options)
             self.draw()
         elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-            self.dev_console.input_box.text = self.dev_console.input_box.text[0:self.position] + self.options[self.selection_index]
+            self.dev_console.input_box.text = self.dev_console.input_box.text[0:self.position] + self.options[self.selection_index].name
             if self.position == 0:
                 self.dev_console.input_box.text += " "
             self.dev_console.input_box.caret_position = len(self.dev_console.input_box.text)
@@ -483,7 +507,19 @@ class Autocomplete:
         words = text.split(" ", maxsplit=1)
         if len(words) == 1:
             self.position = 0
-            self.options: list[str] = list(command for command in self.dev_console.get_all_commands().keys() if command.startswith(text) and command != text)
+            self.options: list[Autocomplete.Option] = []
+            for command, func in self.dev_console.get_all_commands().items():
+                if not command.startswith(text) or command == text:
+                    continue
+                retrieved_value = None
+                if hint := getattr(func, "_hint", None):
+                    for command_carrier in (self.dev_console, self.dev_console.game_manager, self.dev_console.game_manager.get_game()):
+                        try:
+                            retrieved_value = hint(command_carrier)
+                            break
+                        except AttributeError:
+                            continue
+                self.options.append(Autocomplete.Option(command, str(retrieved_value) if retrieved_value is not None else "", False))
             if not self.options:
                 self.show = False
                 return
@@ -507,7 +543,8 @@ class Autocomplete:
 
     def draw(self):
         surface_border_width = 2
-        surface_width = max(len(option) for option in self.options) * self.dev_console.char_width + 2 * surface_border_width
+        hint_gap = 1 if any(option.type_hint for option in self.options) else 0
+        surface_width = max(len(option.name) + min(self.MAX_HINT_LENGTH, len(option.type_hint)) + hint_gap for option in self.options) * self.dev_console.char_width + 2 * surface_border_width
         surface_height = len(self.options) * self.dev_console.char_height + surface_border_width
 
         self.surface = pg.Surface((surface_width, surface_height))
@@ -516,9 +553,17 @@ class Autocomplete:
             if i == self.selection_index:
                 pg.draw.rect(self.surface, self.dev_console.highlight_color, (0, i * self.dev_console.char_height, surface_width, self.dev_console.char_height))
                 text_color = self.dev_console.primary_text_color
+                hint_color = self.dev_console.secondary_text_color
             else:
                 text_color = self.dev_console.secondary_text_color
-            self.surface.blit(self.dev_console.font.render(option, False, text_color, None), (surface_border_width, i * self.dev_console.char_height + surface_border_width))
+                hint_color = self.dev_console.border_color_bright
+            y = i * self.dev_console.char_height + surface_border_width
+            self.surface.blit(self.dev_console.font.render(option.name, False, text_color, None), (surface_border_width, y))
+            type_hint = option.type_hint if len(option.type_hint) <= self.MAX_HINT_LENGTH else option.type_hint[0:self.MAX_HINT_LENGTH-3]+"..."
+            if option.italics:
+                self.dev_console.font.set_italic(True)
+            self.surface.blit(self.dev_console.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.dev_console.char_width, y))
+            self.dev_console.font.set_italic(False)
         self.dev_console.draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.border_color_bright, self.dev_console.border_color_dark)
 
 

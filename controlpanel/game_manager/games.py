@@ -32,7 +32,7 @@ class BaseGame:
         self._base_tickrate = tickrate
         self._tickrate = tickrate * self._timescale
 
-    @console_command("tickrate", is_cheat_protected=True)
+    @console_command("tickrate", is_cheat_protected=True, hint=lambda self: self.tickrate)
     def set_tickrate(self, tickrate: float):
         """Sets the tickrate (updates per second) of the game. Ideally has no impact on simulation speed."""
         self.tickrate = tickrate
@@ -46,7 +46,7 @@ class BaseGame:
         self._timescale = new_timescale
         self._tickrate = self._base_tickrate * new_timescale
 
-    @console_command("host_timescale", "timescale", is_cheat_protected=True)
+    @console_command("host_timescale", "timescale", is_cheat_protected=True, hint=lambda self: self.timescale)
     def set_timescale(self, timescale: float):
         """Sets the tick speed (game simulation speed). Default is 1.0"""
         self.timescale = timescale
