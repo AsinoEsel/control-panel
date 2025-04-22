@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from controlpanel.shared.base import Fixture, Sensor
 import controlpanel.event_manager.dummy as dummylib
-from artnet import ArtNet
+if TYPE_CHECKING:
+    from artnet import ArtNet
 
 ESPNameType = str
 DeviceNameType = str
@@ -71,7 +72,7 @@ esp_device_manifest: dict[ESPNameType: list[tuple[DeviceNameType, DeviceKwargsTy
 }
 
 
-def get_instantiated_devices(artnet: ArtNet) -> DeviceManifestType:
+def get_instantiated_devices(artnet: "ArtNet") -> DeviceManifestType:
     auto_assign_universes = False
     instanciated_devices = dict()
     universe = START_UNIVERSE

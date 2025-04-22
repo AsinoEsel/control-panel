@@ -1,4 +1,7 @@
 from enum import IntEnum
+from dataclasses import dataclass
+from typing import Callable
+from threading import Thread
 import pygame as pg
 
 # Atomic numbers: iron = 26, oxygen = 8
@@ -21,3 +24,34 @@ class SubKey(IntEnum):
     Digit = 9  # 8 bit: 0-9
     BananaPlugs = 10  # 2 times 8 bit -> tuple[int, int]
     Any = 255  # n bits raw bytearray
+
+SourceNameType = str
+EventNameType = str
+EventValueType = bool | int | str | tuple | bytes | None
+
+
+@dataclass(frozen=True)
+class Event:
+    source: SourceNameType
+    name: EventNameType
+    value: EventValueType
+    sender: tuple[str, int] | None
+    timestamp: float
+
+
+@dataclass(frozen=True)
+class Condition:
+    source: SourceNameType
+    event_name: EventNameType
+    condition: EventValueType
+
+
+CallbackType = Callable[[Event], None]
+
+
+@dataclass
+class Subscriber:
+    callback: CallbackType
+    fire_once: bool = False
+    allow_parallelism: bool = False
+    thread: Thread | None = None

@@ -7,26 +7,28 @@ The scripts are run on execution of the "load_scripts" function in this package.
 import time
 import threading
 import types
-from typing import TypeVar
-from artnet import ArtNet
+from typing import TypeVar, TYPE_CHECKING, Optional
 from controlpanel.dmx import DMXUniverse
-from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
 from controlpanel.game_manager import GameManager, BaseGame
 from controlpanel.shared.base import Device, Fixture
 import os
 import sys
 import importlib
 from functools import wraps
-from controlpanel.shared.device_manifest import DeviceManifestType  # TODO: Fix console clutter coming from here
+from controlpanel.event_manager import Event
+if TYPE_CHECKING:
+    from controlpanel.shared.device_manifest import DeviceManifestType
+    from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
+    from artnet import ArtNet
 
 
 T = TypeVar("T", bound="BaseGame")
 
 
 class ControlAPI:
-    artnet: ArtNet = None
-    event_manager: EventManager = None
-    devices: DeviceManifestType = None
+    artnet: "ArtNet" = None
+    event_manager: "EventManager" = None
+    devices: "DeviceManifestType" = None
     game_manager: GameManager = None
     dmx: DMXUniverse = None
     loaded_scripts: dict[str, types.ModuleType] = {}
@@ -43,7 +45,7 @@ class ControlAPI:
         return cls.game_manager.get_game(name)
 
     @classmethod
-    def fire_event(cls, source: str = "", name: str = "", value: EventValueType = None):
+    def fire_event(cls, source: str = "", name: str = "", value: "EventValueType" = None):
         cls.event_manager.fire_event(Event(source, name, value, None, time.time()))
 
     @staticmethod
@@ -67,11 +69,11 @@ class ControlAPI:
         return decorator
 
     @classmethod
-    def subscribe(cls, callback: CallbackType, source_name: SourceNameType | None, event_name: EventNameType | None, condition_value: EventValueType | None, *, fire_once=False, allow_parallelism: bool=False):
+    def subscribe(cls, callback: "CallbackType", source_name: Optional["SourceNameType"], event_name: Optional["EventNameType"], condition_value: Optional["EventValueType"], *, fire_once=False, allow_parallelism: bool = False):
         cls.event_manager.subscribe(callback, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
     @classmethod
-    def callback(cls, source_name: SourceNameType | None = None, event_name: EventNameType | None = None, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
+    def callback(cls, source_name: Optional["SourceNameType"] = None, event_name: Optional["EventNameType"] = None, condition_value: Optional["EventValueType"] = None, *, fire_once=False, allow_parallelism: bool = False):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -142,6 +144,7 @@ def load_scripts(args: list[str]) -> None:
 
             success.append((arg, dependencies))
         except (ModuleNotFoundError, ImportError) as e:
+            raise
             failed.append((arg, e))
 
     if success:

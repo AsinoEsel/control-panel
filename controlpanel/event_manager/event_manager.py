@@ -1,46 +1,12 @@
-from artnet import ArtNet, OpCode
-from typing import Callable, Any
-from dataclasses import dataclass
+from typing import Any
 import time
-from .commons import SubKey, KEY_CONTROL_PANEL_PROTOCOL
 from threading import Thread
 from collections import defaultdict
 from controlpanel.shared.device_manifest import get_instantiated_devices
 from controlpanel.shared.base import Sensor, Fixture, Device
-from controlpanel.event_manager.commons import CONTROL_PANEL_EVENT
+from controlpanel.event_manager import *
 import pygame as pg
-
-
-SourceNameType = str
-EventNameType = str
-EventValueType = bool | int | str | tuple | bytes | None
-
-
-@dataclass(frozen=True)
-class Event:
-    source: SourceNameType
-    name: EventNameType
-    value: EventValueType
-    sender: tuple[str, int] | None
-    timestamp: float
-
-
-@dataclass(frozen=True)
-class Condition:
-    source: SourceNameType
-    event_name: EventNameType
-    condition: EventValueType
-
-
-CallbackType = Callable[[Event], None]
-
-
-@dataclass
-class Subscriber:
-    callback: CallbackType
-    fire_once: bool = False
-    allow_parallelism: bool = False
-    thread: Thread | None = None
+from artnet import ArtNet, OpCode
 
 
 class EventManager:
@@ -58,6 +24,7 @@ class EventManager:
     def __init__(self, artnet: ArtNet):
         self.artnet = artnet
         self.artnet.subscribe_all(self.receive)
+        self.print_incoming_packets: bool = True
         self.register: dict[Condition:list[Subscriber]] = defaultdict(list)
         self.devices: dict[str: Device] = get_instantiated_devices(artnet)
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
@@ -66,7 +33,8 @@ class EventManager:
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
         match op_code:
             case OpCode.ArtTrigger:
-                # print(f"Receiving ArtTrigger event: {reply}")
+                if self.print_incoming_packets:
+                    print(f"Receiving ArtTrigger event from {sender[0]}: {reply}")
 
                 key = reply.get("Key")
                 if key != KEY_CONTROL_PANEL_PROTOCOL:
@@ -96,14 +64,19 @@ class EventManager:
                 else:
                     self.fire_event(Event("Trigger", sensor_name, sensor_data, sender, ts))
 
-            # case OpCode.ArtDmx:
-            #     universe = reply.get("Universe")
-            #     data = reply.get("Data", b"")
-            #     fixture: Fixture | None = self.fixture_dict.get(universe)
-            #     # if fixture:
-            #     #     print(f"Parsing data for {fixture}")
-            #     #     fixture.parse_dmx_data(data)
-            #     self.fire_event(Event("DMX", reply.get("Universe"), data, sender, ts))
+            case OpCode.ArtDmx:
+                if self.print_incoming_packets:
+                    universe = reply.get("Universe")
+                    fixture: Fixture | None = self.fixture_dict.get(universe)
+                    values = [int(byte) for byte in reply.get("Data")]
+                    if fixture:
+                        print(f"Receiving ArtDMX event from {sender[0]} to fixture {fixture.name}: {values}")
+                    else:
+                        print(f"Receiving ArtDMX event from {sender[0]} to universe {reply.get("Universe")}: {reply.get("Data")}")
+
+            case OpCode.ArtCommand:
+                if self.print_incoming_packets:
+                    print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
 
     def fire_event(self, event: Event):
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")
@@ -123,9 +96,10 @@ class EventManager:
                     listeners.remove(listener)
 
     def receive(self, op_code: OpCode, ip: str, port: int, reply: Any) -> None:
-        # print(f"Received {op_code} from {ip}:{port}")
-        # for k, v in reply.items():
-        #     print(f"\t{k} = {v}")
+        # if self.print_incoming_packets:
+            # print(f"Received {op_code} from {ip}:{port}")
+            # for k, v in reply.items():
+            #     print(f"\t{k} = {v}")
 
         sender = (ip, port)
         ts = time.time()

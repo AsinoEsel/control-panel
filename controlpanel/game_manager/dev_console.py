@@ -313,17 +313,35 @@ class DeveloperConsole:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
 
     @console_command(is_cheat_protected=True)
-    def send_dmx(self, device_name: str, *values: int) -> None:
+    def send_artdmx(self, device_name_or_universe: str | int, *values: int) -> None:
         """Sends any number of integer values (0-255) to the universe of the given device"""
         from controlpanel.scripts import ControlAPI
-        data = bytes(values)
-        ControlAPI.send_dmx(device_name, data)
+        if ControlAPI.artnet:
+            data = bytes(values)
+            if type(device_name_or_universe) is str:
+                ControlAPI.send_dmx(device_name_or_universe, data)
+            elif type(device_name_or_universe) is int and 0 <= device_name_or_universe <= 65535:
+                ControlAPI.artnet.send_dmx(device_name_or_universe, 0, bytearray(data))
+        else:
+            print("Cannot send ArtDMX because artnet is not initialized")
 
     @console_command(is_cheat_protected=True)
-    def send_cmd(self, cmd: str):
+    def send_artcmd(self, cmd: str):
         """Sends the given ASCII string as an ArtCommand packet via Artnet"""
         from controlpanel.scripts import ControlAPI
-        ControlAPI.artnet.send_command(cmd.encode("ascii"))
+        if ControlAPI.artnet:
+            ControlAPI.artnet.send_command(cmd.encode("ascii"))
+        else:
+            print("Cannot send ArtCommand because artnet is not initialized")
+
+    @console_command(is_cheat_protected=True)
+    def send_arttrigger(self, key: int, subkey: int, data: str):
+        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
+        from controlpanel.scripts import ControlAPI
+        if ControlAPI.artnet:
+            ControlAPI.artnet.send_trigger(key, subkey, bytearray(data.encode("ASCII")))
+        else:
+            print("Cannot send ArtTrigger because artnet is not initialized")
 
     # @console_command(is_cheat_protected=True)
     # def set_dmx_channel(self, device_name: str, channel: int, value: int):
