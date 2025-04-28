@@ -1,4 +1,10 @@
 import pygame as pg
+from typing import Callable, Any
+
+
+ColorType = tuple[int, int, int]
+GetterType = Callable[[], Any]
+SetterType = Callable[[Any], None]
 
 
 def get_display_flags(fullscreen: bool, use_shaders: bool) -> int:
@@ -78,3 +84,12 @@ def scale_resolution(input_resolution: tuple[int, int], target_resolution: tuple
     upscaled_height = int(input_height * scale_factor)
 
     return upscaled_width, upscaled_height
+
+
+def draw_border_rect(surface: pg.Surface, vertices: tuple[int, int, int, int], offset: int, primary_color: ColorType, secondary_color: ColorType):
+    pixel_offset = 1 if offset % 2 == 0 else 0
+    left, top, width, height = vertices[0] + offset, vertices[1] + offset, vertices[2] - offset - pixel_offset, vertices[3] - offset - pixel_offset
+    pg.draw.line(surface, primary_color, (left, top), (left, top+height), 1)
+    pg.draw.line(surface, secondary_color, (left+width, top), (left+width, top+height), 1)
+    pg.draw.line(surface, primary_color, (left, top), (left+width, top), 1)
+    pg.draw.line(surface, secondary_color, (left, top+height), (left+width, top+height), 1)

@@ -1,5 +1,5 @@
 import pygame as pg
-from controlpanel.game_manager.dev_console import console_command
+from controlpanel.game_manager.dev_overlay import console_command
 import random
 
 
@@ -10,18 +10,23 @@ class BaseGame:
                  resolution: tuple[int, int],
                  *,
                  tickrate: float = 30.0,
-                 timescale: float = 1.0
+                 timescale: float = 1.0,
                  ):
         self.name = name
         self.screen = pg.surface.Surface(resolution)
         self._base_tickrate = tickrate
         self._tickrate = tickrate * timescale
         self._timescale = timescale
+        self._working_directory_override: str | None = None
         self._joysticks: dict[int: pg.joystick.JoystickType] = {}
         self.is_running: bool = True
         self._dt: float = 1 / tickrate * timescale
         # self.fallback_shaders = Shaders([resolution], [(-1, "To_BGRA", {"_MainTex": 0})])
         # self.shaders = shaders if shaders is not None else self.fallback_shaders
+
+    @property
+    def working_directory_override(self) -> str:
+        return self._working_directory_override
 
     @property
     def tickrate(self) -> float:

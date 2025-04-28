@@ -2,8 +2,7 @@ import controlpanel.dmx.devices
 from .window_manager_setup import *
 from .event_queue import event_queue
 from controlpanel.scripts.gui.widgets import Desktop
-from controlpanel.game_manager import BaseGame
-from controlpanel.game_manager.dev_console import console_command
+from controlpanel import console_command, BaseGame
 
 
 class WindowManager(BaseGame):
@@ -50,7 +49,6 @@ class WindowManager(BaseGame):
             self.desktop = desktop
 
     def handle_events(self, events: list[pg.event.Event]) -> None:
-        from controlpanel.scripts import ControlAPI
         if not self.desktop:
             return
         for event in events:

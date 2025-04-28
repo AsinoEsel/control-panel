@@ -9,11 +9,12 @@ from itertools import islice
 import types
 import sys
 from collections import deque
+from controlpanel.game_manager.utils import ColorType, GetterType, SetterType, draw_border_rect
+from .dev_overlay_element import DeveloperOverlayElement
+from pathlib import Path
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager, BaseGame
-
-
-ColorType = tuple[int, int, int]
+    from .dev_overlay import DeveloperOverlay
 
 
 class OutputRedirector:
@@ -55,13 +56,10 @@ class Logger:
                  screen_surface: pg.Surface,
                  max_relative_height: float = 0.3,
                  *,
-                 font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
+                 font_name: str = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "gui", "media", "clacon2.ttf"),
                  font_size: int = 20
                  ):
-        try:
-            self.font = pg.font.Font(font_name, font_size)
-        except FileNotFoundError:
-            self.font = None
+        self.font = pg.font.Font(font_name, font_size)
         max_lines = int(screen_surface.get_height() * max_relative_height / self.font.get_height())
 
         self.surface = pg.Surface((screen_surface.get_width(), max_lines * self.font.get_height()), flags=pg.SRCALPHA)
@@ -93,42 +91,15 @@ class Logger:
         surface.blit(self.surface, (0, surface.get_height() - self.surface.get_height()))
 
 
-class DeveloperConsole:
+class DeveloperConsole(DeveloperOverlayElement):
     DEFAULT_HEIGHT = 200
 
-    def __init__(self,
-                 game_manager: "GameManager",
-                 render_size: tuple[int, int],
-                 *,
-                 font_name: str = os.path.join(os.path.dirname(__file__), "..", "scripts", "gui", "media", "clacon2.ttf"),
-                 font_size: int = 20):
-        try:
-            self.font: pg.font.Font = pg.font.Font(font_name, font_size)
-        except FileNotFoundError:
-            self.font: pg.font.Font = pg.font.Font(None, font_size)
-        self.game_manager = game_manager
-        self.open: bool = False
-        self.dark_surface = pg.Surface(render_size)
-        self.dark_surface.fill((100, 100, 100))
+    def __init__(self, overlay: "DeveloperOverlay"):
+        super().__init__(overlay, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
 
-        self.primary_color = (76, 88, 68)
-        self.secondary_color = (62, 70, 55)
-        self.primary_text_color = (255, 255, 255)
-        self.secondary_text_color = (216, 222, 211)
-        self.border_color_dark = (40, 46, 34)
-        self.border_color_bright = (136, 145, 128)
-        self.highlight_color = (150, 135, 50)
-        self.error_color = (255, 64, 64)
-
-        self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
-        self.char_height = self.font.get_height()
-        self.border_offset = 6
-
-        self.surface: pg.Surface = pg.Surface((render_size[0], self.DEFAULT_HEIGHT))
-
-        input_box_height = int(self.char_height * 1.5)
-        log_width = input_box_width = render_size[0] - 2 * self.border_offset
-        max_log_height = render_size[0] - input_box_height - 3 * self.border_offset
+        input_box_height = int(overlay.char_height * 1.5)
+        log_width = input_box_width = overlay.render_size[0] - 2 * overlay.border_offset
+        max_log_height = overlay.render_size[0] - input_box_height - 3 * overlay.border_offset
 
         self.input_box = InputBox(self, (input_box_width, input_box_height))
         self.log = Log(self, (log_width, max_log_height))
@@ -142,7 +113,7 @@ class DeveloperConsole:
         namespace = types.SimpleNamespace()
         # setattr(self._namespace, "game", self.game_manager.get_game())  # deprecated
         setattr(namespace, "api", ControlAPI)
-        setattr(namespace, "game_manager", self.game_manager)
+        setattr(namespace, "game_manager", self.overlay.game_manager)
         setattr(namespace, "pg", pg)
         for script_name, script in ControlAPI.loaded_scripts.items():
             setattr(namespace, script_name, script)
@@ -153,16 +124,26 @@ class DeveloperConsole:
         """Gives the path of the current working directory"""
         return os.getcwd()
 
+    @console_command("change_cwd", "chdir", show_return_value=False)
+    def change_cwd(self, path: str) -> None:
+        os.chdir(os.path.join(os.getcwd(), path))
+
     @console_command(is_cheat_protected=True)
-    def load_game(self, module_name: str, *args: str) -> None:
-        """Takes in a dotted module path (i.e. module.main) and instantiates any "games" (subclasses of BaseGame)."""
-        from pathlib import Path
+    def load_game(self, module_name: str, module_directory: str = ".", *args) -> None:
         from controlpanel.game_manager import BaseGame
-        sys.path.append(str(Path.cwd()))
+
+        # If an extra_path is provided, join it with CWD and add to sys.path
+        if module_directory:
+            # Make sure to join the provided extra_path with the current working directory
+            module_directory = Path(module_directory).resolve()  # Resolves the path to an absolute path
+            sys.path.append(str(module_directory))
+
         try:
+            # Try importing the game module
+            print(f"Attempting to load {module_name} from {module_directory}...")
             game_module = importlib.import_module(module_name)
-        except ModuleNotFoundError:
-            print(f'Cannot load game: failed to find module named "{module_name}"')
+        except ModuleNotFoundError as e:
+            print(f'Failed to load module "{module_name}" due to missing module: {e}')
             return
 
         # Scan the module for classes that inherit from BaseGame
@@ -178,9 +159,11 @@ class DeveloperConsole:
 
         # Instantiate and use them
         for cls in games:
+            os.chdir(module_directory)
             instance = cls(*args)
+            instance._working_directory_override = module_directory
             print(f"Successfully loaded {cls.__name__}")
-            self.game_manager.add_game(instance, True)
+            self.overlay.game_manager.add_game(instance, True)
 
     @staticmethod
     def find_commands(instance: Union["GameManager", "BaseGame", "DeveloperConsole"]) -> dict[str: Callable[..., Any]]:
@@ -198,15 +181,15 @@ class DeveloperConsole:
 
     def get_all_commands(self) -> dict[str: Callable[..., Any]]:
         return (self.find_commands(self) |
-                self.find_commands(self.game_manager) |
-                self.find_commands(self.game_manager.get_game()))
+                self.find_commands(self.overlay.game_manager) |
+                self.find_commands(self.overlay.game_manager.get_game()))
 
     def list_all_commands(self):
         all_commands = (self.find_commands(self) |
-                        self.find_commands(self.game_manager) |
-                        self.find_commands(self.game_manager.get_game())).keys()
+                        self.find_commands(self.overlay.game_manager) |
+                        self.find_commands(self.overlay.game_manager.get_game())).keys()
         if not all_commands:
-            self.log.print("No console commands found.", color=self.error_color, mirror_to_stdout=True)
+            self.log.print("No console commands found.", color=self.overlay.error_color, mirror_to_stdout=True)
             return
         self.log.print("List of all available commands: (type help <command> for help)", mirror_to_stdout=True)
         column_gap = 2
@@ -218,7 +201,7 @@ class DeveloperConsole:
             if not chunk:
                 break
             self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
-                           color=self.secondary_text_color, mirror_to_stdout=True)
+                           color=self.overlay.secondary_text_color, mirror_to_stdout=True)
 
     def help_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         return 0, list(Autocomplete.Option(command, str(func.__doc__ or "")) for command, func in self.get_all_commands().items() if command.startswith(text) and command != text)
@@ -234,8 +217,8 @@ class DeveloperConsole:
             self.print_usage_string(command)
         else:
             self.log.print(
-                f"No command {command_name} exists in the game {self.game_manager.get_game().name}.",
-                color=self.error_color, mirror_to_stdout=True)
+                f"No command {command_name} exists in the game {self.overlay.game_manager.get_game().name}.",
+                color=self.overlay.error_color, mirror_to_stdout=True)
         return
 
     @console_command
@@ -302,7 +285,7 @@ class DeveloperConsole:
         try:
             return eval(eval_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
 
     @console_command(is_cheat_protected=True, show_return_value=False, autocomplete_function=eval_exec_autocomplete)
     def exec(self, exec_string: str):
@@ -310,7 +293,7 @@ class DeveloperConsole:
         try:
             return exec(exec_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
 
     @console_command(is_cheat_protected=True)
     def send_artdmx(self, device_name_or_universe: str | int, *values: int) -> None:
@@ -370,13 +353,13 @@ class DeveloperConsole:
 
     def handle_command(self, command: str, *, suppress_logging: bool = False, ignore_cheat_protection: bool = False):
         if not suppress_logging:
-            self.log.print(">>> " + command, color=self.primary_text_color, mirror_to_stdout=True)
+            self.log.print(">>> " + command, color=self.overlay.primary_text_color, mirror_to_stdout=True)
         command_name, *args = command.split()
         func = self.get_all_commands().get(command_name)
         if func is None:
-            self.log.print(f"No command {command_name} exists in the current game.", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"No command {command_name} exists in the current game.", color=self.overlay.error_color, mirror_to_stdout=True)
             return
-        if getattr(func, "_is_cheat_protected", False) and not self.game_manager.cheats_enabled and not ignore_cheat_protection:
+        if getattr(func, "_is_cheat_protected", False) and not self.overlay.game_manager.cheats_enabled and not ignore_cheat_protection:
             self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
             return
         try:
@@ -398,12 +381,12 @@ class DeveloperConsole:
                     try:
                         cast_args.append(param_type(arg))
                     except ValueError as e:
-                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
             return_value = func(*cast_args)
             if getattr(func, "_show_return_value", False):
                 self.log.print(str(return_value), mirror_to_stdout=True)
         except TypeError as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.error_color, mirror_to_stdout=True)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
             self.print_usage_string(func)
             return
 
@@ -430,13 +413,13 @@ class DeveloperConsole:
         self.log.print(string, mirror_to_stdout=True)
 
     def resize(self, new_height: int = 100):
-        new_height = min(self.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.border_offset, new_height))
+        new_height = min(self.overlay.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.overlay.border_offset, new_height))
         self.surface = pg.Surface((self.surface.get_width(), new_height))
 
     def handle_events(self, events: list[pg.event.Event]):
         for event in events:
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                self.game_manager.toggle_dev_console()
+                self.overlay.game_manager.toggle_dev_console()
             elif event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
                 self.resize(self.surface.get_height() - 50)
             elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
@@ -451,34 +434,33 @@ class DeveloperConsole:
                 self.input_box.handle_event(event)  # event gets passed down to input box
 
     def render(self, surface: pg.Surface):
-        self.surface.fill(self.primary_color)
+        # if not self.overlay.open:
+        #     for window in self.windows:
+        #         if window.pinned:
+        #             surface.blit(window.surface, window.rect)
+        #     return
 
-        visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.border_offset
-        self.surface.blit(self.log.surface, (self.border_offset, self.border_offset),
+        self.surface.fill(self.overlay.primary_color)
+
+        visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.overlay.border_offset
+        self.surface.blit(self.log.surface, (self.overlay.border_offset, self.overlay.border_offset),
                           (0, self.log.surface.get_height() - visible_log_height, self.log.surface.get_width(), visible_log_height))
 
         self.input_box.render_body()
-        input_box_x, input_box_y = (self.border_offset, self.surface.get_height() - self.input_box.surface.get_height() - self.border_offset)
+        input_box_x, input_box_y = (self.overlay.border_offset, self.surface.get_height() - self.input_box.surface.get_height() - self.overlay.border_offset)
         self.surface.blit(self.input_box.surface, (input_box_x, input_box_y))
 
         if visible_log_height > 0:
-            self.draw_border_rect(self.surface, (self.border_offset, self.border_offset, self.log.surface.get_width(), visible_log_height), -1, self.border_color_dark, self.border_color_bright)
-        self.draw_border_rect(self.surface, (input_box_x, input_box_y, self.input_box.surface.get_width(), self.input_box.surface.get_height()), -1, self.border_color_dark, self.border_color_bright)
-        self.draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.border_color_bright, self.border_color_dark)
+            draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
+        draw_border_rect(self.surface, (input_box_x, input_box_y, self.input_box.surface.get_width(), self.input_box.surface.get_height()), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
+        draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.border_color_bright, self.overlay.border_color_dark)
 
-        surface.blit(self.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
+        surface.blit(self.overlay.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
         surface.blit(self.surface, (0, 0))
+        # for window in self.windows:
+        #     surface.blit(window.surface, window.rect)
         if self.autocomplete.show:
-            surface.blit(self.autocomplete.surface, (self.border_offset + self.autocomplete.position * self.char_width, self.surface.get_height()))
-
-    @staticmethod
-    def draw_border_rect(surface: pg.Surface, vertices: tuple[int, int, int, int], offset: int, primary_color: ColorType, secondary_color: ColorType):
-        pixel_offset = 1 if offset % 2 == 0 else 0
-        left, top, width, height = vertices[0] + offset, vertices[1] + offset, vertices[2] - offset - pixel_offset, vertices[3] - offset - pixel_offset
-        pg.draw.line(surface, primary_color, (left, top), (left, top+height), 1)
-        pg.draw.line(surface, secondary_color, (left+width, top), (left+width, top+height), 1)
-        pg.draw.line(surface, primary_color, (left, top), (left+width, top), 1)
-        pg.draw.line(surface, secondary_color, (left, top+height), (left+width, top+height), 1)
+            surface.blit(self.autocomplete.surface, (self.overlay.border_offset + self.autocomplete.position * self.overlay.char_width, self.surface.get_height()))
 
 
 class Autocomplete:
@@ -531,7 +513,7 @@ class Autocomplete:
                     continue
                 retrieved_value = None
                 if hint := getattr(func, "_hint", None):
-                    for command_carrier in (self.dev_console, self.dev_console.game_manager, self.dev_console.game_manager.get_game()):
+                    for command_carrier in (self.dev_console, self.dev_console.overlay.game_manager, self.dev_console.overlay.game_manager.get_game()):
                         try:
                             retrieved_value = hint(command_carrier)
                             break
@@ -562,40 +544,40 @@ class Autocomplete:
     def draw(self):
         surface_border_width = 2
         hint_gap = 1 if any(option.type_hint for option in self.options) else 0
-        surface_width = max(len(option.name) + min(self.MAX_HINT_LENGTH, len(option.type_hint)) + hint_gap for option in self.options) * self.dev_console.char_width + 2 * surface_border_width
-        surface_height = len(self.options) * self.dev_console.char_height + surface_border_width
+        surface_width = max(len(option.name) + min(self.MAX_HINT_LENGTH, len(option.type_hint)) + hint_gap for option in self.options) * self.dev_console.overlay.char_width + 2 * surface_border_width
+        surface_height = len(self.options) * self.dev_console.overlay.char_height + surface_border_width
 
         self.surface = pg.Surface((surface_width, surface_height))
-        self.surface.fill(self.dev_console.primary_color)
+        self.surface.fill(self.dev_console.overlay.primary_color)
         for i, option in enumerate(self.options):
             if i == self.selection_index:
-                pg.draw.rect(self.surface, self.dev_console.highlight_color, (0, i * self.dev_console.char_height, surface_width, self.dev_console.char_height))
-                text_color = self.dev_console.primary_text_color
-                hint_color = self.dev_console.secondary_text_color
+                pg.draw.rect(self.surface, self.dev_console.overlay.highlight_color, (0, i * self.dev_console.overlay.char_height, surface_width, self.dev_console.overlay.char_height))
+                text_color = self.dev_console.overlay.primary_text_color
+                hint_color = self.dev_console.overlay.secondary_text_color
             else:
-                text_color = self.dev_console.secondary_text_color
-                hint_color = self.dev_console.border_color_bright
-            y = i * self.dev_console.char_height + surface_border_width
-            self.surface.blit(self.dev_console.font.render(option.name, False, text_color, None), (surface_border_width, y))
+                text_color = self.dev_console.overlay.secondary_text_color
+                hint_color = self.dev_console.overlay.border_color_bright
+            y = i * self.dev_console.overlay.char_height + surface_border_width
+            self.surface.blit(self.dev_console.overlay.font.render(option.name, False, text_color, None), (surface_border_width, y))
             type_hint = option.type_hint if len(option.type_hint) <= self.MAX_HINT_LENGTH else option.type_hint[0:self.MAX_HINT_LENGTH-3]+"..."
             if option.italics:
-                self.dev_console.font.set_italic(True)
-            self.surface.blit(self.dev_console.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.dev_console.char_width, y))
-            self.dev_console.font.set_italic(False)
-        self.dev_console.draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.border_color_bright, self.dev_console.border_color_dark)
+                self.dev_console.overlay.font.set_italic(True)
+            self.surface.blit(self.dev_console.overlay.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.dev_console.overlay.char_width, y))
+            self.dev_console.overlay.font.set_italic(False)
+        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.overlay.border_color_bright, self.dev_console.overlay.border_color_dark)
 
 
 class Log:
     def __init__(self, dev_console: DeveloperConsole, size: tuple[int, int]):
         self.dev_console = dev_console
         self.surface = pg.Surface(size)
-        self.surface.fill(dev_console.secondary_color)
+        self.surface.fill(dev_console.overlay.secondary_color)
 
         self.history: list[tuple[str, ColorType]] = []
         self.history_index: int = 0
 
     def render(self):
-        self.surface.fill(self.dev_console.secondary_color)
+        self.surface.fill(self.dev_console.overlay.secondary_color)
         for line, color in reversed(self.history[self.history_index::-1]):
             self.print(line, color, mirror_to_stdout=False, append_to_history=False)
 
@@ -605,22 +587,22 @@ class Log:
             self.history_index = len(self.history)
         if mirror_to_stdout:
             print("DEV: " + string, file=sys.__stdout__)
-        color = color if color is not None else self.dev_console.secondary_text_color
-        font_surface = self.dev_console.font.render(string, True, color, self.dev_console.secondary_color)
+        color = color if color is not None else self.dev_console.overlay.secondary_text_color
+        font_surface = self.dev_console.overlay.font.render(string, True, color, self.dev_console.overlay.secondary_color)
         dy = -font_surface.get_height()
         self.surface.scroll(0, dy)
-        self.surface.fill(self.dev_console.secondary_color, (0, self.surface.get_height() + dy, self.surface.get_width(), -dy))
+        self.surface.fill(self.dev_console.overlay.secondary_color, (0, self.surface.get_height() + dy, self.surface.get_width(), -dy))
         self.surface.blit(font_surface, (0, self.surface.get_height() - font_surface.get_height()))
 
 
 class InputBox:
     def __init__(self, dev_console: DeveloperConsole, size: tuple[int, int]) -> None:
         self.dev_console = dev_console
-        self.font = dev_console.font
+        self.font = dev_console.overlay.font
         self.surface = pg.Surface(size)
         self.text = ''
         self.clipboard = ''
-        self.max_chars = self.surface.get_width()//self.dev_console.char_width - 1
+        self.max_chars = self.surface.get_width()//self.dev_console.overlay.char_width - 1
         self.caret_position = 0
         self.draw_caret = True
         self.selection_range = None
@@ -734,22 +716,22 @@ class InputBox:
 
     def render_text(self):
         text_surface = self.font.render(self.text, True, self.color, None)
-        self.surface.blit(text_surface, (self.dev_console.char_width // 3, 5))
+        self.surface.blit(text_surface, (self.dev_console.overlay.char_width // 3, 5))
 
     def render_caret(self):
-        x = self.dev_console.char_width * (self.caret_position + 1 / 3)
-        pg.draw.line(self.surface, self.color, (x, self.dev_console.char_height // 6),
-                     (x, self.rect.height - self.dev_console.char_height // 6), 2)
+        x = self.dev_console.overlay.char_width * (self.caret_position + 1 / 3)
+        pg.draw.line(self.surface, self.color, (x, self.dev_console.overlay.char_height // 6),
+                     (x, self.rect.height - self.dev_console.overlay.char_height // 6), 2)
 
     def render_selection(self):
-        x = int(self.dev_console.char_width * (min(self.selection_range) + 1 / 3))
-        y = self.dev_console.char_height // 8
-        w = self.dev_console.char_width * (max(self.selection_range) - min(self.selection_range))
-        h = self.rect.height - 2 * self.dev_console.char_height // 8
-        pg.draw.rect(self.surface, self.dev_console.highlight_color, (x, y, w, h))
+        x = int(self.dev_console.overlay.char_width * (min(self.selection_range) + 1 / 3))
+        y = self.dev_console.overlay.char_height // 8
+        w = self.dev_console.overlay.char_width * (max(self.selection_range) - min(self.selection_range))
+        h = self.rect.height - 2 * self.dev_console.overlay.char_height // 8
+        pg.draw.rect(self.surface, self.dev_console.overlay.highlight_color, (x, y, w, h))
 
     def render_body(self):
-        self.surface.fill(self.dev_console.secondary_color)
+        self.surface.fill(self.dev_console.overlay.secondary_color)
         if self.selection_range:
             self.render_selection()
         self.render_text()

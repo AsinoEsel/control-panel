@@ -144,7 +144,6 @@ def load_scripts(args: list[str]) -> None:
 
             success.append((arg, dependencies))
         except (ModuleNotFoundError, ImportError) as e:
-            raise
             failed.append((arg, e))
 
     if success:

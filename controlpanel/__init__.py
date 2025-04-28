@@ -5,4 +5,4 @@ with contextlib.redirect_stdout(None):
     importlib.import_module("pygame")
 
 from controlpanel.game_manager.games import BaseGame
-from controlpanel.game_manager.dev_console import console_command
+from controlpanel.game_manager.dev_overlay.dev_console import console_command
