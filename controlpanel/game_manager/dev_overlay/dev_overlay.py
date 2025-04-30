@@ -1,7 +1,7 @@
 import os
 import pygame as pg
 from typing import TYPE_CHECKING
-from .dev_windows import Window
+from .dev_windows import Window, VariableMonitorWindow
 from .dev_console import DeveloperConsole
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
@@ -13,11 +13,17 @@ class DeveloperOverlay:
                  render_size: tuple[int, int],
                  *,
                  font_name: str = os.path.join(os.path.dirname(__file__), "assets", "clacon2.ttf"),
-                 font_size: int = 20):
+                 font_size: int = 20,
+                 font_name2: str = os.path.join(os.path.dirname(__file__), "assets", "trebuc.ttf"),
+                 font_size2: int = 12):
         try:
             self.font: pg.font.Font = pg.font.Font(font_name, font_size)
         except FileNotFoundError:
             self.font: pg.font.Font = pg.font.Font(None, font_size)
+        try:
+            self.font2: pg.font.Font = pg.font.Font(font_name2, font_size2)
+        except FileNotFoundError:
+            self.font2: pg.font.Font = pg.font.Font(None, font_size2)
         self.game_manager = game_manager
         self.render_size: tuple[int, int] = render_size
         self.open: bool = False
@@ -38,10 +44,22 @@ class DeveloperOverlay:
         self.border_offset = 6
 
         self.dev_console = DeveloperConsole(self)
-        self.windows: list[Window] = [Window(self, "Titlegggg ADASD", pg.Rect((250, 200, 400, 300)))]
+        self.windows: list[Window] = [
+            Window(self, None, pg.Rect((100, 250, 400, 300)), title="Window"),
+            VariableMonitorWindow(self, None, pg.Rect((650, 450, 400, 300)))
+        ]
 
     def handle_events(self, events: list[pg.event.Event]):
-        self.dev_console.handle_events(events)
+        for event in events:
+            if event.type == pg.MOUSEMOTION:
+                event.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
+            if self.dev_console.handle_event(event):
+                return
+            for window in self.windows:
+                if hasattr(event, "pos") and not window.rect.collidepoint(event.pos):
+                    continue
+                if window.handle_event_recursively(event):
+                    return
 
     def render(self, surface: pg.Surface):
         if not self.open:
@@ -54,7 +72,7 @@ class DeveloperOverlay:
 
         self.dev_console.render(surface)
         for window in self.windows:
-            surface.blit(window.surface, window.rect)
+            window.render_recursively(surface)
         if self.dev_console.autocomplete.show:
             surface.blit(self.dev_console.autocomplete.surface, (self.border_offset + self.dev_console.autocomplete.position * self.char_width, self.dev_console.surface.get_height()))
 

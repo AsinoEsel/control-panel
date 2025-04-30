@@ -9,7 +9,7 @@ from itertools import islice
 import types
 import sys
 from collections import deque
-from controlpanel.game_manager.utils import ColorType, GetterType, SetterType, draw_border_rect
+from controlpanel.game_manager.utils import ColorType, draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from pathlib import Path
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ class DeveloperConsole(DeveloperOverlayElement):
     DEFAULT_HEIGHT = 200
 
     def __init__(self, overlay: "DeveloperOverlay"):
-        super().__init__(overlay, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
+        super().__init__(overlay, None, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
 
         input_box_height = int(overlay.char_height * 1.5)
         log_width = input_box_width = overlay.render_size[0] - 2 * overlay.border_offset
@@ -416,22 +416,24 @@ class DeveloperConsole(DeveloperOverlayElement):
         new_height = min(self.overlay.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.overlay.border_offset, new_height))
         self.surface = pg.Surface((self.surface.get_width(), new_height))
 
-    def handle_events(self, events: list[pg.event.Event]):
-        for event in events:
-            if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                self.overlay.game_manager.toggle_dev_console()
-            elif event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
-                self.resize(self.surface.get_height() - 50)
-            elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
-                self.resize(self.surface.get_height() + 50)
-            elif event.type == pg.MOUSEWHEEL:
-                self.log.history_index -= event.y
-                self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
-                self.log.render()
-            elif self.autocomplete.handle_event(event):
-                pass  # event got eaten by Autocompleter
-            else:
-                self.input_box.handle_event(event)  # event gets passed down to input box
+    def handle_event(self, event: pg.event.Event) -> bool:
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            self.overlay.game_manager.toggle_dev_console()
+        elif event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
+            self.resize(self.surface.get_height() - 50)
+        elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
+            self.resize(self.surface.get_height() + 50)
+        elif event.type == pg.MOUSEWHEEL:
+            self.log.history_index -= event.y
+            self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
+            self.log.render()
+        elif self.autocomplete.handle_event(event):
+            pass  # event got eaten by Autocompleter
+        elif self.input_box.handle_event(event):
+            pass  # event got eaten by input box
+        else:
+            return False
+        return True
 
     def render(self, surface: pg.Surface):
         # if not self.overlay.open:
@@ -662,6 +664,11 @@ class InputBox:
                         self.erase_selection_range()
                     self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
                     self.move_caret(len(clipboard))
+            else:
+                return False
+        else:
+            return False
+        return True
 
     def enter(self, text: str):
         if text:

@@ -1,10 +1,13 @@
 import pygame as pg
-from typing import Callable, Any
 
 
 ColorType = tuple[int, int, int]
-GetterType = Callable[[], Any]
-SetterType = Callable[[Any], None]
+
+
+def maprange(value: int | float, start_range: tuple[int | float, int | float], end_range: tuple[int | float, int | float]) -> float:
+    w = (value-start_range[0]) / (start_range[1]-start_range[0])
+    y = end_range[0] + w * (end_range[1]-end_range[0])
+    return y
 
 
 def get_display_flags(fullscreen: bool, use_shaders: bool) -> int:

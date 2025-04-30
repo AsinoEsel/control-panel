@@ -12,11 +12,11 @@ class BaseGame:
                  tickrate: float = 30.0,
                  timescale: float = 1.0,
                  ):
-        self.name = name
-        self.screen = pg.surface.Surface(resolution)
-        self._base_tickrate = tickrate
-        self._tickrate = tickrate * timescale
-        self._timescale = timescale
+        self.name: str = name
+        self.screen: pg.Surface = pg.Surface(resolution)
+        self._base_tickrate: float = tickrate
+        self._tickrate: float = tickrate * timescale
+        self._timescale: float = timescale
         self._working_directory_override: str | None = None
         self._joysticks: dict[int: pg.joystick.JoystickType] = {}
         self.is_running: bool = True
