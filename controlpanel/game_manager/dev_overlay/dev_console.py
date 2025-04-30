@@ -469,13 +469,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             return False
         return True
 
-    def render(self, surface: pg.Surface):
-        # if not self.overlay.open:
-        #     for window in self.windows:
-        #         if window.pinned:
-        #             surface.blit(window.surface, window.rect)
-        #     return
-
+    def render(self):
         self.surface.fill(self.overlay.primary_color)
 
         visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.overlay.border_offset
@@ -490,13 +484,6 @@ class DeveloperConsole(DeveloperOverlayElement):
             draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
         draw_border_rect(self.surface, (input_box_x, input_box_y, self.input_box.surface.get_width(), self.input_box.surface.get_height()), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
         draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.border_color_bright, self.overlay.border_color_dark)
-
-        surface.blit(self.overlay.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
-        surface.blit(self.surface, (0, 0))
-        # for window in self.windows:
-        #     surface.blit(window.surface, window.rect)
-        if self.autocomplete.show:
-            surface.blit(self.autocomplete.surface, (self.overlay.border_offset + self.autocomplete.position * self.overlay.char_width, self.surface.get_height()))
 
 
 class Autocomplete:

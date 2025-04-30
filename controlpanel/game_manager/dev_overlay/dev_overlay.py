@@ -3,6 +3,7 @@ import pygame as pg
 from typing import TYPE_CHECKING
 from .dev_windows import Window, VariableMonitorWindow
 from .dev_console import DeveloperConsole
+from .dev_overlay_element import DeveloperOverlayElement
 from controlpanel.game_manager.utils import MOUSEMOTION_2
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
@@ -45,41 +46,46 @@ class DeveloperOverlay:
         self.border_offset = 6
 
         self.dev_console = DeveloperConsole(self)
-        self.windows: list[Window] = [
-            Window(self, None, pg.Rect((100, 250, 400, 300)), title="Window"),
-            VariableMonitorWindow(self, None, pg.Rect((650, 450, 400, 300)))
+        self.selected_child: DeveloperOverlayElement | None = None
+        self.children: list[DeveloperOverlayElement] = [
+            self.dev_console,
+            Window(self, self, pg.Rect((100, 250, 400, 300)), title="Window"),
+            VariableMonitorWindow(self, self, pg.Rect((650, 450, 400, 300))),
         ]
 
     def handle_events(self, events: list[pg.event.Event]):
+        # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
         for event in events:
             if event.type == pg.MOUSEMOTION:
                 mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict)
                 mouse_motion2.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
-                for window in self.windows:
-                    if not window.rect.collidepoint(mouse_motion2.pos):
+                for child in self.children:
+                    if not child.rect.collidepoint(mouse_motion2.pos):
                         continue
-                    if window.handle_event_recursively(mouse_motion2):
+                    if child.handle_event_recursively(mouse_motion2):
                         break
-            if self.dev_console.handle_event(event):
-                return
-            for window in self.windows:
-                if hasattr(event, "pos") and not window.rect.collidepoint(event.pos):
+            for child in self.children:
+                if hasattr(event, "pos") and not child.rect.collidepoint(event.pos):
                     continue
-                if window.handle_event_recursively(event):
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    self.selected_child = child
+                if child.handle_event_recursively(event):
                     return
+
+            if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
+                self.selected_child = None
 
     def render(self, surface: pg.Surface):
         if not self.open:
-            for window in self.windows:
-                if window.pinned:
-                    surface.blit(window.surface, window.rect)
+            for child in self.children:
+                if child.pinned:
+                    child.render_recursively(surface)
             return
 
         surface.blit(self.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
 
-        self.dev_console.render(surface)
-        for window in self.windows:
-            window.render_recursively(surface)
+        for child in self.children:
+            child.render_recursively(surface)
         if self.dev_console.autocomplete.show:
             surface.blit(self.dev_console.autocomplete.surface, (self.border_offset + self.dev_console.autocomplete.position * self.char_width, self.dev_console.surface.get_height()))
 

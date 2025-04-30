@@ -16,12 +16,13 @@ class DeveloperOverlayElement:
             self.surface.set_colorkey(colorkey)
         self.children: list[DeveloperOverlayElement] = []
         self.selected_child: DeveloperOverlayElement | None = None
+        self.pinned: bool = False
 
     def is_selected(self) -> bool:
         if self.selected_child is not None:  # not the last selected object in the linked list
             return False
         current = self
-        while current.parent is not None:  # recursively walk up the parent hierarchy to check if the linked list
+        while current is not self.overlay and current.parent is not None:  # recursively walk up the parent hierarchy to check if the linked list
             if current.parent.selected_child is not current:  # if link is broken, not selected
                 return False
             else:

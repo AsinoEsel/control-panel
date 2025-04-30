@@ -39,6 +39,8 @@ class Button(DeveloperOverlayElement):
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.MOUSEMOTION:
+            if self.is_selected() and pg.mouse.get_pressed()[0]:
+                self.pressed = True
             self.highlighted = True
             return True
         elif event.type == MOUSEMOTION_2:
@@ -110,7 +112,6 @@ class Window(DeveloperOverlayElement):
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, title: str):
         super().__init__(overlay, parent, rect)
         self.title: str = title
-        self.pinned: bool = False
         close_button: Button = Button(overlay, self, pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
                                                              self.overlay.border_offset,
                                                              12, 12), self.close, image=self.close_button_image)
@@ -129,7 +130,8 @@ class Window(DeveloperOverlayElement):
         self.pinned = not self.pinned
 
     def close(self):
-        self.overlay.windows.remove(self)
+        self.overlay.children.remove(self)
+        del self
 
     def render(self):
         super().render()
