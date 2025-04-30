@@ -10,6 +10,15 @@ if TYPE_CHECKING:
 
 
 class DeveloperOverlay:
+    primary_color: tuple[int, int, int] = (76, 88, 68)
+    secondary_color: tuple[int, int, int] = (62, 70, 55)
+    primary_text_color: tuple[int, int, int] = (255, 255, 255)
+    secondary_text_color: tuple[int, int, int] = (216, 222, 211)
+    border_color_dark: tuple[int, int, int] = (40, 46, 34)
+    border_color_bright: tuple[int, int, int] = (136, 145, 128)
+    highlight_color: tuple[int, int, int] = (150, 135, 50)
+    error_color: tuple[int, int, int] = (255, 64, 64)
+
     def __init__(self,
                  game_manager: "GameManager",
                  render_size: tuple[int, int],
@@ -29,17 +38,6 @@ class DeveloperOverlay:
         self.game_manager = game_manager
         self.render_size: tuple[int, int] = render_size
         self.open: bool = False
-        self.dark_surface = pg.Surface(render_size)
-        self.dark_surface.fill((100, 100, 100))
-
-        self.primary_color = (76, 88, 68)
-        self.secondary_color = (62, 70, 55)
-        self.primary_text_color = (255, 255, 255)
-        self.secondary_text_color = (216, 222, 211)
-        self.border_color_dark = (40, 46, 34)
-        self.border_color_bright = (136, 145, 128)
-        self.highlight_color = (150, 135, 50)
-        self.error_color = (255, 64, 64)
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
         self.char_height = self.font.get_height()
@@ -49,8 +47,6 @@ class DeveloperOverlay:
         self.selected_child: DeveloperOverlayElement | None = None
         self.children: list[DeveloperOverlayElement] = [
             self.dev_console,
-            Window(self, self, pg.Rect((100, 250, 400, 300)), title="Window"),
-            VariableMonitorWindow(self, self, pg.Rect((650, 450, 400, 300))),
         ]
 
     def handle_events(self, events: list[pg.event.Event]):
@@ -82,7 +78,7 @@ class DeveloperOverlay:
                     child.render_recursively(surface)
             return
 
-        surface.blit(self.dark_surface, (0, 0), special_flags=pg.BLEND_RGB_MULT)
+        surface.fill(self.primary_color, special_flags=pg.BLEND_RGB_MULT)
 
         for child in self.children:
             child.render_recursively(surface)

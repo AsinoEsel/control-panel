@@ -125,8 +125,6 @@ class DeveloperConsole(DeveloperOverlayElement):
     def print_exception_to_log(self, e: Exception) -> None:
         self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color,
                        mirror_to_stdout=True)
-        if isinstance(e, (NameError, AttributeError)):  # we don't care about tracebacks of these exceptions
-            return
         for line in traceback.format_exc().split("\n"):
             self.log.print(line, color=self.overlay.error_color, mirror_to_stdout=True)
 
@@ -158,12 +156,14 @@ class DeveloperConsole(DeveloperOverlayElement):
         """Gives the path of the current working directory"""
         return os.getcwd()
 
-    @console_command("change_cwd", "chdir", show_return_value=False)
+    @console_command("change_cwd", "chdir", show_return_value=False, is_cheat_protected=True)
     def change_cwd(self, path: str) -> None:
+        """Changes the CWD, relative paths only."""
         os.chdir(os.path.join(os.getcwd(), path))
 
     @console_command(is_cheat_protected=True)
     def load_game(self, module_name: str, module_directory: str = ".", *args) -> None:
+        """Dynamically load a game from a different directory. Example: 'load_game game_module.main ../GameDirectory'"""
         from controlpanel.game_manager import BaseGame
 
         # If an extra_path is provided, join it with CWD and add to sys.path
@@ -394,7 +394,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             self.log.print(f"No command {command_name} exists in the current game.", color=self.overlay.error_color, mirror_to_stdout=True)
             return
         if getattr(func, "_is_cheat_protected", False) and not self.overlay.game_manager.cheats_enabled and not ignore_cheat_protection:
-            self.log.print(f"The command {command_name} is cheat protected.", mirror_to_stdout=True)
+            self.log.print(f"The command {command_name} is cheat protected.", color=self.overlay.highlight_color, mirror_to_stdout=True)
             return
         try:
             cast_args = []
@@ -632,7 +632,7 @@ class InputBox:
         self.history: list[str] = []
         self.history_index = 0
         self.color = (255, 255, 255)
-        self.rect = pg.Rect((0, 0), self.surface.get_size())
+        self.rect = self.surface.get_rect()
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
