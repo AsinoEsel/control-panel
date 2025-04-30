@@ -155,10 +155,7 @@ class VariableMonitor(DeveloperOverlayElement):
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect):
         super().__init__(overlay, parent, rect)
         self.variables: list[VariableMonitor.Variable] = []
-        self.variable_height = overlay.char_height * 1.5
-
-        self.some_var: int = 42
-        self.register_variable(self, "some_var", "Some Var")
+        self.variable_height: int = int(overlay.char_height * 1.5)
 
     def register_variable(self, obj: object, attr: str, name: str = None):
         rect = pg.Rect(0, len(self.children) * self.variable_height, self.rect.w, self.variable_height)

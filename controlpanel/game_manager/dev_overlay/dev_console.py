@@ -110,14 +110,44 @@ class DeveloperConsole(DeveloperOverlayElement):
     def _setup_namespace(self) -> types.SimpleNamespace:
         """Updates the namespace that allows for the eval and exec commands to find the names of attributes and such."""
         from controlpanel.scripts import ControlAPI
+        import controlpanel as cp
         namespace = types.SimpleNamespace()
         # setattr(self._namespace, "game", self.game_manager.get_game())  # deprecated
         setattr(namespace, "api", ControlAPI)
         setattr(namespace, "game_manager", self.overlay.game_manager)
         setattr(namespace, "pg", pg)
+        setattr(namespace, "cp", cp)
         for script_name, script in ControlAPI.loaded_scripts.items():
             setattr(namespace, script_name, script)
         return namespace
+
+    def exec_cfg_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
+        directory = Path(self.overlay.game_manager._base_cwd) / "configs"
+        if not directory.exists():
+            return 0, [Autocomplete.Option("", f"No configs/ directory was found.")]
+        files = [f.name for f in Path(directory).iterdir() if f.is_file() and f.name.startswith(text) and f.name != text]
+        return 0, list(Autocomplete.Option(file, "") for file in files)
+
+    @console_command(autocomplete_function=exec_cfg_autocomplete, is_cheat_protected=True)
+    def exec_cfg(self, config: str) -> None:
+        """Executes any file containing python code in the configs/ directory"""
+        if not config.endswith(".cfg"):
+            config += ".cfg"
+        filename = Path(self.overlay.game_manager._base_cwd) / "configs" / config
+        if not filename.exists():
+            print(f"Config {config} does not exist.")
+            return
+        with open(filename, 'r') as file:
+            code = file.read()
+            try:
+                exec(code, None, self._namespace.__dict__)
+            except Exception as e:
+                self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color,
+                               mirror_to_stdout=True)
+                import traceback
+                for line in traceback.format_exc().split("\n"):
+                    self.log.print(line, color=self.overlay.error_color, mirror_to_stdout=True)
+
 
     @console_command(show_return_value=True)
     def get_cwd(self) -> str:
@@ -291,7 +321,7 @@ class DeveloperConsole(DeveloperOverlayElement):
     def exec(self, exec_string: str):
         """Execute an arbitrary string"""
         try:
-            return exec(exec_string, None, self._namespace.__dict__)
+            exec(exec_string, None, self._namespace.__dict__)
         except (NameError, AttributeError, SyntaxError) as e:
             self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
 
