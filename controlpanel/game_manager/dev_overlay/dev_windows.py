@@ -1,5 +1,5 @@
 import pygame as pg
-from controlpanel.game_manager.utils import draw_border_rect, maprange
+from controlpanel.game_manager.utils import draw_border_rect, maprange, MOUSEMOTION_2
 from .dev_overlay_element import DeveloperOverlayElement
 from typing import TYPE_CHECKING, Callable, Any, get_type_hints, Optional, Type, Union
 import os
@@ -8,23 +8,52 @@ if TYPE_CHECKING:
 
 
 class Button(DeveloperOverlayElement):
-    def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, callback: Callable[[], None] = lambda: None, image: pg.Surface | None = None):
+    def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, callback: Callable[[], None], *, image: pg.Surface | None = None, toggle: bool = False):
         super().__init__(overlay, parent, rect)
+        self.callback: Callable[[], None] = callback
         self.image: pg.Surface | None = image
+        self.toggle: bool = toggle
+        if toggle:
+            self.state: bool = False
+        self.highlighted: bool = False
         self.pressed: bool = False
-        self.push_callback: Callable[[], None] = callback
 
     def render(self):
-        self.render_body()
+        self.surface.fill(self.overlay.primary_color)
         if self.image:
-            self.surface.blit(self.image, (0, 0))
+            tinted_image = self.image.copy()
+            if self.toggle and self.state:
+                tinted_image.fill(self.overlay.highlight_color, special_flags=pg.BLEND_RGB_MULT)
             if self.pressed:
-                self.surface.fill(self.overlay.highlight_color, special_flags=pg.BLEND_RGB_MULT)
+                tinted_image.fill(self.overlay.secondary_text_color, special_flags=pg.BLEND_RGB_MULT)
+            self.surface.blit(tinted_image, (0, 0) if not self.pressed else (1, 1))
+
+        if self.pressed:
+            draw_border_rect(self.surface,
+                             (0, 0, self.rect.w, self.rect.h), 0,
+                             self.overlay.border_color_dark, self.overlay.border_color_bright)
+        else:
+            draw_border_rect(self.surface,
+                             (0, 0, self.rect.w, self.rect.h), 0,
+                             self.overlay.border_color_bright, self.overlay.border_color_dark)
 
     def handle_event(self, event: pg.event.Event) -> bool:
-        if event.type == pg.MOUSEBUTTONDOWN:
-            self.push_callback()
+        if event.type == pg.MOUSEMOTION:
+            self.highlighted = True
+            return True
+        elif event.type == MOUSEMOTION_2:
+            if not 0 < event.pos[0] + event.rel[0] < self.rect.w or not 0 < event.pos[1] + event.rel[1] < self.rect.h:
+                self.pressed = False
+                self.highlighted = False
+                self.render()
+                return True
+        elif event.type == pg.MOUSEBUTTONDOWN:
             self.pressed = True
+        elif event.type == pg.MOUSEBUTTONUP and self.is_selected():
+            self.pressed = False
+            if self.toggle:
+                self.state = not self.state
+            self.callback()
             return True
         return False
 
@@ -84,11 +113,11 @@ class Window(DeveloperOverlayElement):
         self.pinned: bool = False
         close_button: Button = Button(overlay, self, pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
                                                              self.overlay.border_offset,
-                                                             12, 12), self.close, self.close_button_image)
+                                                             12, 12), self.close, image=self.close_button_image)
         pin_button: Button = Button(overlay, self,
                                     pg.Rect(self.rect.w - 2 * self.button_size - 2 * self.overlay.border_offset,
                                             self.overlay.border_offset,
-                                            12, 12), self.toggle_pinned, self.pin_button_image)
+                                            12, 12), self.toggle_pinned, image=self.pin_button_image, toggle=True)
         self.children.append(close_button)
         self.children.append(pin_button)
         self.body_rect = pg.Rect(self.overlay.border_offset,
@@ -111,7 +140,7 @@ class Window(DeveloperOverlayElement):
         self.surface.blit(title_surface, (self.overlay.border_offset, self.overlay.border_offset))
 
     def handle_event(self, event: pg.event.Event) -> bool:
-        if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and not any(child.rect.collidepoint(event.pos) for child in self.children):
+        if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and not any(child.rect.collidepoint(event.pos) for child in self.children) and self.is_selected():
             self.rect.move_ip(event.rel)
             # self.rect.right = min(self.rect.right, self.parent.rect.right)  # TODO: clamp window position
             # ...

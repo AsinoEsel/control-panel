@@ -2,6 +2,7 @@ import pygame as pg
 
 
 ColorType = tuple[int, int, int]
+MOUSEMOTION_2 = pg.event.custom_type()
 
 
 def maprange(value: int | float, start_range: tuple[int | float, int | float], end_range: tuple[int | float, int | float]) -> float:

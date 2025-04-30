@@ -3,6 +3,7 @@ import pygame as pg
 from typing import TYPE_CHECKING
 from .dev_windows import Window, VariableMonitorWindow
 from .dev_console import DeveloperConsole
+from controlpanel.game_manager.utils import MOUSEMOTION_2
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
 
@@ -52,7 +53,13 @@ class DeveloperOverlay:
     def handle_events(self, events: list[pg.event.Event]):
         for event in events:
             if event.type == pg.MOUSEMOTION:
-                event.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
+                mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict)
+                mouse_motion2.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
+                for window in self.windows:
+                    if not window.rect.collidepoint(mouse_motion2.pos):
+                        continue
+                    if window.handle_event_recursively(mouse_motion2):
+                        break
             if self.dev_console.handle_event(event):
                 return
             for window in self.windows:

@@ -15,6 +15,18 @@ class DeveloperOverlayElement:
         if colorkey:
             self.surface.set_colorkey(colorkey)
         self.children: list[DeveloperOverlayElement] = []
+        self.selected_child: DeveloperOverlayElement | None = None
+
+    def is_selected(self) -> bool:
+        if self.selected_child is not None:  # not the last selected object in the linked list
+            return False
+        current = self
+        while current.parent is not None:  # recursively walk up the parent hierarchy to check if the linked list
+            if current.parent.selected_child is not current:  # if link is broken, not selected
+                return False
+            else:
+                current = current.parent
+        return True  # we reached the top of the linked list, so we are the selected object
 
     def render_recursively(self, surface: pg.Surface):
         self.render()
@@ -40,8 +52,13 @@ class DeveloperOverlayElement:
         for child in self.children:
             if hasattr(event, "pos") and not child.rect.collidepoint(event.pos):
                 continue
+            if event.type == pg.MOUSEBUTTONDOWN:  # TODO: child selection
+                self.selected_child = child
             if child.handle_event_recursively(event):
                 return True  # eaten by child
+
+        if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
+            self.selected_child = None
 
         if hasattr(event, "pos"):
             event.pos = (event.pos[0] + self.rect.left, event.pos[1] + self.rect.top)

@@ -12,6 +12,7 @@ from collections import deque
 from controlpanel.game_manager.utils import ColorType, draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from pathlib import Path
+import traceback
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager, BaseGame
     from .dev_overlay import DeveloperOverlay
@@ -121,6 +122,14 @@ class DeveloperConsole(DeveloperOverlayElement):
             setattr(namespace, script_name, script)
         return namespace
 
+    def print_exception_to_log(self, e: Exception) -> None:
+        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color,
+                       mirror_to_stdout=True)
+        if isinstance(e, (NameError, AttributeError)):  # we don't care about tracebacks of these exceptions
+            return
+        for line in traceback.format_exc().split("\n"):
+            self.log.print(line, color=self.overlay.error_color, mirror_to_stdout=True)
+
     def exec_cfg_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         directory = Path(self.overlay.game_manager._base_cwd) / "configs"
         if not directory.exists():
@@ -142,12 +151,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             try:
                 exec(code, None, self._namespace.__dict__)
             except Exception as e:
-                self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color,
-                               mirror_to_stdout=True)
-                import traceback
-                for line in traceback.format_exc().split("\n"):
-                    self.log.print(line, color=self.overlay.error_color, mirror_to_stdout=True)
-
+                self.print_exception_to_log(e)
 
     @console_command(show_return_value=True)
     def get_cwd(self) -> str:
@@ -314,16 +318,16 @@ class DeveloperConsole(DeveloperOverlayElement):
         """Evaluate an arbitrary string"""
         try:
             return eval(eval_string, None, self._namespace.__dict__)
-        except (NameError, AttributeError, SyntaxError) as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
+        except Exception as e:
+            self.print_exception_to_log(e)
 
     @console_command(is_cheat_protected=True, show_return_value=False, autocomplete_function=eval_exec_autocomplete)
     def exec(self, exec_string: str):
         """Execute an arbitrary string"""
         try:
             exec(exec_string, None, self._namespace.__dict__)
-        except (NameError, AttributeError, SyntaxError) as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
+        except Exception as e:
+            self.print_exception_to_log(e)
 
     @console_command(is_cheat_protected=True)
     def send_artdmx(self, device_name_or_universe: str | int, *values: int) -> None:
