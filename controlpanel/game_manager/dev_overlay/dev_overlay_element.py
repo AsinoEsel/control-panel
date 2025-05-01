@@ -1,6 +1,5 @@
 import pygame as pg
 from typing import TYPE_CHECKING, Optional
-from abc import abstractmethod
 from controlpanel.game_manager.utils import draw_border_rect
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
@@ -22,7 +21,7 @@ class DeveloperOverlayElement:
         if self.selected_child is not None:  # not the last selected object in the linked list
             return False
         current = self
-        while current is not self.overlay and current.parent is not None:  # recursively walk up the parent hierarchy to check if the linked list
+        while current is not self.overlay:  # recursively walk up the parent hierarchy
             if current.parent.selected_child is not current:  # if link is broken, not selected
                 return False
             else:
@@ -36,9 +35,9 @@ class DeveloperOverlayElement:
         surface.blit(self.surface, self.rect)
 
     def render_body(self):
-        self.surface.fill(self.overlay.primary_color)
+        self.surface.fill(self.overlay.PRIMARY_COLOR)
         draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0,
-                         self.overlay.border_color_bright, self.overlay.border_color_dark)
+                         self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
 
     def render(self):
         self.render_body()

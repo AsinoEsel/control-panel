@@ -19,24 +19,24 @@ class Button(DeveloperOverlayElement):
         self.pressed: bool = False
 
     def render(self):
-        self.surface.fill(self.overlay.primary_color)
+        self.surface.fill(self.overlay.PRIMARY_COLOR)
         if self.image:
             tinted_image = self.image.copy()
             if self.toggle and self.state:
-                tinted_image.fill(self.overlay.highlight_color, special_flags=pg.BLEND_RGB_MULT)
+                tinted_image.fill(self.overlay.HIGHLIGHT_COLOR, special_flags=pg.BLEND_RGB_MULT)
             if self.pressed:
-                tinted_image.fill(self.overlay.secondary_text_color, special_flags=pg.BLEND_RGB_MULT)
+                tinted_image.fill(self.overlay.SECONDARY_TEXT_COLOR, special_flags=pg.BLEND_RGB_MULT)
             dest = ((self.rect.w - self.image.get_width()) // 2, (self.rect.h - self.image.get_height()) // 2)
             self.surface.blit(tinted_image, dest if not self.pressed else (dest[0]+1, dest[1]+1))
 
         if self.pressed:
             draw_border_rect(self.surface,
                              (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.border_color_dark, self.overlay.border_color_bright)
+                             self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
         else:
             draw_border_rect(self.surface,
                              (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.border_color_bright, self.overlay.border_color_dark)
+                             self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.MOUSEMOTION:
@@ -90,11 +90,17 @@ class Slider(DeveloperOverlayElement):
         self.handle_rect.left = (value - self.value_range[0]) / (
                     self.value_range[1] - self.value_range[0]) * self.groove_rect.w
 
+    def set_value(self, mouse_x: int):
+        mapped_val = maprange(mouse_x, (self.groove_rect.left, self.groove_rect.right), self.value_range)
+        val = self.domain(min(self.value_range[1], max(self.value_range[0], mapped_val)))
+        self.setter(val)
+
     def handle_event(self, event: pg.event.Event) -> bool:
-        if event.type == pg.MOUSEBUTTONDOWN:
-            mapped_val = maprange(event.pos[0], (self.groove_rect.left, self.groove_rect.right), self.value_range)
-            val = self.domain(min(self.value_range[1], max(self.value_range[0], mapped_val)))
-            self.setter(val)
+        if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and self.is_selected():
+            self.set_value(event.pos[0])
+            return True
+        elif event.type == pg.MOUSEBUTTONDOWN:
+            self.set_value(event.pos[0])
             return True
         return False
 
@@ -102,9 +108,9 @@ class Slider(DeveloperOverlayElement):
         self.surface.fill(self.TRANSPARENCY)
         self.set_handle_position(self.getter())
         pg.draw.rect(self.surface, self.COLOR, self.groove_rect)
-        draw_border_rect(self.surface, (self.groove_rect.left, self.groove_rect.top, self.groove_rect.w, self.groove_rect.h), 0, self.overlay.border_color_dark, self.overlay.border_color_bright)
-        pg.draw.rect(self.surface, self.overlay.primary_color, self.handle_rect)
-        draw_border_rect(self.surface, (self.handle_rect.left, self.handle_rect.top, self.handle_rect.w, self.handle_rect.h), 0, self.overlay.border_color_bright, self.overlay.border_color_dark)
+        draw_border_rect(self.surface, (self.groove_rect.left, self.groove_rect.top, self.groove_rect.w, self.groove_rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
+        pg.draw.rect(self.surface, self.overlay.PRIMARY_COLOR, self.handle_rect)
+        draw_border_rect(self.surface, (self.handle_rect.left, self.handle_rect.top, self.handle_rect.w, self.handle_rect.h), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
 
 
 class Checkbox(DeveloperOverlayElement):
@@ -128,10 +134,10 @@ class Checkbox(DeveloperOverlayElement):
         return False
 
     def render(self):
-        self.surface.fill(self.overlay.secondary_color)
+        self.surface.fill(self.overlay.SECONDARY_COLOR)
         if self.getter():
             self.surface.blit(self.CHECK_IMAGE, (0, 0))
-        draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0, self.overlay.border_color_dark, self.overlay.border_color_bright)
+        draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
 
 
 class ColorPicker(DeveloperOverlayElement):
@@ -141,27 +147,27 @@ class ColorPicker(DeveloperOverlayElement):
         super().__init__(overlay, parent, pg.Rect(pos, (self.COLOR_PICKER_IMAGE.get_width()+2, self.COLOR_PICKER_IMAGE.get_height()+2)))
 
     def render(self):
-        self.surface.fill(self.overlay.primary_color)
+        self.surface.fill(self.overlay.PRIMARY_COLOR)
         self.surface.blit(self.COLOR_PICKER_IMAGE, (1, 1))
-        pg.draw.circle(self.surface, self.overlay.border_color_dark, (self.rect.w//2, self.rect.h//2), self.rect.w//2, 1)
-        pg.draw.circle(self.surface, self.overlay.border_color_bright, (self.rect.w//2, self.rect.h//2), self.rect.w//2, 1, draw_bottom_right=True)
+        pg.draw.circle(self.surface, self.overlay.BORDER_COLOR_DARK, (self.rect.w // 2, self.rect.h // 2), self.rect.w // 2, 1)
+        pg.draw.circle(self.surface, self.overlay.BORDER_COLOR_LIGHT, (self.rect.w // 2, self.rect.h // 2), self.rect.w // 2, 1, draw_bottom_right=True)
 
 
 class Window(DeveloperOverlayElement):
     close_button_image: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "x.png"))
     pin_button_image: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "pin.png"))
-    button_size: int = 12
+    button_size: int = 14
 
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, title: str):
         super().__init__(overlay, parent, rect)
         self.title: str = title
         close_button: Button = Button(overlay, self, pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
                                                              self.overlay.border_offset,
-                                                             12, 12), self.close, image=self.close_button_image)
+                                                             self.button_size, self.button_size), self.close, image=self.close_button_image)
         pin_button: Button = Button(overlay, self,
                                     pg.Rect(self.rect.w - 2 * self.button_size - 2 * self.overlay.border_offset,
                                             self.overlay.border_offset,
-                                            12, 12), self.toggle_pinned, image=self.pin_button_image, toggle=True)
+                                            self.button_size, self.button_size), self.toggle_pinned, image=self.pin_button_image, toggle=True)
         self.children.append(close_button)
         self.children.append(pin_button)
         self.body_rect = pg.Rect(self.overlay.border_offset,
@@ -181,7 +187,7 @@ class Window(DeveloperOverlayElement):
         self.render_header()
 
     def render_header(self):
-        title_surface = self.overlay.font.render(self.title, False, self.overlay.primary_text_color, self.overlay.primary_color)
+        title_surface = self.overlay.font.render(self.title, False, self.overlay.PRIMARY_TEXT_COLOR, self.overlay.PRIMARY_COLOR)
         self.surface.blit(title_surface, (self.overlay.border_offset, self.overlay.border_offset))
 
     def handle_event(self, event: pg.event.Event) -> bool:
@@ -218,13 +224,17 @@ class VariableMonitor(DeveloperOverlayElement):
             elif var_type is bool:
                 offset: int = (self.rect.h - Checkbox.SIZE) // 2
                 self.children.append(Checkbox(overlay, self, (self.rect.right-Checkbox.SIZE-offset, offset), var_setter, var_getter))
+            elif var_type is str:
+                height: int = self.rect.h - self.overlay.border_offset
+                offset: int = (self.rect.h - height) // 2
+                self.children.append(InputBox(overlay, self, pg.Rect(self.rect.centerx, offset, self.rect.w//2-offset, height), setter_editing=var_setter))
             else:
                 print(var_type)
 
         def render(self):
             super().render()
-            name_surf = self.overlay.font2.render(self.name, False, self.overlay.primary_text_color, self.overlay.primary_color)
-            val_surf = self.overlay.font2.render(str(self.getter()), False, self.overlay.secondary_text_color, self.overlay.primary_color)
+            name_surf = self.overlay.font2.render(self.name, False, self.overlay.PRIMARY_TEXT_COLOR, self.overlay.PRIMARY_COLOR)
+            val_surf = self.overlay.font2.render(str(self.getter()), False, self.overlay.SECONDARY_TEXT_COLOR, self.overlay.PRIMARY_COLOR)
             offset = self.rect.h//2 - name_surf.get_height() // 2
             self.surface.blit(name_surf, (2 * offset, offset))
             edit_element_width = self.children[0].rect.w if self.children else 0
@@ -241,7 +251,7 @@ class VariableMonitor(DeveloperOverlayElement):
         var_type = get_type_hints(obj.__class__).get(attr) or get_type_hints(obj.__class__.__init__).get(attr) or type(getattr(obj, attr))
         def getter(): return getattr(obj, attr)
         def setter(var): setattr(obj, attr, var)
-        variable = VariableMonitor.Variable(self.overlay, self.parent, rect, var_name, var_type, getter, setter)
+        variable = VariableMonitor.Variable(self.overlay, self, rect, var_name, var_type, getter, setter)
         self.children.append(variable)
 
 
@@ -256,4 +266,155 @@ class ColorPickerWindow(Window):
                                                            self.rect.h - self.CONFIRM_BUTTON_SIZE[1] - overlay.border_offset,
                                                            self.CONFIRM_BUTTON_SIZE[0],
                                                            self.CONFIRM_BUTTON_SIZE[1]), self.close,
-                                    image=overlay.font2.render("Confirm", False, overlay.primary_text_color, overlay.primary_color)))
+                                    image=overlay.font2.render("Confirm", False, overlay.PRIMARY_TEXT_COLOR, overlay.PRIMARY_COLOR)))
+
+
+class InputBox(DeveloperOverlayElement):
+    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect,
+                 setter_editing: Callable[[str], None] = lambda x: None,
+                 setter_sending: Callable[[str], None] = lambda x: None) -> None:
+        super().__init__(overlay, parent, rect)
+        self.setter_editing: Callable[[str], None] = setter_editing
+        self.setter_sending: Callable[[str], None] = setter_sending
+        self.text = ''
+        self.clipboard = ''
+        self.max_chars = self.surface.get_width()//self.overlay.char_width - 1
+        self.caret_position = 0
+        self.draw_caret = True
+        self.selection_range = None
+        self.history: list[str] = []
+        self.history_index = 0
+        self.color = (255, 255, 255)
+
+    def handle_event(self, event: pg.event.Event):
+        if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
+            if self.selection_range:
+                self.erase_selection_range()
+            self.text = self.text[0:self.caret_position] + event.text + self.text[self.caret_position:]
+            self.caret_position += 1
+            self.setter_editing(self.text)
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_RETURN:
+                self.enter()
+            elif event.key == pg.K_BACKSPACE:
+                if self.selection_range:
+                    self.erase_selection_range()
+                else:
+                    self.move_caret(-1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
+                self.setter_editing(self.text)
+            elif event.key == pg.K_DELETE:
+                if self.selection_range:
+                    self.erase_selection_range()
+                else:
+                    self.move_caret(1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
+                self.setter_editing(self.text)
+            elif event.key == pg.K_LEFT:
+                self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
+            elif event.key == pg.K_RIGHT:
+                self.move_caret(1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
+            elif event.key == pg.K_UP:
+                if self.history_index > -len(self.history):
+                    self.history_index -= 1
+                    self.text = self.history[self.history_index]
+                self.caret_position = len(self.text)
+            elif event.key == pg.K_DOWN:
+                if self.history_index < -1:
+                    self.history_index += 1
+                    self.text = self.history[self.history_index]
+                self.caret_position = len(self.text)
+            elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
+                self.selection_range = [0, len(self.text)]
+            elif event.key == pg.K_c and event.mod & pg.KMOD_CTRL:
+                if self.selection_range and self.selection_range[0] != self.selection_range[1]:
+                    self.clipboard = self.text[min(self.selection_range):max(self.selection_range)]
+            elif event.key == pg.K_x and event.mod & pg.KMOD_CTRL:
+                if self.selection_range and self.selection_range[0] != self.selection_range[1]:
+                    self.clipboard = self.text[min(self.selection_range):max(self.selection_range)]
+                    self.erase_selection_range()
+            elif event.key == pg.K_v and event.mod & pg.KMOD_CTRL:
+                if clipboard := self.clipboard:
+                    if self.selection_range:
+                        self.erase_selection_range()
+                    self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
+                    self.move_caret(len(clipboard))
+            else:
+                return False
+        else:
+            return False
+        return True
+
+    def enter(self):
+        if self.text:
+            self.setter_sending(self.text)
+            if self.text in self.history:
+                self.history.remove(self.text)
+            self.history.append(self.text)
+        self.text = ''
+        self.caret_position = 0
+        self.selection_range = None
+        self.history_index = 0
+
+    def move_caret(self, amount: int, holding_shift: bool = False, holding_ctrl: bool = False, delete=False):
+        original_position = self.caret_position
+        if holding_ctrl:
+            if amount > 0:
+                space_index = max(self.text.find(' ', self.caret_position),
+                                  self.text.find('.', self.caret_position))
+                if space_index == -1:
+                    space_index = len(self.text)
+            elif amount < 0:
+                space_index = max(self.text.rfind(' ', 0, max(0, self.caret_position - 1)),
+                                  self.text.rfind('.', 0, max(0, self.caret_position - 1)))
+            else:
+                return
+            amount = space_index - self.caret_position + 1
+
+        if not holding_shift and self.selection_range:
+            if amount > 0:
+                self.caret_position = max(self.selection_range)
+            elif amount < 0:
+                self.caret_position = min(self.selection_range)
+        else:
+            self.caret_position += amount
+            self.caret_position = min(max(0, self.caret_position), len(self.text))
+
+        if delete:
+            self.text = self.text[:min(self.caret_position, original_position)] + self.text[max(self.caret_position,
+                                                                                                original_position):]
+            self.caret_position = min(self.caret_position, original_position)
+        if not holding_shift:
+            self.selection_range = None
+        elif self.selection_range:
+            self.selection_range[1] = self.caret_position
+        else:
+            self.selection_range = [original_position, self.caret_position]
+
+    def erase_selection_range(self):
+        self.text = self.text[0:min(self.selection_range)] + self.text[max(self.selection_range):]
+        self.caret_position = min(self.selection_range)
+        self.selection_range = None
+
+    def render_text(self):
+        text_surface = self.overlay.font.render(self.text, True, self.color, None)
+        self.surface.blit(text_surface, (self.overlay.char_width // 3, 5))
+
+    def render_caret(self):
+        x = self.overlay.char_width * (self.caret_position + 1 / 3)
+        pg.draw.line(self.surface, self.color, (x, self.overlay.char_height // 6),
+                     (x, self.rect.height - self.overlay.char_height // 6), 2)
+
+    def render_selection(self):
+        x = int(self.overlay.char_width * (min(self.selection_range) + 1 / 3))
+        y = self.overlay.char_height // 8
+        w = self.overlay.char_width * (max(self.selection_range) - min(self.selection_range))
+        h = self.rect.height - 2 * self.overlay.char_height // 8
+        pg.draw.rect(self.surface, self.overlay.HIGHLIGHT_COLOR, (x, y, w, h))
+
+    def render_body(self):
+        self.surface.fill(self.overlay.SECONDARY_COLOR)
+        if self.selection_range:
+            self.render_selection()
+        self.render_text()
+        if self.draw_caret and not self.selection_range:
+            self.render_caret()
+        draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)

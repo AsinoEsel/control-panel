@@ -1,7 +1,6 @@
 import os
 import pygame as pg
 from typing import TYPE_CHECKING
-from .dev_windows import Window, VariableMonitorWindow
 from .dev_console import DeveloperConsole
 from .dev_overlay_element import DeveloperOverlayElement
 from controlpanel.game_manager.utils import MOUSEMOTION_2
@@ -10,14 +9,14 @@ if TYPE_CHECKING:
 
 
 class DeveloperOverlay:
-    primary_color: tuple[int, int, int] = (76, 88, 68)
-    secondary_color: tuple[int, int, int] = (62, 70, 55)
-    primary_text_color: tuple[int, int, int] = (255, 255, 255)
-    secondary_text_color: tuple[int, int, int] = (216, 222, 211)
-    border_color_dark: tuple[int, int, int] = (40, 46, 34)
-    border_color_bright: tuple[int, int, int] = (136, 145, 128)
-    highlight_color: tuple[int, int, int] = (150, 135, 50)
-    error_color: tuple[int, int, int] = (255, 64, 64)
+    PRIMARY_COLOR: tuple[int, int, int] = (76, 88, 68)
+    SECONDARY_COLOR: tuple[int, int, int] = (62, 70, 55)
+    PRIMARY_TEXT_COLOR: tuple[int, int, int] = (255, 255, 255)
+    SECONDARY_TEXT_COLOR: tuple[int, int, int] = (216, 222, 211)
+    BORDER_COLOR_DARK: tuple[int, int, int] = (40, 46, 34)
+    BORDER_COLOR_LIGHT: tuple[int, int, int] = (136, 145, 128)
+    HIGHLIGHT_COLOR: tuple[int, int, int] = (150, 135, 50)
+    ERROR_COLOR: tuple[int, int, int] = (255, 64, 64)
 
     def __init__(self,
                  game_manager: "GameManager",
@@ -41,7 +40,7 @@ class DeveloperOverlay:
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
         self.char_height = self.font.get_height()
-        self.border_offset = 6
+        self.border_offset = 4
 
         self.dev_console = DeveloperConsole(self)
         self.selected_child: DeveloperOverlayElement | None = None
@@ -78,7 +77,7 @@ class DeveloperOverlay:
                     child.render_recursively(surface)
             return
 
-        surface.fill(self.primary_color, special_flags=pg.BLEND_RGB_MULT)
+        surface.fill(self.PRIMARY_COLOR, special_flags=pg.BLEND_RGB_MULT)
 
         for child in self.children:
             child.render_recursively(surface)

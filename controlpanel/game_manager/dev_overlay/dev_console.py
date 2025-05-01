@@ -11,6 +11,7 @@ import sys
 from collections import deque
 from controlpanel.game_manager.utils import ColorType, draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
+from .dev_windows import Button, InputBox
 from pathlib import Path
 import traceback
 if TYPE_CHECKING:
@@ -94,17 +95,34 @@ class Logger:
 
 class DeveloperConsole(DeveloperOverlayElement):
     DEFAULT_HEIGHT = 200
+    SUBMIT_BUTTON_WIDTH = 50
 
     def __init__(self, overlay: "DeveloperOverlay"):
-        super().__init__(overlay, None, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
+        super().__init__(overlay, overlay, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
 
         input_box_height = int(overlay.char_height * 1.5)
-        log_width = input_box_width = overlay.render_size[0] - 2 * overlay.border_offset
+        log_width = overlay.render_size[0] - 2 * overlay.border_offset
+        input_box_width = log_width - overlay.border_offset - self.SUBMIT_BUTTON_WIDTH
         max_log_height = overlay.render_size[0] - input_box_height - 3 * overlay.border_offset
 
-        self.input_box = InputBox(self, (input_box_width, input_box_height))
-        self.log = Log(self, (log_width, max_log_height))
         self.autocomplete = Autocomplete(self)
+        self.input_box = InputBox(overlay, self, pg.Rect(self.overlay.border_offset,
+                                                         self.surface.get_height() - input_box_height - self.overlay.border_offset,
+                                                         input_box_width,
+                                                         input_box_height),
+                                  self.autocomplete.update,
+                                  self.handle_command)
+        self.log = Log(overlay, self, pg.Rect(self.overlay.border_offset,
+                                              self.surface.get_height() - self.input_box.surface.get_height() - self.overlay.border_offset,
+                                              log_width,
+                                              max_log_height))
+
+        submit_button = Button(overlay, self, pg.Rect(self.rect.right - self.SUBMIT_BUTTON_WIDTH - overlay.border_offset,
+                                                      self.input_box.rect.top,
+                                                      self.SUBMIT_BUTTON_WIDTH,
+                                                      self.input_box.rect.h),
+                               self.input_box.enter, image=overlay.font2.render("Submit", False, overlay.PRIMARY_TEXT_COLOR, overlay.PRIMARY_COLOR))
+        self.children.append(submit_button)
 
         self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
 
@@ -113,7 +131,6 @@ class DeveloperConsole(DeveloperOverlayElement):
         from controlpanel.scripts import ControlAPI
         import controlpanel as cp
         namespace = types.SimpleNamespace()
-        # setattr(self._namespace, "game", self.game_manager.get_game())  # deprecated
         setattr(namespace, "api", ControlAPI)
         setattr(namespace, "game_manager", self.overlay.game_manager)
         setattr(namespace, "pg", pg)
@@ -123,10 +140,10 @@ class DeveloperConsole(DeveloperOverlayElement):
         return namespace
 
     def print_exception_to_log(self, e: Exception) -> None:
-        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color,
+        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.ERROR_COLOR,
                        mirror_to_stdout=True)
         for line in traceback.format_exc().split("\n"):
-            self.log.print(line, color=self.overlay.error_color, mirror_to_stdout=True)
+            self.log.print(line, color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
 
     def exec_cfg_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         directory = Path(self.overlay.game_manager._base_cwd) / "configs"
@@ -223,7 +240,7 @@ class DeveloperConsole(DeveloperOverlayElement):
                         self.find_commands(self.overlay.game_manager) |
                         self.find_commands(self.overlay.game_manager.get_game())).keys()
         if not all_commands:
-            self.log.print("No console commands found.", color=self.overlay.error_color, mirror_to_stdout=True)
+            self.log.print("No console commands found.", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             return
         self.log.print("List of all available commands: (type help <command> for help)", mirror_to_stdout=True)
         column_gap = 2
@@ -235,7 +252,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             if not chunk:
                 break
             self.log.print("".join(f"{command_name:<{column_width}}" for command_name in chunk),
-                           color=self.overlay.secondary_text_color, mirror_to_stdout=True)
+                           color=self.overlay.SECONDARY_TEXT_COLOR, mirror_to_stdout=True)
 
     def help_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         return 0, list(Autocomplete.Option(command, str(func.__doc__ or "")) for command, func in self.get_all_commands().items() if command.startswith(text) and command != text)
@@ -252,7 +269,7 @@ class DeveloperConsole(DeveloperOverlayElement):
         else:
             self.log.print(
                 f"No command {command_name} exists in the game {self.overlay.game_manager.get_game().name}.",
-                color=self.overlay.error_color, mirror_to_stdout=True)
+                color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
         return
 
     @console_command
@@ -387,14 +404,14 @@ class DeveloperConsole(DeveloperOverlayElement):
 
     def handle_command(self, command: str, *, suppress_logging: bool = False, ignore_cheat_protection: bool = False):
         if not suppress_logging:
-            self.log.print(">>> " + command, color=self.overlay.primary_text_color, mirror_to_stdout=True)
+            self.log.print(">>> " + command, color=self.overlay.PRIMARY_TEXT_COLOR, mirror_to_stdout=True)
         command_name, *args = command.split()
         func = self.get_all_commands().get(command_name)
         if func is None:
-            self.log.print(f"No command {command_name} exists in the current game.", color=self.overlay.error_color, mirror_to_stdout=True)
+            self.log.print(f"No command {command_name} exists in the current game.", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             return
         if getattr(func, "_is_cheat_protected", False) and not self.overlay.game_manager.cheats_enabled and not ignore_cheat_protection:
-            self.log.print(f"The command {command_name} is cheat protected.", color=self.overlay.highlight_color, mirror_to_stdout=True)
+            self.log.print(f"The command {command_name} is cheat protected.", color=self.overlay.HIGHLIGHT_COLOR, mirror_to_stdout=True)
             return
         try:
             cast_args = []
@@ -415,12 +432,12 @@ class DeveloperConsole(DeveloperOverlayElement):
                     try:
                         cast_args.append(param_type(arg))
                     except ValueError as e:
-                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
+                        self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             return_value = func(*cast_args)
             if getattr(func, "_show_return_value", False):
                 self.log.print(str(return_value), mirror_to_stdout=True)
         except TypeError as e:
-            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.error_color, mirror_to_stdout=True)
+            self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             self.print_usage_string(func)
             return
 
@@ -447,7 +464,12 @@ class DeveloperConsole(DeveloperOverlayElement):
         self.log.print(string, mirror_to_stdout=True)
 
     def resize(self, new_height: int = 100):
+        # This is janky af
+        old_height = self.surface.get_height()
         new_height = min(self.overlay.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.overlay.border_offset, new_height))
+        diff = new_height - old_height
+        for child in self.children:
+            child.rect.move_ip(0, diff)
         self.surface = pg.Surface((self.surface.get_width(), new_height))
 
     def handle_event(self, event: pg.event.Event) -> bool:
@@ -470,7 +492,7 @@ class DeveloperConsole(DeveloperOverlayElement):
         return True
 
     def render(self):
-        self.surface.fill(self.overlay.primary_color)
+        self.surface.fill(self.overlay.PRIMARY_COLOR)
 
         visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.overlay.border_offset
         self.surface.blit(self.log.surface, (self.overlay.border_offset, self.overlay.border_offset),
@@ -481,9 +503,8 @@ class DeveloperConsole(DeveloperOverlayElement):
         self.surface.blit(self.input_box.surface, (input_box_x, input_box_y))
 
         if visible_log_height > 0:
-            draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
-        draw_border_rect(self.surface, (input_box_x, input_box_y, self.input_box.surface.get_width(), self.input_box.surface.get_height()), -1, self.overlay.border_color_dark, self.overlay.border_color_bright)
-        draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.border_color_bright, self.overlay.border_color_dark)
+            draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
+        draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
 
 
 class Autocomplete:
@@ -516,14 +537,13 @@ class Autocomplete:
             if self.position == 0:
                 self.dev_console.input_box.text += " "
             self.dev_console.input_box.caret_position = len(self.dev_console.input_box.text)
-            self.update()
+            self.update(self.dev_console.input_box.text)  # TODO: hmmm?
         else:
             return False
         return True
 
-    def update(self):
+    def update(self, text: str):
         self.selection_index = 0
-        text = self.dev_console.input_box.text
         if not text:
             self.show = False
             return
@@ -571,15 +591,15 @@ class Autocomplete:
         surface_height = len(self.options) * self.dev_console.overlay.char_height + surface_border_width
 
         self.surface = pg.Surface((surface_width, surface_height))
-        self.surface.fill(self.dev_console.overlay.primary_color)
+        self.surface.fill(self.dev_console.overlay.PRIMARY_COLOR)
         for i, option in enumerate(self.options):
             if i == self.selection_index:
-                pg.draw.rect(self.surface, self.dev_console.overlay.highlight_color, (0, i * self.dev_console.overlay.char_height, surface_width, self.dev_console.overlay.char_height))
-                text_color = self.dev_console.overlay.primary_text_color
-                hint_color = self.dev_console.overlay.secondary_text_color
+                pg.draw.rect(self.surface, self.dev_console.overlay.HIGHLIGHT_COLOR, (0, i * self.dev_console.overlay.char_height, surface_width, self.dev_console.overlay.char_height))
+                text_color = self.dev_console.overlay.PRIMARY_TEXT_COLOR
+                hint_color = self.dev_console.overlay.SECONDARY_TEXT_COLOR
             else:
-                text_color = self.dev_console.overlay.secondary_text_color
-                hint_color = self.dev_console.overlay.border_color_bright
+                text_color = self.dev_console.overlay.SECONDARY_TEXT_COLOR
+                hint_color = self.dev_console.overlay.BORDER_COLOR_LIGHT
             y = i * self.dev_console.overlay.char_height + surface_border_width
             self.surface.blit(self.dev_console.overlay.font.render(option.name, False, text_color, None), (surface_border_width, y))
             type_hint = option.type_hint if len(option.type_hint) <= self.MAX_HINT_LENGTH else option.type_hint[0:self.MAX_HINT_LENGTH-3]+"..."
@@ -587,20 +607,19 @@ class Autocomplete:
                 self.dev_console.overlay.font.set_italic(True)
             self.surface.blit(self.dev_console.overlay.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.dev_console.overlay.char_width, y))
             self.dev_console.overlay.font.set_italic(False)
-        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.overlay.border_color_bright, self.dev_console.overlay.border_color_dark)
+        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.overlay.BORDER_COLOR_LIGHT, self.dev_console.overlay.BORDER_COLOR_DARK)
 
 
-class Log:
-    def __init__(self, dev_console: DeveloperConsole, size: tuple[int, int]):
-        self.dev_console = dev_console
-        self.surface = pg.Surface(size)
-        self.surface.fill(dev_console.overlay.secondary_color)
+class Log(DeveloperOverlayElement):
+    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect):
+        super().__init__(overlay, parent, rect)
+        self.surface.fill(overlay.SECONDARY_COLOR)
 
         self.history: list[tuple[str, ColorType]] = []
         self.history_index: int = 0
 
     def render(self):
-        self.surface.fill(self.dev_console.overlay.secondary_color)
+        self.surface.fill(self.overlay.SECONDARY_COLOR)
         for line, color in reversed(self.history[self.history_index::-1]):
             self.print(line, color, mirror_to_stdout=False, append_to_history=False)
 
@@ -610,158 +629,9 @@ class Log:
             self.history_index = len(self.history)
         if mirror_to_stdout:
             print("DEV: " + string, file=sys.__stdout__)
-        color = color if color is not None else self.dev_console.overlay.secondary_text_color
-        font_surface = self.dev_console.overlay.font.render(string, True, color, self.dev_console.overlay.secondary_color)
+        color = color if color is not None else self.overlay.SECONDARY_TEXT_COLOR
+        font_surface = self.overlay.font.render(string, True, color, self.overlay.SECONDARY_COLOR)
         dy = -font_surface.get_height()
         self.surface.scroll(0, dy)
-        self.surface.fill(self.dev_console.overlay.secondary_color, (0, self.surface.get_height() + dy, self.surface.get_width(), -dy))
+        self.surface.fill(self.overlay.SECONDARY_COLOR, (0, self.surface.get_height() + dy, self.surface.get_width(), -dy))
         self.surface.blit(font_surface, (0, self.surface.get_height() - font_surface.get_height()))
-
-
-class InputBox:
-    def __init__(self, dev_console: DeveloperConsole, size: tuple[int, int]) -> None:
-        self.dev_console = dev_console
-        self.font = dev_console.overlay.font
-        self.surface = pg.Surface(size)
-        self.text = ''
-        self.clipboard = ''
-        self.max_chars = self.surface.get_width()//self.dev_console.overlay.char_width - 1
-        self.caret_position = 0
-        self.draw_caret = True
-        self.selection_range = None
-        self.history: list[str] = []
-        self.history_index = 0
-        self.color = (255, 255, 255)
-        self.rect = self.surface.get_rect()
-
-    def handle_event(self, event: pg.event.Event):
-        if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
-            if self.selection_range:
-                self.erase_selection_range()
-            self.text = self.text[0:self.caret_position] + event.text + self.text[self.caret_position:]
-            self.caret_position += 1
-            self.dev_console.autocomplete.update()
-        elif event.type == pg.KEYDOWN:
-            if event.key == pg.K_RETURN:
-                self.enter(self.text)
-                self.dev_console.autocomplete.update()
-            elif event.key == pg.K_BACKSPACE:
-                if self.selection_range:
-                    self.erase_selection_range()
-                else:
-                    self.move_caret(-1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
-                self.dev_console.autocomplete.update()
-            elif event.key == pg.K_DELETE:
-                if self.selection_range:
-                    self.erase_selection_range()
-                else:
-                    self.move_caret(1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
-            elif event.key == pg.K_LEFT:
-                self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
-            elif event.key == pg.K_RIGHT:
-                self.move_caret(1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
-            elif event.key == pg.K_UP:
-                if self.history_index > -len(self.history):
-                    self.history_index -= 1
-                    self.text = self.history[self.history_index]
-                self.caret_position = len(self.text)
-            elif event.key == pg.K_DOWN:
-                if self.history_index < -1:
-                    self.history_index += 1
-                    self.text = self.history[self.history_index]
-                self.caret_position = len(self.text)
-            elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
-                self.selection_range = [0, len(self.text)]
-            elif event.key == pg.K_c and event.mod & pg.KMOD_CTRL:
-                if self.selection_range and self.selection_range[0] != self.selection_range[1]:
-                    self.clipboard = self.text[min(self.selection_range):max(self.selection_range)]
-            elif event.key == pg.K_x and event.mod & pg.KMOD_CTRL:
-                if self.selection_range and self.selection_range[0] != self.selection_range[1]:
-                    self.clipboard = self.text[min(self.selection_range):max(self.selection_range)]
-                    self.erase_selection_range()
-            elif event.key == pg.K_v and event.mod & pg.KMOD_CTRL:
-                if clipboard := self.clipboard:
-                    if self.selection_range:
-                        self.erase_selection_range()
-                    self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
-                    self.move_caret(len(clipboard))
-            else:
-                return False
-        else:
-            return False
-        return True
-
-    def enter(self, text: str):
-        if text:
-            self.dev_console.handle_command(text)
-            if text in self.history:
-                self.history.remove(text)
-            self.history.append(text)
-        self.text = ''
-        self.caret_position = 0
-        self.selection_range = None
-        self.history_index = 0
-
-    def move_caret(self, amount: int, holding_shift: bool = False, holding_ctrl: bool = False, delete=False):
-        original_position = self.caret_position
-        if holding_ctrl:
-            if amount > 0:
-                space_index = min(self.text.find(' ', self.caret_position),
-                                  self.text.find('.', self.caret_position))
-                if space_index == -1:
-                    space_index = len(self.text)
-            elif amount < 0:
-                space_index = max(self.text.rfind(' ', 0, max(0, self.caret_position - 1)),
-                                  self.text.rfind('.', 0, max(0, self.caret_position - 1)))
-            else:
-                return
-            amount = space_index - self.caret_position + 1
-
-        if not holding_shift and self.selection_range:
-            if amount > 0:
-                self.caret_position = max(self.selection_range)
-            elif amount < 0:
-                self.caret_position = min(self.selection_range)
-        else:
-            self.caret_position += amount
-            self.caret_position = min(max(0, self.caret_position), len(self.text))
-
-        if delete:
-            self.text = self.text[:min(self.caret_position, original_position)] + self.text[max(self.caret_position,
-                                                                                                original_position):]
-            self.caret_position = min(self.caret_position, original_position)
-        if not holding_shift:
-            self.selection_range = None
-        elif self.selection_range:
-            self.selection_range[1] = self.caret_position
-        else:
-            self.selection_range = [original_position, self.caret_position]
-
-    def erase_selection_range(self):
-        self.text = self.text[0:min(self.selection_range)] + self.text[max(self.selection_range):]
-        self.caret_position = min(self.selection_range)
-        self.selection_range = None
-
-    def render_text(self):
-        text_surface = self.font.render(self.text, True, self.color, None)
-        self.surface.blit(text_surface, (self.dev_console.overlay.char_width // 3, 5))
-
-    def render_caret(self):
-        x = self.dev_console.overlay.char_width * (self.caret_position + 1 / 3)
-        pg.draw.line(self.surface, self.color, (x, self.dev_console.overlay.char_height // 6),
-                     (x, self.rect.height - self.dev_console.overlay.char_height // 6), 2)
-
-    def render_selection(self):
-        x = int(self.dev_console.overlay.char_width * (min(self.selection_range) + 1 / 3))
-        y = self.dev_console.overlay.char_height // 8
-        w = self.dev_console.overlay.char_width * (max(self.selection_range) - min(self.selection_range))
-        h = self.rect.height - 2 * self.dev_console.overlay.char_height // 8
-        pg.draw.rect(self.surface, self.dev_console.overlay.highlight_color, (x, y, w, h))
-
-    def render_body(self):
-        self.surface.fill(self.dev_console.overlay.secondary_color)
-        if self.selection_range:
-            self.render_selection()
-        self.render_text()
-        if self.draw_caret and not self.selection_range:
-            self.render_caret()
