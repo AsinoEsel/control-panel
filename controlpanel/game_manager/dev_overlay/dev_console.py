@@ -35,7 +35,7 @@ class OutputRedirector:
         self.stdout.flush()
 
 
-def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None, hint: Callable[[Union["GameManager", "BaseGame","DeveloperConsole"]], Any] | None = None):
+def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None, hint: Callable[[Union["GameManager", "BaseGame", "DeveloperConsole"]], Any] | None = None):
     # This cursed if statement ensures that the decorator works even when used without parentheses
     if len(aliases) == 1 and callable(aliases[0]) and not isinstance(aliases[0], str):
         f = aliases[0]
