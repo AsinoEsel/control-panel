@@ -16,35 +16,60 @@ class Slider(DeveloperOverlayElement):
                  domain: Type[Union[int, float]],
                  value_range: tuple[int | float, int | float],
                  getter: Callable[[], int | float],
-                 setter: Callable[[int | float], None]):
+                 setter: Callable[[int | float], None], *,
+                 vertical: bool = False):
         super().__init__(overlay, parent, rect, colorkey=self.TRANSPARENCY)
         self.domain = domain
         self.value_range: tuple[int | float, int | float] = value_range
         self.setter: Callable[[int | float], None] = setter
         self.getter: Callable[[], int | float] = getter
-        self.groove_rect: pg.Rect = pg.Rect(self.SLIDER_SIZE[0] // 2,
-                                            self.rect.h // 2 - self.GROOVE_WIDTH // 2,
-                                            self.rect.width - 2 * self.SLIDER_SIZE[0] // 2,
-                                            self.GROOVE_WIDTH)
-        self.handle_rect: pg.Rect = pg.Rect(self.groove_rect.left - self.SLIDER_SIZE[0]//2,
-                                            self.groove_rect.centery - self.SLIDER_SIZE[1]//2,
-                                            self.SLIDER_SIZE[0],
-                                            self.SLIDER_SIZE[1])
+        self.vertical: bool = vertical
+        self.groove_rect: pg.Rect = (
+            pg.Rect(self.SLIDER_SIZE[0] // 2,
+                    self.rect.h // 2 - self.GROOVE_WIDTH // 2,
+                    self.rect.width - 2 * self.SLIDER_SIZE[0] // 2,
+                    self.GROOVE_WIDTH)
+            if not vertical else
+            pg.Rect(self.rect.w // 2 - self.GROOVE_WIDTH // 2,
+                    self.SLIDER_SIZE[0] // 2,
+                    self.GROOVE_WIDTH,
+                    self.rect.height - 2 * self.SLIDER_SIZE[0] // 2)
+        )
+        self.handle_rect: pg.Rect = (
+            pg.Rect(self.groove_rect.left - self.SLIDER_SIZE[0]//2,
+                    self.groove_rect.centery - self.SLIDER_SIZE[1]//2,
+                    self.SLIDER_SIZE[0],
+                    self.SLIDER_SIZE[1])
+            if not vertical else
+            pg.Rect(self.groove_rect.centerx - self.SLIDER_SIZE[1]//2,
+                    self.groove_rect.top + self.SLIDER_SIZE[0]//2,
+                    self.SLIDER_SIZE[1],
+                    self.SLIDER_SIZE[0])
+        )
 
     def set_handle_position(self, value: int | float):
-        self.handle_rect.left = (value - self.value_range[0]) / (self.value_range[1] - self.value_range[0]) * self.groove_rect.w
+        handle_position_relative: float = abs((value - self.value_range[0]) / (self.value_range[1] - self.value_range[0]))
+        if not self.vertical:
+            self.handle_rect.left = handle_position_relative * self.groove_rect.w
+        else:
+            self.handle_rect.top = handle_position_relative * self.groove_rect.h
 
     def set_value(self, mouse_x: int):
-        mapped_val = maprange(mouse_x, (self.groove_rect.left, self.groove_rect.right), self.value_range)
-        val = self.domain(min(self.value_range[1], max(self.value_range[0], mapped_val)))
+        if not self.vertical:
+            mapped_val = maprange(mouse_x, (self.groove_rect.left, self.groove_rect.right), self.value_range)
+        else:
+            mapped_val = maprange(mouse_x, (self.groove_rect.top, self.groove_rect.bottom), self.value_range)
+
+        minimum, maximum = min(self.value_range), max(self.value_range)
+        val = self.domain(min(maximum, max(minimum, mapped_val)))
         self.setter(val)
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and self.is_selected():
-            self.set_value(event.pos[0])
+            self.set_value(event.pos[0] if not self.vertical else event.pos[1])
             return True
         elif event.type == pg.MOUSEBUTTONDOWN:
-            self.set_value(event.pos[0])
+            self.set_value(event.pos[0] if not self.vertical else event.pos[1])
             return True
         return False
 

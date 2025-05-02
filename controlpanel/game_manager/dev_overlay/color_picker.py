@@ -39,19 +39,28 @@ class ColorPicker(DeveloperOverlayElement):
         super().__init__(overlay, parent, rect)
         self.getter: Callable[[], tuple[int, int, int]] = getter
         self.setter: Callable[[tuple[int, int, int]], None] = setter
-        self.color_wheel = ColorWheel(overlay, self, (overlay.border_offset, overlay.border_offset), getter, setter)
+        self.color_wheel = ColorWheel(overlay, self, (overlay.border_offset, (self.rect.h-ColorWheel.SIZE)//2), getter, setter)
         self.children.append(self.color_wheel)
 
-        sliders_x = 2 * overlay.border_offset + self.color_wheel.SIZE
-        slider_width = self.rect.w - overlay.border_offset - sliders_x
-        slider_dist = 30
-        value_slider = Slider(overlay, self, pg.Rect(sliders_x, 10, slider_width, Slider.SLIDER_SIZE[1]), float, (0.0, 1.0),
+        value_slider = Slider(overlay, self, pg.Rect(2 * overlay.border_offset + self.color_wheel.SIZE,
+                                                     self.color_wheel.rect.top,
+                                                     Slider.SLIDER_SIZE[1],
+                                                     self.color_wheel.WHEEL_SIZE),
+                              float, (1.0, 0.0),
                               self.value_getter(),
-                              self.value_setter)
-
-        sliders_y = value_slider.rect.top + slider_dist
-        rgb_sliders = [Slider(overlay, self, pg.Rect(sliders_x, sliders_y + ch*slider_dist, slider_width, Slider.SLIDER_SIZE[1]), int, (0, 255), self.rgb_getter(ch), self.rgb_setter(ch)) for ch in range(3)]
+                              self.value_setter,
+                              vertical=True)
         self.children.append(value_slider)
+
+        slider_dist = 30
+        sliders_x = value_slider.rect.right + overlay.border_offset
+        sliders_y = value_slider.rect.top + slider_dist
+        rgb_slider_width = self.rect.w - 4 * overlay.border_offset - self.color_wheel.SIZE - value_slider.rect.w
+        rgb_sliders = [Slider(overlay, self, pg.Rect(sliders_x,
+                                                     sliders_y + ch*slider_dist,
+                                                     rgb_slider_width,
+                                                     Slider.SLIDER_SIZE[1]),
+                              int, (0, 255), self.rgb_getter(ch), self.rgb_setter(ch)) for ch in range(3)]
         self.children.extend(rgb_sliders)
 
     def value_getter(self) -> Callable[[], float]:
