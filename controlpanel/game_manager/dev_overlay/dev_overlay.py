@@ -107,4 +107,3 @@ class DeveloperOverlay:
             child.render_recursively(surface)
         if self.dev_console.autocomplete.show:
             surface.blit(self.dev_console.autocomplete.surface, (self.border_offset + self.dev_console.autocomplete.position * self.char_width, self.dev_console.surface.get_height()))
-

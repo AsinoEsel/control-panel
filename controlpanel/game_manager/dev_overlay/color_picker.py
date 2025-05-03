@@ -1,14 +1,15 @@
 import pygame as pg
 import numpy as np
 import os
+import colorsys
+import math
 from .dev_overlay_element import DeveloperOverlayElement
 from .slider import Slider
+from .button import Button
+from .window import Window
 from typing import Optional, TYPE_CHECKING, Callable
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
-
-import colorsys
-import math
 
 
 def generate_color_wheel(size: int) -> pg.Surface:
@@ -150,3 +151,17 @@ class ColorWheel(DeveloperOverlayElement):
         pg.draw.circle(self.surface, self.overlay.BORDER_COLOR_DARK, (self.rect.w // 2, self.rect.h // 2), self.rect.w // 2, 1)
         pg.draw.circle(self.surface, self.overlay.BORDER_COLOR_LIGHT, (self.rect.w // 2, self.rect.h // 2), self.rect.w // 2, 1, draw_bottom_right=True)
         self.surface.blit(self.COLOR_PICKER_CARET, (self.caret_position[0] - 3, self.caret_position[1] - 3))
+
+
+class ColorPickerWindow(Window):
+    SIZE: tuple[int, int] = (400, 250)
+    CONFIRM_BUTTON_SIZE: tuple[int, int] = (60, 20)
+
+    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", position: tuple[int, int]):
+        super().__init__(overlay, parent, pg.Rect(position, self.SIZE), "Color Picker")
+        self.children.append(ColorPicker(overlay, self, self.body_rect, lambda: self.overlay.PRIMARY_COLOR, lambda c: setattr(overlay, "PRIMARY_COLOR", c)))
+        self.children.append(Button(overlay, self, pg.Rect(self.rect.w - self.CONFIRM_BUTTON_SIZE[0] - overlay.border_offset,
+                                                           self.rect.h - self.CONFIRM_BUTTON_SIZE[1] - overlay.border_offset,
+                                                           self.CONFIRM_BUTTON_SIZE[0],
+                                                           self.CONFIRM_BUTTON_SIZE[1]), self.close,
+                                    image=overlay.font2.render("Confirm", False, overlay.PRIMARY_TEXT_COLOR, overlay.PRIMARY_COLOR)))

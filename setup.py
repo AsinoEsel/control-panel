@@ -20,5 +20,6 @@ setup(
                       "numpy-quaternion",
                       "numpy-stl",
                       "opencv-python",
+                      "pyperclip",
                       ],
 )

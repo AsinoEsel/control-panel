@@ -11,7 +11,8 @@ import sys
 from collections import deque
 from controlpanel.game_manager.utils import ColorType, draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
-from .dev_windows import Button, InputBox
+from .button import Button
+from .input_box import InputBox
 from pathlib import Path
 import traceback
 if TYPE_CHECKING:
