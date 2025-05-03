@@ -111,8 +111,10 @@ class DeveloperConsole(DeveloperOverlayElement):
                                                          self.surface.get_height() - input_box_height - self.overlay.border_offset,
                                                          input_box_width,
                                                          input_box_height),
-                                  self.autocomplete.update,
-                                  self.handle_command)
+                                  setter_editing=self.autocomplete.update,
+                                  setter_sending=self.handle_command,
+                                  clear_on_send=True,
+                                  lose_focus_on_send=False)
         self.log = Log(overlay, self, pg.Rect(self.overlay.border_offset,
                                               self.surface.get_height() - self.input_box.surface.get_height() - self.overlay.border_offset,
                                               log_width,
@@ -123,6 +125,7 @@ class DeveloperConsole(DeveloperOverlayElement):
                                                       self.SUBMIT_BUTTON_WIDTH,
                                                       self.input_box.rect.h),
                                self.input_box.enter, image=overlay.font2.render("Submit", False, overlay.PRIMARY_TEXT_COLOR, overlay.PRIMARY_COLOR))
+        self.children.append(self.input_box)
         self.children.append(submit_button)
 
         self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
@@ -404,6 +407,8 @@ class DeveloperConsole(DeveloperOverlayElement):
         setattr(ControlAPI.dmx.devices.get(device_name), attribute, value)
 
     def handle_command(self, command: str, *, suppress_logging: bool = False, ignore_cheat_protection: bool = False):
+        if not command:
+            return
         if not suppress_logging:
             self.log.print(">>> " + command, color=self.overlay.PRIMARY_TEXT_COLOR, mirror_to_stdout=True)
         command_name, *args = command.split()
@@ -498,10 +503,6 @@ class DeveloperConsole(DeveloperOverlayElement):
         visible_log_height = self.surface.get_height() - self.input_box.surface.get_height() - 3 * self.overlay.border_offset
         self.surface.blit(self.log.surface, (self.overlay.border_offset, self.overlay.border_offset),
                           (0, self.log.surface.get_height() - visible_log_height, self.log.surface.get_width(), visible_log_height))
-
-        self.input_box.render_body()
-        input_box_x, input_box_y = (self.overlay.border_offset, self.surface.get_height() - self.input_box.surface.get_height() - self.overlay.border_offset)
-        self.surface.blit(self.input_box.surface, (input_box_x, input_box_y))
 
         if visible_log_height > 0:
             draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)

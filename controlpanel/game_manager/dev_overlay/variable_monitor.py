@@ -31,7 +31,9 @@ class VariableMonitor(DeveloperOverlayElement):
             elif var_type is str:
                 height: int = self.rect.h - self.overlay.border_offset
                 offset: int = (self.rect.h - height) // 2
-                self.children.append(InputBox(overlay, self, pg.Rect(self.rect.centerx, offset, self.rect.w//2-offset, height), setter_editing=var_setter))
+                self.children.append(InputBox(overlay, self, pg.Rect(self.rect.centerx, offset, self.rect.w//2-offset, height),
+                                              getter=var_getter,
+                                              setter_sending=var_setter))
             else:
                 print(var_type)
 

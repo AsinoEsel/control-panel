@@ -11,54 +11,78 @@ class InputBox(DeveloperOverlayElement):
     STOP_CHARS: tuple[str] = (' ', '.', ',')
 
     def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect,
+                 getter: Callable[[], str] = lambda: "",
                  setter_editing: Callable[[str], None] = lambda x: None,
-                 setter_sending: Callable[[str], None] = lambda x: None) -> None:
+                 setter_sending: Callable[[str], None] = lambda x: None, *,
+                 clear_on_send: bool = False,
+                 lose_focus_on_send: bool = True) -> None:
         super().__init__(overlay, parent, rect)
+        self.getter: Callable[[], str] = getter
         self.setter_editing: Callable[[str], None] = setter_editing
         self.setter_sending: Callable[[str], None] = setter_sending
-        self.text = ''
+        self.clear_on_send: bool = clear_on_send
+        self.lose_focus_on_send: bool = lose_focus_on_send
+        self.in_edit_mode: bool = False
+        self.in_history: bool = False
+        self.text = getter()
         self.max_chars = self.surface.get_width()//self.overlay.char_width - 1
         self.caret_position = 0
-        self.draw_caret = True
         self.selection_range = None
         self.history: list[str] = []
         self.history_index = 0
 
     def handle_event(self, event: pg.event.Event):
-        if event.type == pg.TEXTINPUT and len(self.text) < self.max_chars:
+        if event.type == pg.MOUSEBUTTONDOWN and 0 < event.pos[0] < self.rect.w and 0 < event.pos[1] < self.rect.h:
+            self.in_edit_mode = True
+        elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE and self.in_edit_mode:
+            self.in_edit_mode = False
+            self.text = self.getter()
+        elif event.type == pg.TEXTINPUT and self.in_edit_mode and len(self.text) < self.max_chars:
+            self.in_history = False
             if self.selection_range:
                 self.erase_selection_range()
             self.text = self.text[0:self.caret_position] + event.text + self.text[self.caret_position:]
             self.caret_position += 1
             self.setter_editing(self.text)
-        elif event.type == pg.KEYDOWN:
+        elif event.type == pg.KEYDOWN and self.in_edit_mode:
             if event.key == pg.K_RETURN:
+                self.in_history = False
                 self.enter()
             elif event.key == pg.K_BACKSPACE:
+                self.in_history = False
                 if self.selection_range:
                     self.erase_selection_range()
                 else:
                     self.move_caret(-1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
                 self.setter_editing(self.text)
             elif event.key == pg.K_DELETE:
+                self.in_history = False
                 if self.selection_range:
                     self.erase_selection_range()
                 else:
                     self.move_caret(1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
                 self.setter_editing(self.text)
             elif event.key == pg.K_LEFT:
+                self.in_history = False
                 self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
             elif event.key == pg.K_RIGHT:
+                self.in_history = False
                 self.move_caret(1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
-            elif event.key == pg.K_UP:
+            elif event.key == pg.K_UP and (not self.text or self.in_history):
+                if not self.in_history:
+                    self.history_index = 0
+                self.in_history = True
                 if self.history_index > -len(self.history):
                     self.history_index -= 1
                     self.text = self.history[self.history_index]
                 self.caret_position = len(self.text)
-            elif event.key == pg.K_DOWN:
-                if self.history_index < -1:
+            elif event.key == pg.K_DOWN and (not self.text or self.in_history):
+                if not self.in_history:
+                    self.history_index = 0
+                self.in_history = True
+                if self.history_index < 0:
                     self.history_index += 1
-                    self.text = self.history[self.history_index]
+                    self.text = self.history[self.history_index] if self.history_index != 0 else ""
                 self.caret_position = len(self.text)
             elif event.key == pg.K_a and event.mod & pg.KMOD_CTRL:
                 self.selection_range = [0, len(self.text)]
@@ -66,10 +90,12 @@ class InputBox(DeveloperOverlayElement):
                 if self.selection_range and self.selection_range[0] != self.selection_range[1]:
                     pyperclip.copy(self.text[min(self.selection_range):max(self.selection_range)])
             elif event.key == pg.K_x and event.mod & pg.KMOD_CTRL:
+                self.in_history = False
                 if self.selection_range and self.selection_range[0] != self.selection_range[1]:
                     pyperclip.copy(self.text[min(self.selection_range):max(self.selection_range)])
                     self.erase_selection_range()
             elif event.key == pg.K_v and event.mod & pg.KMOD_CTRL:
+                self.in_history = False
                 if clipboard := pyperclip.paste():
                     if self.selection_range:
                         self.erase_selection_range()
@@ -82,13 +108,17 @@ class InputBox(DeveloperOverlayElement):
         return True
 
     def enter(self):
+        if self.lose_focus_on_send:
+            self.in_edit_mode = False
+        self.setter_sending(self.text)
         if self.text:
-            self.setter_sending(self.text)
             if self.text in self.history:
                 self.history.remove(self.text)
             self.history.append(self.text)
-        self.text = ''
-        self.caret_position = 0
+        if self.clear_on_send:
+            self.text = ''
+            self.caret_position = 0
+        self.setter_editing(self.text)
         self.selection_range = None
         self.history_index = 0
 
@@ -135,7 +165,8 @@ class InputBox(DeveloperOverlayElement):
         self.selection_range = None
 
     def render_text(self):
-        text_surface = self.overlay.font.render(self.text, True, self.overlay.PRIMARY_TEXT_COLOR, None)
+        color = self.overlay.PRIMARY_TEXT_COLOR if self.in_edit_mode else self.overlay.SECONDARY_TEXT_COLOR
+        text_surface = self.overlay.font.render(self.text, True, color, None)
         self.surface.blit(text_surface, (self.overlay.char_width // 3, 5))
 
     def render_caret(self):
@@ -151,10 +182,11 @@ class InputBox(DeveloperOverlayElement):
         pg.draw.rect(self.surface, self.overlay.HIGHLIGHT_COLOR, (x, y, w, h))
 
     def render_body(self):
-        self.surface.fill(self.overlay.SECONDARY_COLOR)
+        fill_color = self.overlay.PRIMARY_COLOR if not self.in_edit_mode else self.overlay.SECONDARY_COLOR
+        self.surface.fill(fill_color)
         if self.selection_range:
             self.render_selection()
         self.render_text()
-        if self.draw_caret and not self.selection_range:
+        if self.in_edit_mode and not self.selection_range:
             self.render_caret()
         draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
