@@ -42,7 +42,7 @@ class Button(DeveloperOverlayElement):
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.MOUSEMOTION:
-            if self.is_selected() and pg.mouse.get_pressed()[0]:
+            if self.is_selected() and pg.mouse.get_pressed()[0] and 0 < event.pos[0] < self.rect.w and 0 < event.pos[1] < self.rect.h:
                 self.pressed = True
             self.highlighted = True
             return True
@@ -54,7 +54,7 @@ class Button(DeveloperOverlayElement):
                 return True
         elif event.type == pg.MOUSEBUTTONDOWN:
             self.pressed = True
-        elif event.type == pg.MOUSEBUTTONUP and self.is_selected():
+        elif event.type == pg.MOUSEBUTTONUP and self.is_selected() and 0 < event.pos[0] < self.rect.w and 0 < event.pos[1] < self.rect.h:
             self.pressed = False
             if self.toggle:
                 self.state = not self.state
@@ -128,7 +128,7 @@ class Window(DeveloperOverlayElement):
         self.surface.blit(title_surface, (self.overlay.border_offset, self.overlay.border_offset))
 
     def handle_event(self, event: pg.event.Event) -> bool:
-        if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and not any(child.rect.collidepoint(event.pos) for child in self.children) and self.is_selected():
+        if event.type == pg.MOUSEMOTION and pg.mouse.get_pressed()[0] and self.is_selected():
             self.rect.move_ip(event.rel)
             # self.rect.right = min(self.rect.right, self.parent.rect.right)  # TODO: clamp window position
             # ...

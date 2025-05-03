@@ -48,17 +48,40 @@ class DeveloperOverlay:
             self.dev_console,
         ]
 
+    def get_selected_element(self) -> DeveloperOverlayElement | None:
+        current = self
+        while current.selected_child is not None:
+            current = current.selected_child
+        return current if current is not self else None
+
     def handle_events(self, events: list[pg.event.Event]):
         # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
         for event in events:
+            # If it's a MOUSEMOTION event, we immediately fire our own MOUSEMOTION_2 event.
+            # This makes it so that elements are notified when the cursor moves away from them.
             if event.type == pg.MOUSEMOTION:
-                mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict)
+                mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict.copy())
                 mouse_motion2.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
                 for child in self.children:
                     if not child.rect.collidepoint(mouse_motion2.pos):
                         continue
                     if child.handle_event_recursively(mouse_motion2):
                         break
+
+            # We prioritize the selected element if it exists.
+            if event.type != pg.MOUSEBUTTONDOWN and self.get_selected_element():
+                event_copy = pg.event.Event(event.type, event.dict)
+
+                if hasattr(event, "pos"):
+                    current = self
+                    while current != self.get_selected_element():
+                        current = current.selected_child
+                        event_copy.pos = (event.pos[0] - current.rect.left, event.pos[1] - current.rect.top)
+
+                if self.get_selected_element().handle_event(event_copy):
+                    continue
+
+            # We finally propagate the event normally down the tree
             for child in self.children:
                 if hasattr(event, "pos") and not child.rect.collidepoint(event.pos):
                     continue
@@ -67,6 +90,7 @@ class DeveloperOverlay:
                 if child.handle_event_recursively(event):
                     return
 
+            # Deselection in case nothing was clicked on
             if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
                 self.selected_child = None
 
