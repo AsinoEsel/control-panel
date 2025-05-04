@@ -68,8 +68,18 @@ class ColorPicker(DeveloperOverlayElement):
 
         self.hex_input_box = InputBox(overlay, self, pg.Rect(sliders_x, rgb_sliders[-1].rect.bottom, overlay.char_width * 8, int(overlay.char_height * 1.5)),
                                       getter=self.hex_getter,
-                                      setter_sending=self.hex_setter)
+                                      setter_sending=self.hex_setter,
+                                      validator=self.hex_validator)
         self.children.append(self.hex_input_box)
+
+    @staticmethod
+    def hex_validator(user_input: str) -> bool:
+        if user_input.startswith("#"):
+            user_input = user_input[1:]
+        valid_chars = set('0123456789abcdefABCDEF')
+        if len(user_input) != 6 or not all(char in valid_chars for char in user_input):
+            return False
+        return True
 
     def setter_intercept(self, color: tuple[int, int, int]) -> None:
         """Intercepts the setter to update the elements of the color picker"""
@@ -81,9 +91,9 @@ class ColorPicker(DeveloperOverlayElement):
     @staticmethod
     def hex_to_rgb(hex_code: str) -> tuple[int, int, int] | None:
         hex_color = hex_code.lstrip('#')
-        valid_chars = set('0123456789abcdefABCDEF')
-        if len(hex_color) != 6 or not all(char in valid_chars for char in hex_color):
-            return None
+        # valid_chars = set('0123456789abcdefABCDEF')
+        # if len(hex_color) != 6 or not all(char in valid_chars for char in hex_color):
+        #     return None
         r = int(hex_color[0:2], 16)
         g = int(hex_color[2:4], 16)
         b = int(hex_color[4:6], 16)

@@ -16,7 +16,8 @@ class InputBox(DeveloperOverlayElement):
                  setter_sending: Callable[[str], None] = lambda x: None, *,
                  clear_on_send: bool = False,
                  select_all_on_click: bool = True,
-                 lose_focus_on_send: bool = True
+                 lose_focus_on_send: bool = True,
+                 validator: Callable[[str], bool] = lambda x: True,
                  ) -> None:
         super().__init__(overlay, parent, rect)
         self.getter: Callable[[], str] = getter
@@ -25,6 +26,7 @@ class InputBox(DeveloperOverlayElement):
         self.clear_on_send: bool = clear_on_send
         self.select_all_on_click: bool = select_all_on_click
         self.lose_focus_on_send: bool = lose_focus_on_send
+        self.validator: Callable[[str], bool] = validator
         self.in_edit_mode: bool = False  # TODO: join feature with element selection
         self.in_history: bool = False  # TODO: find better solution that's less maintenance heavy
         self.text = getter()
@@ -40,9 +42,7 @@ class InputBox(DeveloperOverlayElement):
             if self.select_all_on_click:
                 self.select_all()
         elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE and self.in_edit_mode:
-            self.in_edit_mode = False
-            self.selection_range = None
-            self.text = self.getter()
+            self.escape()
         elif event.type == pg.TEXTINPUT and self.in_edit_mode and (len(self.text) < self.max_chars or self.selection_range):
             self.in_history = False
             if self.selection_range:
@@ -118,6 +118,9 @@ class InputBox(DeveloperOverlayElement):
             self.selection_range = [0, len(self.text)]
 
     def enter(self):
+        if not self.validator(self.text):
+            self.escape()
+            return
         if self.lose_focus_on_send:
             self.in_edit_mode = False
         self.setter_sending(self.text)
@@ -131,6 +134,11 @@ class InputBox(DeveloperOverlayElement):
         self.setter_editing(self.text)
         self.selection_range = None
         self.history_index = 0
+
+    def escape(self):
+        self.in_edit_mode = False
+        self.selection_range = None
+        self.text = self.getter()
 
     def move_caret(self, amount: int, holding_shift: bool = False, holding_ctrl: bool = False, delete=False):
         original_position = self.caret_position
@@ -175,8 +183,13 @@ class InputBox(DeveloperOverlayElement):
         self.selection_range = None
 
     def render_text(self):
-        color = self.overlay.PRIMARY_TEXT_COLOR if self.in_edit_mode else self.overlay.SECONDARY_TEXT_COLOR
         text = self.text if self.in_edit_mode else self.getter()
+        if not self.validator(text):
+            color = self.overlay.ERROR_COLOR
+        elif self.in_edit_mode:
+            color = self.overlay.PRIMARY_TEXT_COLOR
+        else:
+            color = self.overlay.SECONDARY_TEXT_COLOR
         text_surface = self.overlay.font.render(text, True, color, None)
         self.surface.blit(text_surface, (self.overlay.char_width // 3, 5))
 
