@@ -15,19 +15,28 @@ class Window(DeveloperOverlayElement):
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, title: str):
         super().__init__(overlay, parent, rect)
         self.title: str = title
-        close_button: Button = Button(overlay, self, pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
-                                                             self.overlay.border_offset,
-                                                             self.button_size, self.button_size), self.close, image=self.close_button_image)
+        close_button: Button = Button(overlay, self,
+                                      pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
+                                              self.overlay.border_offset,
+                                              self.button_size, self.button_size),
+                                      self.close,
+                                      image=self.close_button_image
+                                      )
         pin_button: Button = Button(overlay, self,
                                     pg.Rect(self.rect.w - 2 * self.button_size - 2 * self.overlay.border_offset,
                                             self.overlay.border_offset,
-                                            self.button_size, self.button_size), self.toggle_pinned, image=self.pin_button_image, toggle=True)
+                                            self.button_size, self.button_size),
+                                    self.toggle_pinned,
+                                    image=self.pin_button_image,
+                                    toggle=True
+                                    )
         self.children.append(close_button)
         self.children.append(pin_button)
         self.body_rect = pg.Rect(self.overlay.border_offset,
                                  self.overlay.border_offset + self.overlay.char_height,
                                  self.rect.w - 2 * self.overlay.border_offset,
                                  self.rect.h - 2 * self.overlay.border_offset - self.overlay.char_height)
+        self.pinned = False
 
     def toggle_pinned(self):
         self.pinned = not self.pinned

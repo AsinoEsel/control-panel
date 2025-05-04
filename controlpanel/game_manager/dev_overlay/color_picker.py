@@ -7,7 +7,9 @@ from .dev_overlay_element import DeveloperOverlayElement
 from .slider import Slider
 from .button import Button
 from .window import Window
+from .input_box import InputBox
 from typing import Optional, TYPE_CHECKING, Callable
+from controlpanel.game_manager.utils import draw_border_rect
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
 
@@ -40,7 +42,7 @@ class ColorPicker(DeveloperOverlayElement):
         super().__init__(overlay, parent, rect)
         self.getter: Callable[[], tuple[int, int, int]] = getter
         self.setter: Callable[[tuple[int, int, int]], None] = setter
-        self.color_wheel = ColorWheel(overlay, self, (overlay.border_offset, (self.rect.h-ColorWheel.SIZE)//2), getter, setter)
+        self.color_wheel = ColorWheel(overlay, self, (overlay.border_offset, (self.rect.h-ColorWheel.SIZE)//2), getter, self.setter_intercept)
         self.children.append(self.color_wheel)
 
         value_slider = Slider(overlay, self, pg.Rect(2 * overlay.border_offset + self.color_wheel.SIZE,
@@ -64,6 +66,41 @@ class ColorPicker(DeveloperOverlayElement):
                               int, (0, 255), self.rgb_getter(ch), self.rgb_setter(ch)) for ch in range(3)]
         self.children.extend(rgb_sliders)
 
+        self.hex_input_box = InputBox(overlay, self, pg.Rect(sliders_x, rgb_sliders[-1].rect.bottom, overlay.char_width * 8, int(overlay.char_height * 1.5)),
+                                      getter=self.hex_getter,
+                                      setter_sending=self.hex_setter)
+        self.children.append(self.hex_input_box)
+
+    def setter_intercept(self, color: tuple[int, int, int]) -> None:
+        """Intercepts the setter to update the elements of the color picker"""
+        self.setter(color)
+        self.hex_input_box.text = self.rgb_to_hex(color) # TODO: without this line, the input box always lags 1 color change behind. Why?
+        self.color_wheel.draw_color_wheel()
+        *self.color_wheel.caret_position, _ = self.color_wheel.rgb_to_wheel_coordinates(color)
+
+    @staticmethod
+    def hex_to_rgb(hex_code: str) -> tuple[int, int, int] | None:
+        hex_color = hex_code.lstrip('#')
+        valid_chars = set('0123456789abcdefABCDEF')
+        if len(hex_color) != 6 or not all(char in valid_chars for char in hex_color):
+            return None
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+        return r, g, b
+
+    @staticmethod
+    def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+        return "#{:02X}{:02X}{:02X}".format(*rgb)
+
+    def hex_getter(self) -> str:
+        return self.rgb_to_hex(self.getter())
+
+    def hex_setter(self, hex_code: str) -> None:
+        rgb: tuple[int, int, int] | None = self.hex_to_rgb(hex_code)
+        if rgb:
+            self.setter_intercept(rgb)
+
     def value_getter(self) -> Callable[[], float]:
         return lambda: colorsys.rgb_to_hsv(*[x / 255.0 for x in self.getter()])[2]
 
@@ -78,9 +115,7 @@ class ColorPicker(DeveloperOverlayElement):
         def setter(val: int) -> None:
             color: tuple[int, int, int] = self.getter()
             rgb: tuple[int, int, int] = tuple(x if i != channel else val for i, x in enumerate(color))
-            self.setter(rgb)
-            self.color_wheel.draw_color_wheel()
-            *self.color_wheel.caret_position, _ = self.color_wheel.rgb_to_wheel_coordinates(rgb)
+            self.setter_intercept(rgb)
         return setter
 
 
@@ -157,11 +192,46 @@ class ColorPickerWindow(Window):
     SIZE: tuple[int, int] = (400, 250)
     CONFIRM_BUTTON_SIZE: tuple[int, int] = (60, 20)
 
-    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", position: tuple[int, int]):
+    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", position: tuple[int, int],
+                 getter: Callable[[], tuple[int, int, int]] = lambda: (0, 0, 0),
+                 setter: Callable[[tuple[int, int, int]], None] = lambda color: None,
+                 ):
         super().__init__(overlay, parent, pg.Rect(position, self.SIZE), "Color Picker")
-        self.children.append(ColorPicker(overlay, self, self.body_rect, lambda: self.overlay.PRIMARY_COLOR, lambda c: setattr(overlay, "PRIMARY_COLOR", c)))
+        self.children.append(ColorPicker(overlay, self, self.body_rect, getter, setter))
         self.children.append(Button(overlay, self, pg.Rect(self.rect.w - self.CONFIRM_BUTTON_SIZE[0] - overlay.border_offset,
                                                            self.rect.h - self.CONFIRM_BUTTON_SIZE[1] - overlay.border_offset,
                                                            self.CONFIRM_BUTTON_SIZE[0],
                                                            self.CONFIRM_BUTTON_SIZE[1]), self.close,
                                     image=overlay.font2.render("Confirm", False, overlay.PRIMARY_TEXT_COLOR, overlay.PRIMARY_COLOR)))
+
+
+class ColorButton(Button):
+    def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect,
+                 getter: Callable[[], tuple[int, int, int]] = lambda: (0, 0, 0),
+                 setter: Callable[[tuple[int, int, int]], None] = lambda color: None,
+                 ):
+        super().__init__(overlay, parent, rect, self.open_color_picker_window)
+        self.color_getter = getter
+        self.color_setter = setter
+
+    def open_color_picker_window(self) -> None:
+        color_picker_window = ColorPickerWindow(self.overlay, self.overlay, (300, 500),
+                                                getter=self.color_getter,
+                                                setter=self.color_setter
+                                                )
+        if self.get_parent_window() and self.get_parent_window().pinned:
+            color_picker_window.pinned = True
+            color_picker_window.children[1].state = True  # TODO: ugly workaround to fix pin button showing wrong color
+        self.overlay.children.append(color_picker_window)
+
+    def render(self):
+        self.surface.fill(self.color_getter())
+
+        if self.pressed:
+            draw_border_rect(self.surface,
+                             (0, 0, self.rect.w, self.rect.h), 0,
+                             self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
+        else:
+            draw_border_rect(self.surface,
+                             (0, 0, self.rect.w, self.rect.h), 0,
+                             self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)

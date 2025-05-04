@@ -1,8 +1,9 @@
 import pygame as pg
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from controlpanel.game_manager.utils import draw_border_rect
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
+    from .window import Window
 
 
 class DeveloperOverlayElement:
@@ -15,7 +16,16 @@ class DeveloperOverlayElement:
             self.surface.set_colorkey(colorkey)
         self.children: list[DeveloperOverlayElement] = []
         self.selected_child: DeveloperOverlayElement | None = None
-        self.pinned: bool = False
+
+    def get_parent_window(self) -> Union["Window", None]:
+        from .window import Window
+        from .dev_overlay import DeveloperOverlay
+        current = self
+        while not isinstance(current, Window):
+            if isinstance(current, DeveloperOverlay):
+                return None
+            current = current.parent
+        return current
 
     def is_selected(self) -> bool:
         if self.selected_child is not None:  # not the last selected object in the linked list

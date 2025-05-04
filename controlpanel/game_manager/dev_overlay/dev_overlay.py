@@ -97,7 +97,7 @@ class DeveloperOverlay:
     def render(self, surface: pg.Surface):
         if not self.open:
             for child in self.children:
-                if child.pinned:
+                if getattr(child, "pinned", False):
                     child.render_recursively(surface)
             return
 
