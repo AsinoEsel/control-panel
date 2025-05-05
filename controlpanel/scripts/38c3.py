@@ -2,9 +2,9 @@ import time
 import random
 import controlpanel.dmx
 from controlpanel.scripts import ControlAPI, Event
-from controlpanel.scripts.gui.window_manager import WindowManager
-from controlpanel.scripts.gui.window_manager.window_manager_setup import *
-from controlpanel.scripts.gui import widgets
+from gui.window_manager import WindowManager
+from gui.window_manager.window_manager_setup import *
+from gui import widgets
 import controlpanel.event_manager.dummy as devices
 from datetime import datetime
 from fourteensegment import Display, rgb_to_b16
@@ -434,7 +434,7 @@ class BatteryChargeStatus(widgets.Widget):
         self.flag_as_needing_rerender()
 
     def render_body(self):
-        from controlpanel.scripts.gui.window_manager import FONT_PATH
+        from gui.window_manager import FONT_PATH
         font = pg.font.Font(FONT_PATH, size=17)
         battery_inserted = ControlAPI.devices.get("BatteryButtonLadestation").state
         battery_inserted_charger = ControlAPI.devices.get("BatteryButton").state

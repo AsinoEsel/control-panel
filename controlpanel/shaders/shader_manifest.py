@@ -2,9 +2,6 @@
 This module defines all available shaders and their uniforms
 """
 
-
-# from controlpanel.scripts.gui.window_manager.window_manager_setup import RENDER_SIZE, RENDER_HEIGHT
-
 RENDER_SIZE = (960, 540)
 RENDER_HEIGHT = RENDER_SIZE[1]
 

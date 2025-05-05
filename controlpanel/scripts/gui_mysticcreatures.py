@@ -1,7 +1,7 @@
 from controlpanel.scripts import ControlAPI
-from controlpanel.scripts.gui.window_manager import WindowManager
-from controlpanel.scripts.gui.window_manager.window_manager_setup import *
-from controlpanel.scripts.gui.widgets import *
+from gui.window_manager import WindowManager
+from gui.window_manager.window_manager_setup import *
+from gui.widgets import *
 
 
 def set_up_desktops():

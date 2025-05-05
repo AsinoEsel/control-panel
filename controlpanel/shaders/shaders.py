@@ -1,7 +1,6 @@
 import pygame as pg
 from array import array
 import moderngl
-# from controlpanel.scripts.gui.window_manager.window_manager_setup import RENDER_SIZE, QUARTER_RENDER_SIZE
 from .shader_manifest import shader_params
 from pathlib import Path
 current_dir = Path(__file__).parent
@@ -73,48 +72,3 @@ def get_shader_program(ctx: moderngl.Context, vert_shader_path: str, frag_shader
 
 def get_vertex_array(ctx: moderngl.Context, quad_buffer: moderngl.Buffer, program: moderngl.Program) -> moderngl.VertexArray:
     return ctx.vertex_array(program, [(quad_buffer, '2f 2f', 'vert', 'texcoord')])
-
-
-# def main(fullscreen: bool = False):
-#     pg.init()
-#     flags = pg.OPENGL | pg.DOUBLEBUF
-#     if fullscreen:
-#         flags |= pg.FULLSCREEN
-#     pg.display.set_mode(RENDER_SIZE, flags=flags)
-#
-#     display = pg.Surface(RENDER_SIZE)
-#
-#     shaders = Shaders(texture_sizes=[RENDER_SIZE, QUARTER_RENDER_SIZE, QUARTER_RENDER_SIZE],
-#                       shader_operations=[(1, "Downscale", {"_MainTex": 0}),
-#                                          (1, "Threshold", {"_MainTex": 1}),
-#                                          (1, "Blur_H", {"_MainTex": 1}),
-#                                          (1, "Blur_V", {"_MainTex": 1}),
-#                                          (2, "Ghost", {"_MainTex": 1, "_SecondaryTex": 2}),
-#                                          (0, "Add", {"_MainTex": 0, "_SecondaryTex": 2}),
-#                                          (0, "CRT", {"_MainTex": 0}),
-#                                          (-1, "To_BGRA", {"_MainTex": 0}),
-#                                          ])
-#
-#     clock = pg.time.Clock()
-#
-#     while True:
-#         current_time = time.time()
-#
-#         for event in pg.event.get():
-#             if event.type == pg.KEYDOWN or event.type == pg.QUIT:
-#                 pg.quit()
-#
-#         # pygame rendering
-#         display.fill((0, 0, 0))
-#         img = pg.image.load("controlpanel/gui/media/screenshot_downscaled.png")
-#         display.blit(pg.transform.scale(img, RENDER_SIZE), (0, 0))
-#
-#         # modernGL
-#         shaders.apply([display,], current_time=current_time)
-#
-#         pg.display.flip()
-#         clock.tick(60)
-#
-#
-# if __name__ == '__main__':
-#     main(fullscreen=False)

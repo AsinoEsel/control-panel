@@ -1,6 +1,6 @@
 from controlpanel.scripts import ControlAPI, Event
-from controlpanel.scripts.gui.widgets import Desktop, Log
-from controlpanel.scripts.gui import WindowManager
+from gui.widgets import Desktop, Log
+from gui import WindowManager
 
 @ControlAPI.callback("TerminalInputBox", "TextInput")
 def console(event: Event):

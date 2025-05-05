@@ -59,7 +59,7 @@ class Logger:
                  screen_surface: pg.Surface,
                  max_relative_height: float = 0.3,
                  *,
-                 font_name: str = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "gui", "media", "clacon2.ttf"),
+                 font_name: str = os.path.join(os.path.dirname(__file__), "assets", "clacon2.ttf"),
                  font_size: int = 20
                  ):
         self.font = pg.font.Font(font_name, font_size)
