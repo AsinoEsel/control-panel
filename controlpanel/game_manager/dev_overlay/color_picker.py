@@ -68,7 +68,7 @@ class ColorPicker(DeveloperOverlayElement):
 
         self.hex_input_box = InputBox(overlay, self, pg.Rect(sliders_x, rgb_sliders[-1].rect.bottom, overlay.char_width * 8, int(overlay.char_height * 1.5)),
                                       getter=self.hex_getter,
-                                      setter_sending=self.hex_setter,
+                                      setter=self.hex_setter,
                                       validator=self.hex_validator)
         self.children.append(self.hex_input_box)
 

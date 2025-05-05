@@ -1,8 +1,9 @@
 import os
 import pygame as pg
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Any
 from .dev_console import DeveloperConsole
 from .dev_overlay_element import DeveloperOverlayElement
+from .input_box import Autocomplete
 from controlpanel.game_manager.utils import MOUSEMOTION_2
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
@@ -42,6 +43,7 @@ class DeveloperOverlay:
         self.char_height = self.font.get_height()
         self.border_offset = 4
 
+        self.autocomplete = Autocomplete(self, (0, 0))
         self.dev_console = DeveloperConsole(self)
         self.selected_child: DeveloperOverlayElement | None = None
         self.children: list[DeveloperOverlayElement] = [
@@ -57,6 +59,11 @@ class DeveloperOverlay:
     def handle_events(self, events: list[pg.event.Event]):
         # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
         for event in events:
+            # First, we check if the autocomplete is open. If it is, it has absolute priority.
+            if self.autocomplete.show:
+                if self.autocomplete.handle_event(event):
+                    continue
+
             # If it's a MOUSEMOTION event, we immediately fire our own MOUSEMOTION_2 event.
             # This makes it so that elements are notified when the cursor moves away from them.
             if event.type == pg.MOUSEMOTION:
@@ -105,5 +112,6 @@ class DeveloperOverlay:
 
         for child in self.children:
             child.render_recursively(surface)
-        if self.dev_console.autocomplete.show:
-            surface.blit(self.dev_console.autocomplete.surface, (self.border_offset + self.dev_console.autocomplete.position * self.char_width, self.dev_console.surface.get_height()))
+        if self.autocomplete.show:
+            self.autocomplete.draw()
+            surface.blit(self.autocomplete.surface, (self.autocomplete.rect.left + self.autocomplete.position * self.char_width, self.autocomplete.rect.top))

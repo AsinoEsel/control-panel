@@ -17,6 +17,16 @@ class DeveloperOverlayElement:
         self.children: list[DeveloperOverlayElement] = []
         self.selected_child: DeveloperOverlayElement | None = None
 
+    def get_absolute_rect(self) -> pg.Rect:
+        from .dev_overlay import DeveloperOverlay
+        current = self
+        current_x, current_y = 0, 0
+        while not isinstance(current, DeveloperOverlay):
+            current_x += current.rect.left
+            current_y += current.rect.top
+            current = current.parent
+        return pg.Rect(current_x, current_y, self.rect.w, self.rect.h)
+
     def get_parent_window(self) -> Union["Window", None]:
         from .window import Window
         from .dev_overlay import DeveloperOverlay

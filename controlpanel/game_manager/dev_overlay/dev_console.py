@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import importlib
 import time
 import pygame as pg
@@ -12,7 +11,7 @@ from collections import deque
 from controlpanel.game_manager.utils import ColorType, draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from .button import Button
-from .input_box import InputBox
+from .input_box import InputBox, Autocomplete
 from pathlib import Path
 import traceback
 if TYPE_CHECKING:
@@ -106,15 +105,16 @@ class DeveloperConsole(DeveloperOverlayElement):
         input_box_width = log_width - overlay.border_offset - self.SUBMIT_BUTTON_WIDTH
         max_log_height = overlay.render_size[0] - input_box_height - 3 * overlay.border_offset
 
-        self.autocomplete = Autocomplete(self)
+        # self.autocomplete = Autocomplete(overlay, (0, 0))
         self.input_box = InputBox(overlay, self, pg.Rect(self.overlay.border_offset,
                                                          self.surface.get_height() - input_box_height - self.overlay.border_offset,
                                                          input_box_width,
                                                          input_box_height),
-                                  setter_editing=self.autocomplete.update,
-                                  setter_sending=self.handle_command,
+                                  setter=self.handle_command,
                                   clear_on_send=True,
-                                  lose_focus_on_send=False)
+                                  lose_focus_on_send=False,
+                                  autocomplete_function=self.dev_console_autocomplete,
+                                  )
         self.log = Log(overlay, self, pg.Rect(self.overlay.border_offset,
                                               self.surface.get_height() - self.input_box.surface.get_height() - self.overlay.border_offset,
                                               log_width,
@@ -129,6 +129,37 @@ class DeveloperConsole(DeveloperOverlayElement):
         self.children.append(submit_button)
 
         self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
+
+    def dev_console_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
+        if not text:
+            return 0, []
+        words = text.split(" ", maxsplit=1)
+        if len(words) == 1:
+            position, options = 0, []
+            for command, func in self.get_all_commands().items():
+                if not command.startswith(text) or command == text:
+                    continue
+                retrieved_value = None
+                if hint := getattr(func, "_hint", None):
+                    for command_carrier in (self, self.overlay.game_manager, self.overlay.game_manager.get_game()):
+                        try:
+                            retrieved_value = hint(command_carrier)
+                            break
+                        except AttributeError:
+                            continue
+                options.append(Autocomplete.Option(command + " ", str(retrieved_value) if retrieved_value is not None else "", False))
+            return position, options
+        elif len(words) > 1:
+            position = len(words[0]) + 1
+            command: Callable[[...], Any] | None = self.get_all_commands().get(words[0])
+            if not command:
+                return 0, []
+            autocomplete_function: Callable[[str], list[str]] | None = getattr(command, "_autocomplete_function", None)
+            if not autocomplete_function:
+                return 0, []
+            offset, options = getattr(self, autocomplete_function.__name__)(words[1])
+            position += offset
+            return position, options
 
     def _setup_namespace(self) -> types.SimpleNamespace:
         """Updates the namespace that allows for the eval and exec commands to find the names of attributes and such."""
@@ -324,7 +355,7 @@ class DeveloperConsole(DeveloperOverlayElement):
                         continue
                     if (str(obj).startswith("<") or str(obj).endswith(">")) and not callable(obj):
                         current_name += "."
-                    if len(str(obj)) <= max(self.autocomplete.MAX_UNSHORTENED_HINT_LENGTH, len(type(obj).__name__)):
+                    if len(str(obj)) <= max(Autocomplete.MAX_UNSHORTENED_HINT_LENGTH, len(type(obj).__name__)):
                         hint: str = str(obj)
                         cursive = False
                     else:
@@ -332,7 +363,6 @@ class DeveloperConsole(DeveloperOverlayElement):
                         cursive = True
                     options.append(Autocomplete.Option(current_name, hint, cursive))
                 return position, options
-                # return position, [attr for attr in dir(current) if attr.startswith(name) and attr != name and not attr.startswith("__")]
 
     @console_command(is_cheat_protected=True, show_return_value=True, autocomplete_function=eval_exec_autocomplete)
     def eval(self, eval_string: str):
@@ -489,8 +519,8 @@ class DeveloperConsole(DeveloperOverlayElement):
             self.log.history_index -= event.y
             self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
             self.log.render()
-        elif self.autocomplete.handle_event(event):
-            pass  # event got eaten by Autocompleter
+        # elif self.autocomplete.handle_event(event):
+        #     pass  # event got eaten by Autocompleter
         elif self.input_box.handle_event(event):
             pass  # event got eaten by input box
         else:
@@ -507,109 +537,6 @@ class DeveloperConsole(DeveloperOverlayElement):
         if visible_log_height > 0:
             draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
         draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
-
-
-class Autocomplete:
-    MAX_HINT_LENGTH = 32
-    MAX_UNSHORTENED_HINT_LENGTH = 16
-
-    @dataclass
-    class Option:
-        name: str
-        type_hint: str
-        italics: bool = True
-
-    def __init__(self, dev_console: DeveloperConsole):
-        self.dev_console = dev_console
-        self.show: bool = False
-        self.options: list[Autocomplete.Option] = []
-        self.position: int = 0  # the position at which the autocomplete is inserted
-        self.surface: pg.Surface = pg.Surface((1, 1))
-        self.selection_index: int = 0
-
-    def handle_event(self, event: pg.event.Event) -> bool:
-        if self.show and event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
-            self.selection_index = (self.selection_index + 1) % len(self.options)
-            self.draw()
-        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_UP:
-            self.selection_index = (self.selection_index - 1) % len(self.options)
-            self.draw()
-        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-            self.dev_console.input_box.text = self.dev_console.input_box.text[0:self.position] + self.options[self.selection_index].name
-            if self.position == 0:
-                self.dev_console.input_box.text += " "
-            self.dev_console.input_box.caret_position = len(self.dev_console.input_box.text)
-            self.update(self.dev_console.input_box.text)  # TODO: hmmm?
-        else:
-            return False
-        return True
-
-    def update(self, text: str):
-        self.selection_index = 0
-        if not text:
-            self.show = False
-            return
-        words = text.split(" ", maxsplit=1)
-        if len(words) == 1:
-            self.position = 0
-            self.options: list[Autocomplete.Option] = []
-            for command, func in self.dev_console.get_all_commands().items():
-                if not command.startswith(text) or command == text:
-                    continue
-                retrieved_value = None
-                if hint := getattr(func, "_hint", None):
-                    for command_carrier in (self.dev_console, self.dev_console.overlay.game_manager, self.dev_console.overlay.game_manager.get_game()):
-                        try:
-                            retrieved_value = hint(command_carrier)
-                            break
-                        except AttributeError:
-                            continue
-                self.options.append(Autocomplete.Option(command, str(retrieved_value) if retrieved_value is not None else "", False))
-            if not self.options:
-                self.show = False
-                return
-        elif len(words) > 1:
-            self.position = len(words[0]) + 1
-            command: Callable[[...], Any] | None = self.dev_console.get_all_commands().get(words[0])
-            if not command:
-                self.show = False
-                return
-            autocomplete_function: Callable[[str], list[str]] | None = getattr(command, "_autocomplete_function", None)
-            if not autocomplete_function:
-                self.show = False
-                return
-            offset, self.options = getattr(self.dev_console, autocomplete_function.__name__)(words[1])
-            self.position += offset
-            if not self.options:
-                self.show = False
-                return
-        self.show = True
-        self.draw()
-
-    def draw(self):
-        surface_border_width = 2
-        hint_gap = 1 if any(option.type_hint for option in self.options) else 0
-        surface_width = max(len(option.name) + min(self.MAX_HINT_LENGTH, len(option.type_hint)) + hint_gap for option in self.options) * self.dev_console.overlay.char_width + 2 * surface_border_width
-        surface_height = len(self.options) * self.dev_console.overlay.char_height + surface_border_width
-
-        self.surface = pg.Surface((surface_width, surface_height))
-        self.surface.fill(self.dev_console.overlay.PRIMARY_COLOR)
-        for i, option in enumerate(self.options):
-            if i == self.selection_index:
-                pg.draw.rect(self.surface, self.dev_console.overlay.HIGHLIGHT_COLOR, (0, i * self.dev_console.overlay.char_height, surface_width, self.dev_console.overlay.char_height))
-                text_color = self.dev_console.overlay.PRIMARY_TEXT_COLOR
-                hint_color = self.dev_console.overlay.SECONDARY_TEXT_COLOR
-            else:
-                text_color = self.dev_console.overlay.SECONDARY_TEXT_COLOR
-                hint_color = self.dev_console.overlay.BORDER_COLOR_LIGHT
-            y = i * self.dev_console.overlay.char_height + surface_border_width
-            self.surface.blit(self.dev_console.overlay.font.render(option.name, False, text_color, None), (surface_border_width, y))
-            type_hint = option.type_hint if len(option.type_hint) <= self.MAX_HINT_LENGTH else option.type_hint[0:self.MAX_HINT_LENGTH-3]+"..."
-            if option.italics:
-                self.dev_console.overlay.font.set_italic(True)
-            self.surface.blit(self.dev_console.overlay.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.dev_console.overlay.char_width, y))
-            self.dev_console.overlay.font.set_italic(False)
-        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.dev_console.overlay.BORDER_COLOR_LIGHT, self.dev_console.overlay.BORDER_COLOR_DARK)
 
 
 class Log(DeveloperOverlayElement):

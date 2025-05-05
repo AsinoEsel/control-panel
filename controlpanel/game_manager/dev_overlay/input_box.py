@@ -2,39 +2,110 @@ import pygame as pg
 import pyperclip
 from controlpanel.game_manager.utils import draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, Any
+from dataclasses import dataclass
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
+
+
+class Autocomplete(DeveloperOverlayElement):
+    MAX_HINT_LENGTH = 32
+    MAX_UNSHORTENED_HINT_LENGTH = 16
+
+    @dataclass
+    class Option:
+        name: str
+        type_hint: str
+        italics: bool = True
+
+    def __init__(self, overlay: "DeveloperOverlay", position: tuple[int, int]):
+        super().__init__(overlay, overlay, pg.Rect(position, (1, 1)))
+        self.input_box: InputBox | None = None
+        self.show: bool = False
+        self.options: list[Autocomplete.Option] = []
+        self.position: int = 0  # the position at which the autocomplete is inserted
+        self.selection_index: int = 0
+
+    def handle_event(self, event: pg.event.Event) -> bool:
+        if self.show and event.type == pg.KEYDOWN and event.key == pg.K_DOWN:
+            self.selection_index = (self.selection_index + 1) % len(self.options)
+            self.draw()
+        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_UP:
+            self.selection_index = (self.selection_index - 1) % len(self.options)
+            self.draw()
+        elif self.show and event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+            self.input_box.text = self.input_box.text[0:self.position] + self.options[self.selection_index].name
+            self.input_box.caret_position = len(self.input_box.text)
+            self.input_box.update_autocomplete(self.input_box.text)  # TODO: why do we need this?
+        else:
+            return False
+        return True
+
+    def draw(self):
+        surface_border_width = 2
+        hint_gap = 1 if any(option.type_hint for option in self.options) else 0
+        surface_width = max(len(option.name) + min(self.MAX_HINT_LENGTH, len(option.type_hint)) + hint_gap for option in self.options) * self.overlay.char_width + 2 * surface_border_width
+        surface_height = len(self.options) * self.overlay.char_height + surface_border_width
+
+        self.surface = pg.Surface((surface_width, surface_height))
+        self.surface.fill(self.overlay.PRIMARY_COLOR)
+        for i, option in enumerate(self.options):
+            if i == self.selection_index:
+                pg.draw.rect(self.surface, self.overlay.HIGHLIGHT_COLOR, (0, i * self.overlay.char_height, surface_width, self.overlay.char_height))
+                text_color = self.overlay.PRIMARY_TEXT_COLOR
+                hint_color = self.overlay.SECONDARY_TEXT_COLOR
+            else:
+                text_color = self.overlay.SECONDARY_TEXT_COLOR
+                hint_color = self.overlay.BORDER_COLOR_LIGHT
+            y = i * self.overlay.char_height + surface_border_width
+            self.surface.blit(self.overlay.font.render(option.name, False, text_color, None), (surface_border_width, y))
+            type_hint = option.type_hint if len(option.type_hint) <= self.MAX_HINT_LENGTH else option.type_hint[0:self.MAX_HINT_LENGTH-3]+"..."
+            if option.italics:
+                self.overlay.font.set_italic(True)
+            self.surface.blit(self.overlay.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.overlay.char_width, y))
+            self.overlay.font.set_italic(False)
+        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
 
 
 class InputBox(DeveloperOverlayElement):
     STOP_CHARS: tuple[str] = (' ', '.', ',')
 
     def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect,
-                 getter: Callable[[], str] = lambda: "",
-                 setter_editing: Callable[[str], None] = lambda x: None,
-                 setter_sending: Callable[[str], None] = lambda x: None, *,
+                 getter: Callable[[], str] | None = None,
+                 setter: Callable[[str], None] = lambda x: None, *,
                  clear_on_send: bool = False,
                  select_all_on_click: bool = True,
                  lose_focus_on_send: bool = True,
                  validator: Callable[[str], bool] = lambda x: True,
+                 autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None,
                  ) -> None:
         super().__init__(overlay, parent, rect)
-        self.getter: Callable[[], str] = getter
-        self.setter_editing: Callable[[str], None] = setter_editing
-        self.setter_sending: Callable[[str], None] = setter_sending
+        self.getter: Callable[[], str] = getter if getter else lambda: self.text
+        self.setter: Callable[[str], None] = setter
         self.clear_on_send: bool = clear_on_send
         self.select_all_on_click: bool = select_all_on_click
         self.lose_focus_on_send: bool = lose_focus_on_send
         self.validator: Callable[[str], bool] = validator
+        self.autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = autocomplete_function
         self.in_edit_mode: bool = False  # TODO: join feature with element selection
         self.in_history: bool = False  # TODO: find better solution that's less maintenance heavy
-        self.text = getter()
+        self.text = getter() if getter else ""
         self.max_chars = self.surface.get_width()//self.overlay.char_width - 1
         self.caret_position = 0
         self.selection_range = None
         self.history: list[str] = []
         self.history_index = 0
+
+    def update_autocomplete(self, text: str):
+        # TODO: move into Autocomplete class instead? (Pass self)
+        if not self.autocomplete_function:
+            return
+        self.overlay.autocomplete.selection_index = 0
+        abs_rect = self.get_absolute_rect()
+        self.overlay.autocomplete.rect.topleft = (abs_rect.left, abs_rect.bottom)
+        self.overlay.autocomplete.input_box = self
+        self.overlay.autocomplete.position, self.overlay.autocomplete.options = self.autocomplete_function(text)
+        self.overlay.autocomplete.show = True if self.overlay.autocomplete.options else False
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.MOUSEBUTTONDOWN and 0 < event.pos[0] < self.rect.w and 0 < event.pos[1] < self.rect.h:
@@ -49,7 +120,7 @@ class InputBox(DeveloperOverlayElement):
                 self.erase_selection_range()
             self.text = self.text[0:self.caret_position] + event.text + self.text[self.caret_position:]
             self.caret_position += 1
-            self.setter_editing(self.text)
+            self.update_autocomplete(self.text)
         elif event.type == pg.KEYDOWN and self.in_edit_mode:
             if event.key == pg.K_RETURN:
                 self.in_history = False
@@ -60,14 +131,14 @@ class InputBox(DeveloperOverlayElement):
                     self.erase_selection_range()
                 else:
                     self.move_caret(-1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
-                self.setter_editing(self.text)
+                self.update_autocomplete(self.text)
             elif event.key == pg.K_DELETE:
                 self.in_history = False
                 if self.selection_range:
                     self.erase_selection_range()
                 else:
                     self.move_caret(1, holding_ctrl=event.mod & pg.KMOD_CTRL, delete=True)
-                self.setter_editing(self.text)
+                self.update_autocomplete(self.text)
             elif event.key == pg.K_LEFT:
                 self.in_history = False
                 self.move_caret(-1, event.mod & pg.KMOD_SHIFT, event.mod & pg.KMOD_CTRL)
@@ -123,7 +194,7 @@ class InputBox(DeveloperOverlayElement):
             return
         if self.lose_focus_on_send:
             self.in_edit_mode = False
-        self.setter_sending(self.text)
+        self.setter(self.text)
         if self.text:
             if self.text in self.history:
                 self.history.remove(self.text)
@@ -131,7 +202,7 @@ class InputBox(DeveloperOverlayElement):
         if self.clear_on_send:
             self.text = ''
             self.caret_position = 0
-        self.setter_editing(self.text)
+        self.update_autocomplete(self.text)
         self.selection_range = None
         self.history_index = 0
 
