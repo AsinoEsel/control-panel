@@ -42,6 +42,8 @@ class Window(DeveloperOverlayElement):
         self.pinned = not self.pinned
 
     def close(self):
+        if self.is_selected(must_be_last_in_linked_list=False):
+            self.parent.select_next()
         self.overlay.children.remove(self)
         del self
 

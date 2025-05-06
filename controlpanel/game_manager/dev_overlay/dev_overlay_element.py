@@ -37,9 +37,9 @@ class DeveloperOverlayElement:
             current = current.parent
         return current
 
-    def is_selected(self) -> bool:
-        if self.selected_child is not None:  # not the last selected object in the linked list
-            return False
+    def is_selected(self, *, must_be_last_in_linked_list: bool = True) -> bool:
+        if self.selected_child is not None and must_be_last_in_linked_list:
+            return False  # not the last selected object in the linked list
         current = self
         while current is not self.overlay:  # recursively walk up the parent hierarchy
             if current.parent.selected_child is not current:  # if link is broken, not selected
@@ -61,6 +61,29 @@ class DeveloperOverlayElement:
 
     def render(self):
         self.render_body()
+
+    def select_next(self):
+        if not self.selected_child:
+            if self.children:
+                self.selected_child = self.children[0]
+            else:
+                self.parent.select_next()
+        else:
+            index = self.children.index(self.selected_child)
+            index += 1
+            if index >= len(self.children):
+                if self.parent:
+                    self.parent.select_next()
+                    return
+                index = 0
+            self.selected_child = self.children[index]
+            self.selected_child.selected_child = None
+
+    def get_selected_element(self) -> Optional["DeveloperOverlayElement"]:
+        current = self
+        while current.selected_child is not None:
+            current = current.selected_child
+        return current if current is not self else None
 
     def handle_event_recursively(self, event: pg.event.Event):
         if hasattr(event, "pos"):

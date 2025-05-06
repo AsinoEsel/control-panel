@@ -98,12 +98,12 @@ class DeveloperConsole(DeveloperOverlayElement):
     SUBMIT_BUTTON_WIDTH = 50
 
     def __init__(self, overlay: "DeveloperOverlay"):
-        super().__init__(overlay, overlay, pg.Rect(0, 0, overlay.render_size[0], self.DEFAULT_HEIGHT))
+        super().__init__(overlay, overlay, pg.Rect(0, 0, overlay.rect.w, self.DEFAULT_HEIGHT))
 
         input_box_height = int(overlay.char_height * 1.5)
-        log_width = overlay.render_size[0] - 2 * overlay.border_offset
+        log_width = overlay.rect.w - 2 * overlay.border_offset
         input_box_width = log_width - overlay.border_offset - self.SUBMIT_BUTTON_WIDTH
-        max_log_height = overlay.render_size[0] - input_box_height - 3 * overlay.border_offset
+        max_log_height = overlay.rect.w - input_box_height - 3 * overlay.border_offset
 
         # self.autocomplete = Autocomplete(overlay, (0, 0))
         self.input_box = InputBox(overlay, self, pg.Rect(self.overlay.border_offset,

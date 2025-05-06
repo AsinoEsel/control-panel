@@ -107,6 +107,7 @@ class VariableMonitor(DeveloperOverlayElement):
                                       setter=self.object_setter,
                                       )
         self.new_var_button.children.append(var_name_input_box)
+        self.new_var_button.selected_child = var_name_input_box
 
     def object_validator(self, text: str) -> bool:
         if any(char in text for char in ("(", ")")) or not "." in text:
@@ -130,12 +131,11 @@ class VariableMonitor(DeveloperOverlayElement):
         var_type = get_type_hints(obj.__class__).get(attr) or type(getattr(obj, attr))
         if callable(getattr(obj, attr)):
             variable = Variable(self.overlay, self, rect, var_name, var_type, lambda: "", getattr(obj, attr), **kwargs)
-            self.children.append(variable)
         else:
             def getter(): return getattr(obj, attr)
             def setter(var): setattr(obj, attr, var)
             variable = Variable(self.overlay, self, rect, var_name, var_type, getter, setter, **kwargs)
-            self.children.append(variable)
+        self.children.insert(-1, variable)
 
 
 class VariableMonitorWindow(Window):

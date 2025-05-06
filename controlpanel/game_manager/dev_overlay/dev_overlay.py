@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager
 
 
-class DeveloperOverlay:
+class DeveloperOverlay(DeveloperOverlayElement):
     PRIMARY_COLOR: tuple[int, int, int] = (76, 88, 68)
     SECONDARY_COLOR: tuple[int, int, int] = (62, 70, 55)
     PRIMARY_TEXT_COLOR: tuple[int, int, int] = (255, 255, 255)
@@ -21,12 +21,14 @@ class DeveloperOverlay:
 
     def __init__(self,
                  game_manager: "GameManager",
-                 render_size: tuple[int, int],
+                 surface: pg.Surface,
                  *,
                  font_name: str = os.path.join(os.path.dirname(__file__), "assets", "clacon2.ttf"),
                  font_size: int = 20,
                  font_name2: str = os.path.join(os.path.dirname(__file__), "assets", "trebuc.ttf"),
                  font_size2: int = 12):
+        super().__init__(self, None, pg.Rect((0, 0), surface.get_size()))
+        self.surface = surface
         try:
             self.font: pg.font.Font = pg.font.Font(font_name, font_size)
         except FileNotFoundError:
@@ -36,7 +38,6 @@ class DeveloperOverlay:
         except FileNotFoundError:
             self.font2: pg.font.Font = pg.font.Font(None, font_size2)
         self.game_manager = game_manager
-        self.render_size: tuple[int, int] = render_size
         self.open: bool = False
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
@@ -45,16 +46,7 @@ class DeveloperOverlay:
 
         self.autocomplete = Autocomplete(self, (0, 0))
         self.dev_console = DeveloperConsole(self)
-        self.selected_child: DeveloperOverlayElement | None = None
-        self.children: list[DeveloperOverlayElement] = [
-            self.dev_console,
-        ]
-
-    def get_selected_element(self) -> DeveloperOverlayElement | None:
-        current = self
-        while current.selected_child is not None:
-            current = current.selected_child
-        return current if current is not self else None
+        self.children.append(self.dev_console)
 
     def handle_events(self, events: list[pg.event.Event]):
         # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
@@ -63,6 +55,13 @@ class DeveloperOverlay:
             if self.autocomplete.show:
                 if self.autocomplete.handle_event(event):
                     continue
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+                if not self.get_selected_element():
+                    self.selected_child = self.children[0]
+                    continue
+                self.get_selected_element().select_next()
+                continue
 
             # If it's a MOUSEMOTION event, we immediately fire our own MOUSEMOTION_2 event.
             # This makes it so that elements are notified when the cursor moves away from them.
@@ -101,18 +100,22 @@ class DeveloperOverlay:
             if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
                 self.selected_child = None
 
-    def render(self, surface: pg.Surface):
+    def render(self):
         if not self.open:
             for child in self.children:
                 if getattr(child, "pinned", False):
-                    child.render_recursively(surface)
+                    child.render_recursively(self.surface)
             return
 
-        surface.fill(self.PRIMARY_COLOR, special_flags=pg.BLEND_RGB_MULT)
+        self.surface.fill(self.PRIMARY_COLOR, special_flags=pg.BLEND_RGB_MULT)
 
         for child in self.children:
-            child.render_recursively(surface)
+            child.render_recursively(self.surface)
+
         if self.autocomplete.show:
             self.autocomplete.draw()
-            surface.blit(self.autocomplete.surface, (self.autocomplete.rect.left + self.autocomplete.input_box.get_letter_x(self.autocomplete.position),
+            self.surface.blit(self.autocomplete.surface, (self.autocomplete.rect.left + self.autocomplete.input_box.get_letter_x(self.autocomplete.position),
                                                      self.autocomplete.rect.top))
+
+        if self.get_selected_element():
+            pg.draw.rect(self.surface, (255, 255, 255), self.get_selected_element().get_absolute_rect(), 2)
