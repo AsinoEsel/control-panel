@@ -114,4 +114,5 @@ class DeveloperOverlay:
             child.render_recursively(surface)
         if self.autocomplete.show:
             self.autocomplete.draw()
-            surface.blit(self.autocomplete.surface, (self.autocomplete.rect.left + self.autocomplete.position * self.char_width, self.autocomplete.rect.top))
+            surface.blit(self.autocomplete.surface, (self.autocomplete.rect.left + self.autocomplete.input_box.get_letter_x(self.autocomplete.position),
+                                                     self.autocomplete.rect.top))

@@ -37,7 +37,8 @@ class Variable(DeveloperOverlayElement):
             offset: int = (self.rect.h - height) // 2
             self.children.append(InputBox(overlay, self, pg.Rect(self.rect.centerx, offset, self.rect.w//2-offset, height),
                                           getter=var_getter,
-                                          setter=var_setter))
+                                          setter=var_setter,
+                                          alignment="center"))
         elif isinstance(var_setter, MethodType):
             height: int = self.rect.h - 2 * self.overlay.border_offset
             offset: int = (self.rect.h - height) // 2
@@ -48,8 +49,9 @@ class Variable(DeveloperOverlayElement):
             height: int = self.rect.h - 2 * self.overlay.border_offset
             offset: int = (self.rect.h - height) // 2
             self.children.append(InputBox(overlay, self, pg.Rect(self.rect.centerx, offset, self.rect.w // 2 - offset, height),
-                                 getter=lambda: str(var_getter()),
-                                 setter=self.misc_var_setter_getter(var_type, var_setter)))
+                                          getter=lambda: str(var_getter()),
+                                          setter=self.misc_var_setter_getter(var_type, var_setter),
+                                          alignment="center"))
 
     @staticmethod
     def misc_var_setter_getter(var_type: Type, var_setter: Callable[[Any], None]) -> Callable[[str], None]:
@@ -144,6 +146,5 @@ class NewVariableWindow(Window):
     def object_setter(self, text: str) -> None:
         object_name, attr = text.rsplit(".", maxsplit=1)
         obj = eval(object_name, None, self.overlay.dev_console._namespace.__dict__)
-        print(obj, attr)
         self.var_monitor.register_variable(obj, attr, attr)
         self.close()

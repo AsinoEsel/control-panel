@@ -2,7 +2,7 @@ import pygame as pg
 import pyperclip
 from controlpanel.game_manager.utils import draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
-from typing import Callable, TYPE_CHECKING, Any
+from typing import Callable, TYPE_CHECKING, Literal
 from dataclasses import dataclass
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
@@ -78,6 +78,7 @@ class InputBox(DeveloperOverlayElement):
                  lose_focus_on_send: bool = True,
                  validator: Callable[[str], bool] = lambda x: True,
                  autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None,
+                 alignment: Literal["left", "center", "right"] = "left",
                  ) -> None:
         super().__init__(overlay, parent, rect)
         self.getter: Callable[[], str] = getter if getter else lambda: self.text
@@ -87,6 +88,7 @@ class InputBox(DeveloperOverlayElement):
         self.lose_focus_on_send: bool = lose_focus_on_send
         self.validator: Callable[[str], bool] = validator
         self.autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = autocomplete_function
+        self.alignment: Literal["left", "center", "right"] = alignment
         self.in_edit_mode: bool = False  # TODO: join feature with element selection
         self.in_history: bool = False  # TODO: find better solution that's less maintenance heavy
         self.text = getter() if getter else ""
@@ -262,15 +264,25 @@ class InputBox(DeveloperOverlayElement):
         else:
             color = self.overlay.SECONDARY_TEXT_COLOR
         text_surface = self.overlay.font.render(text, True, color, None)
-        self.surface.blit(text_surface, (self.overlay.char_width // 3, 5))
+        self.surface.blit(text_surface, (self.get_letter_x(0), (self.rect.h - text_surface.get_height()) // 2))
+
+    def get_letter_x(self, letter_position: int) -> int:
+        if self.alignment == "left":
+            return int(self.overlay.char_width * (letter_position + 1 / 3))
+        elif self.alignment == "center":
+            return self.rect.width//2 + self.overlay.char_width * (letter_position - len(self.text) / 2)
+        elif self.alignment == "right":
+            reverse_position: int = len(self.text) - letter_position
+            return self.rect.width - int(self.overlay.char_width * (reverse_position + 1 / 3))
+        raise ValueError
 
     def render_caret(self):
-        x = self.overlay.char_width * (self.caret_position + 1 / 3)
+        x = self.get_letter_x(self.caret_position)
         pg.draw.line(self.surface, self.overlay.PRIMARY_TEXT_COLOR, (x, self.overlay.char_height // 6),
                      (x, self.rect.height - self.overlay.char_height // 6), 2)
 
     def render_selection(self):
-        x = int(self.overlay.char_width * (min(self.selection_range) + 1 / 3))
+        x = self.get_letter_x(min(self.selection_range))
         y = self.overlay.char_height // 8
         w = self.overlay.char_width * (max(self.selection_range) - min(self.selection_range))
         h = self.rect.height - 2 * self.overlay.char_height // 8
