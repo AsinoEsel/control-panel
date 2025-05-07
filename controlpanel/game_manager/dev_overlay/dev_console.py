@@ -159,7 +159,10 @@ class DeveloperConsole(DeveloperOverlayElement):
             autocomplete_function: Callable[[str], list[str]] | None = getattr(command, "_autocomplete_function", None)
             if not autocomplete_function:
                 return 0, []
-            offset, options = getattr(self, autocomplete_function.__name__)(words[1])
+            for command_carrier in self.overlay.namespace.__dict__.values():
+                if getattr(command_carrier, autocomplete_function.__name__, None):
+                    offset, options = getattr(command_carrier, autocomplete_function.__name__)(words[1])
+                    break
             position += offset
             return position, options
 
@@ -180,6 +183,11 @@ class DeveloperConsole(DeveloperOverlayElement):
     def set_developer_mode(self, enable: int):
         """If set, print stdout to the screen"""
         self.overlay._developer_mode = bool(enable)
+
+    @console_command("showfps", hint=lambda self: int(self.overlay._show_fps))
+    def set_fps_counter(self, enable: int):
+        """Show or hide the FPS counter"""
+        self.overlay._show_fps = bool(enable)
 
     @console_command("var_monitor", is_cheat_protected=True)
     def open_variable_monitor_window(self):

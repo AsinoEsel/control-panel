@@ -7,6 +7,8 @@ from .dev_overlay_element import DeveloperOverlayElement
 from .input_box import Autocomplete
 from .assets import load_file_stream
 from .mousemotion2 import MOUSEMOTION_2
+from collections import deque
+from time import perf_counter
 
 
 class DeveloperOverlay(DeveloperOverlayElement):
@@ -26,7 +28,8 @@ class DeveloperOverlay(DeveloperOverlayElement):
                  enable_cheats: bool = False,
                  primary_font_override: pg.font.Font | None = None,
                  secondary_font_override: pg.font.Font | None = None,
-                 logger_font_override: pg.font.Font | None = None):
+                 logger_font_override: pg.font.Font | None = None,
+                 target_framerate: float | None = None):
         super().__init__(self, None, pg.Rect((0, 0), surface.get_size()))
         self.surface = surface
         self.font = primary_font_override or pg.font.Font(load_file_stream("clacon2.ttf"), 20)
@@ -45,7 +48,13 @@ class DeveloperOverlay(DeveloperOverlayElement):
         self.dev_console = DeveloperConsole(self)
         self.children.append(self.dev_console)
 
-        self._developer_mode = False
+        self._developer_mode: bool = False
+        self._show_fps: bool = False
+        self._start_time: float = perf_counter()
+        self._target_framerate: float | None = target_framerate
+        self._frame_time_buffer_time_seconds: float = 3.0
+        self._frame_time_buffer_length: int = max(1, int(self._frame_time_buffer_time_seconds * self._target_framerate)) if self._target_framerate is not None else 100
+        self._frame_times_ms: deque[int] = deque(maxlen=self._frame_time_buffer_length)
 
         self.namespace = SimpleNamespace(dev_console=self.dev_console, pg=pg, **namespaces)
         sys.stdout = OutputRedirector(self.dev_console.log.print, self._logger.print)
@@ -111,13 +120,54 @@ class DeveloperOverlay(DeveloperOverlayElement):
 
         return True if self.open else False
 
+    def get_fps_color(self, fps: float) -> tuple[int, int, int]:
+        if self._target_framerate is None:
+            return 255, 255, 255
+        if fps < 0.8 * self._target_framerate:
+            return 255, 0, 0
+        elif 0.8 * self._target_framerate <= fps < 0.95 * self._target_framerate:
+            return 255, 255, 0
+        else:
+            return 0, 255, 0
+
+    def get_frame_time_color(self, frame_time: float) -> tuple[int, int, int]:
+        if self._target_framerate is None:
+            return 255, 255, 255
+        if frame_time > int(1.25 * 1000/max(self._target_framerate, 1.0)):
+            return 255, 0, 0
+        elif int(1.25 * 1000/max(self._target_framerate, 1.0)) >= frame_time >= 1/0.95 * 1000/max(self._target_framerate, 1.0):
+            return 255, 255, 0
+        else:
+            return 0, 255, 0
+
+    def draw_fps_counter(self, surface: pg.Surface):
+        if not self._frame_times_ms:
+            return
+        avg_fps = 1000 / (sum(self._frame_times_ms) / len(self._frame_times_ms))
+        fps_color = self.get_fps_color(avg_fps)
+        max_frame_time = max(self._frame_times_ms)
+        frame_time_color = self.get_frame_time_color(max_frame_time)
+
+        surface.blit(self.font.render(f"FPS: {int(avg_fps)}", True, fps_color), (2, 2))
+        surface.blit(self.font.render(f"MAX: {max_frame_time}ms", True, frame_time_color), (2, 22))
+
     def render(self):
+        if self._show_fps:
+            elapsed_time_seconds: float = perf_counter() - self._start_time
+            self._frame_times_ms.append(int(elapsed_time_seconds * 1000))
+            self._start_time = perf_counter()
+
         if not self.open:
             for child in self.children:
                 if getattr(child, "pinned", False):
                     child.render_recursively(self.surface)
             if self._developer_mode:  # todo: duplicate code
                 self._logger.render(self.surface)
+            if self._show_fps:
+                # if self._frame_times_ms.maxlen != max(1, int(self._target_framerate * self._frame_time_buffer_time_seconds)):
+                #     self._frame_times_ms = deque(
+                #         maxlen=max(1, int(self._target_framerate * self._frame_time_buffer_time_seconds)))
+                self.draw_fps_counter(self.surface)
             return
 
         self.surface.fill(self.PRIMARY_COLOR, special_flags=pg.BLEND_RGB_MULT)
@@ -135,3 +185,6 @@ class DeveloperOverlay(DeveloperOverlayElement):
 
         if self.get_selected_element():
             pg.draw.rect(self.surface, (255, 255, 255), self.get_selected_element().get_absolute_rect(), 2)
+
+        if self._show_fps:
+            self.draw_fps_counter(self.surface)
