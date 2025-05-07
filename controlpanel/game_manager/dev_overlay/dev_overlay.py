@@ -1,6 +1,7 @@
 import pygame as pg
+import sys
 from typing import TYPE_CHECKING
-from .dev_console import DeveloperConsole
+from .dev_console import DeveloperConsole, Logger, OutputRedirector
 from .dev_overlay_element import DeveloperOverlayElement
 from .input_box import Autocomplete
 from controlpanel.game_manager.utils import MOUSEMOTION_2
@@ -33,6 +34,7 @@ class DeveloperOverlay(DeveloperOverlayElement):
         self.font2 = pg.font.Font(load_file_stream(font_name2), font_size2)
 
         self.game_manager = game_manager
+        self._logger = Logger(self.surface, font_name="trebuc.ttf", font_size=18)
         self.open: bool = False
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
@@ -42,6 +44,10 @@ class DeveloperOverlay(DeveloperOverlayElement):
         self.autocomplete = Autocomplete(self, (0, 0))
         self.dev_console = DeveloperConsole(self)
         self.children.append(self.dev_console)
+
+        self._developer_mode = False
+
+        sys.stdout = OutputRedirector(self.dev_console.log.print, self._logger.print)
 
     def handle_events(self, events: list[pg.event.Event]):
         # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
@@ -100,9 +106,14 @@ class DeveloperOverlay(DeveloperOverlayElement):
             for child in self.children:
                 if getattr(child, "pinned", False):
                     child.render_recursively(self.surface)
+            if self._developer_mode:  # todo: duplicate code
+                self._logger.render(self.surface)
             return
 
         self.surface.fill(self.PRIMARY_COLOR, special_flags=pg.BLEND_RGB_MULT)
+
+        if self._developer_mode:
+            self._logger.render(self.surface)
 
         for child in self.children:
             child.render_recursively(self.surface)

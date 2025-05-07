@@ -8,10 +8,11 @@ from itertools import islice
 import types
 import sys
 from collections import deque
-from controlpanel.game_manager.utils import ColorType, draw_border_rect
+from controlpanel.game_manager.utils import draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from .button import Button
 from .input_box import InputBox, Autocomplete
+from .variable_monitor import VariableMonitorWindow
 from pathlib import Path
 import traceback
 from .assets import load_file_stream
@@ -187,6 +188,15 @@ class DeveloperConsole(DeveloperOverlayElement):
             return 0, [Autocomplete.Option("", f"No configs/ directory was found.")]
         files = [f.name for f in Path(directory).iterdir() if f.is_file() and f.name.startswith(text) and f.name != text]
         return 0, list(Autocomplete.Option(file, "") for file in files)
+
+    @console_command("developer", hint=lambda self: int(self.overlay._developer_mode))
+    def set_developer_mode(self, enable: int):
+        """If set, print stdout to the screen"""
+        self.overlay._developer_mode = bool(enable)
+
+    @console_command("var_monitor", is_cheat_protected=True)
+    def open_variable_monitor_window(self):
+        self.overlay.children.append(VariableMonitorWindow(self.overlay, self.overlay, pg.Rect((200, 200), VariableMonitorWindow.SIZE)))
 
     @console_command(autocomplete_function=exec_cfg_autocomplete, is_cheat_protected=True)
     def exec_cfg(self, config: str) -> None:
@@ -545,7 +555,7 @@ class Log(DeveloperOverlayElement):
         super().__init__(overlay, parent, rect)
         self.surface.fill(overlay.SECONDARY_COLOR)
 
-        self.history: list[tuple[str, ColorType]] = []
+        self.history: list[tuple[str, tuple[int, int, int]]] = []
         self.history_index: int = 0
 
     def render(self):
@@ -553,7 +563,7 @@ class Log(DeveloperOverlayElement):
         for line, color in reversed(self.history[self.history_index::-1]):
             self.print(line, color, mirror_to_stdout=False, append_to_history=False)
 
-    def print(self, string: str, color: ColorType | None = None, *, mirror_to_stdout: bool = False, append_to_history: bool = True):
+    def print(self, string: str, color: tuple[int, int, int] | None = None, *, mirror_to_stdout: bool = False, append_to_history: bool = True):
         if append_to_history:
             self.history.append((string, color))
             self.history_index = len(self.history)

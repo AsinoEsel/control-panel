@@ -139,6 +139,8 @@ class VariableMonitor(DeveloperOverlayElement):
 
 
 class VariableMonitorWindow(Window):
+    SIZE: tuple[int, int] = (400, 450)
+
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect):
         super().__init__(overlay, parent, rect, title="Variable Monitor Window")
         self.children.append(VariableMonitor(overlay, self, self.body_rect))
