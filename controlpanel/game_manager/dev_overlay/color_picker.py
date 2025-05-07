@@ -9,7 +9,6 @@ from .button import Button
 from .window import Window
 from .input_box import InputBox
 from typing import Optional, TYPE_CHECKING, Callable
-from controlpanel.game_manager.utils import draw_border_rect
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
 
@@ -234,14 +233,5 @@ class ColorButton(Button):
             color_picker_window.children[1].state = True  # TODO: ugly workaround to fix pin button showing wrong color
         self.overlay.children.append(color_picker_window)
 
-    def render(self):
+    def render_body(self):
         self.surface.fill(self.color_getter())
-
-        if self.pressed:
-            draw_border_rect(self.surface,
-                             (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
-        else:
-            draw_border_rect(self.surface,
-                             (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)

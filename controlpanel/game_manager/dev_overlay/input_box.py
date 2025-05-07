@@ -1,6 +1,5 @@
 import pygame as pg
 import pyperclip
-from controlpanel.game_manager.utils import draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from typing import Callable, TYPE_CHECKING, Literal
 from dataclasses import dataclass
@@ -64,10 +63,11 @@ class Autocomplete(DeveloperOverlayElement):
                 self.overlay.font.set_italic(True)
             self.surface.blit(self.overlay.font.render(type_hint, False, hint_color, None), (surface_width - len(type_hint) * self.overlay.char_width, y))
             self.overlay.font.set_italic(False)
-        draw_border_rect(self.surface, (0, 0, surface_width, surface_height), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
+        self.draw_border_rect(self.surface, pg.Rect(0, 0, self.surface.get_width(), self.surface.get_height()))  # TODO: cannot use self.render_border() here
 
 
 class InputBox(DeveloperOverlayElement):
+    INSET: bool = True
     STOP_CHARS: tuple[str] = (' ', '.', ',')
 
     def __init__(self, overlay: "DeveloperOverlay", parent: "DeveloperOverlayElement", rect: pg.Rect,
@@ -296,4 +296,3 @@ class InputBox(DeveloperOverlayElement):
         self.render_text()
         if self.in_edit_mode and not self.selection_range:
             self.render_caret()
-        draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)

@@ -1,12 +1,13 @@
 import pygame as pg
 from typing import TYPE_CHECKING, Optional, Union
-from controlpanel.game_manager.utils import draw_border_rect
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
     from .window import Window
 
 
 class DeveloperOverlayElement:
+    INSET: bool = False
+
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, *, colorkey: tuple[int, int, int] | None = None):
         self.overlay: "DeveloperOverlay" = overlay
         self.parent: DeveloperOverlayElement | None = parent
@@ -56,11 +57,41 @@ class DeveloperOverlayElement:
 
     def render_body(self):
         self.surface.fill(self.overlay.PRIMARY_COLOR)
-        draw_border_rect(self.surface, (0, 0, self.rect.w, self.rect.h), 0,
-                         self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
+
+    def draw_border_rect(self, surface: pg.Surface, rect: pg.Rect, *, offset: int = 0, inset: bool = False):
+        primary_color, secondary_color = (
+            self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK
+        ) if not inset else (
+            self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT
+        )
+        pixel_offset = 1 if offset % 2 == 0 else 0
+        left, top, width, height = (rect.left + offset,
+                                    rect.top + offset,
+                                    rect.w - offset - pixel_offset,
+                                    rect.h - offset - pixel_offset)
+        pg.draw.line(surface, primary_color, (left, top), (left, top + height), 1)
+        pg.draw.line(surface, secondary_color, (left + width, top), (left + width, top + height), 1)
+        pg.draw.line(surface, primary_color, (left, top), (left + width, top), 1)
+        pg.draw.line(surface, secondary_color, (left, top + height), (left + width, top + height), 1)
+
+    def render_border(self, inset: bool | None = None):
+        inset: bool = inset if inset is not None else self.INSET
+        # self.draw_border_rect(self.surface, self.rect, inset=inset)  # TODO: cannot use self.rect because of position offset
+
+        left, top, width, height = 0, 0, self.rect.w - 1, self.rect.h - 1
+        primary_color, secondary_color = (
+            self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK
+        ) if not inset else (
+            self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT
+        )
+        pg.draw.line(self.surface, primary_color, (left, top), (left, top + height), 1)
+        pg.draw.line(self.surface, secondary_color, (left + width, top), (left + width, top + height), 1)
+        pg.draw.line(self.surface, primary_color, (left, top), (left + width, top), 1)
+        pg.draw.line(self.surface, secondary_color, (left, top + height), (left + width, top + height), 1)
 
     def render(self):
         self.render_body()
+        self.render_border()
 
     def select_next(self):
         if not self.selected_child:

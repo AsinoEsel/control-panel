@@ -5,12 +5,6 @@ ColorType = tuple[int, int, int]
 MOUSEMOTION_2 = pg.event.custom_type()
 
 
-def maprange(value: int | float, start_range: tuple[int | float, int | float], end_range: tuple[int | float, int | float]) -> float:
-    w = (value-start_range[0]) / (start_range[1]-start_range[0])
-    y = end_range[0] + w * (end_range[1]-end_range[0])
-    return y
-
-
 def get_display_flags(fullscreen: bool, use_shaders: bool) -> int:
     """
     Determines the flags to be passed to pygame.display.set_mode()
@@ -88,12 +82,3 @@ def scale_resolution(input_resolution: tuple[int, int], target_resolution: tuple
     upscaled_height = int(input_height * scale_factor)
 
     return upscaled_width, upscaled_height
-
-
-def draw_border_rect(surface: pg.Surface, vertices: tuple[int, int, int, int], offset: int, primary_color: ColorType, secondary_color: ColorType):
-    pixel_offset = 1 if offset % 2 == 0 else 0
-    left, top, width, height = vertices[0] + offset, vertices[1] + offset, vertices[2] - offset - pixel_offset, vertices[3] - offset - pixel_offset
-    pg.draw.line(surface, primary_color, (left, top), (left, top+height), 1)
-    pg.draw.line(surface, secondary_color, (left+width, top), (left+width, top+height), 1)
-    pg.draw.line(surface, primary_color, (left, top), (left+width, top), 1)
-    pg.draw.line(surface, secondary_color, (left, top+height), (left+width, top+height), 1)

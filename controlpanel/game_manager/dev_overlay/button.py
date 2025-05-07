@@ -1,5 +1,5 @@
 import pygame as pg
-from controlpanel.game_manager.utils import draw_border_rect, MOUSEMOTION_2
+from controlpanel.game_manager.utils import MOUSEMOTION_2
 from .dev_overlay_element import DeveloperOverlayElement
 from typing import Callable, TYPE_CHECKING, Optional
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ class Button(DeveloperOverlayElement):
         self.highlighted: bool = False
         self.pressed: bool = False
 
-    def render(self):
+    def render_body(self):
         self.surface.fill(self.overlay.PRIMARY_COLOR)
         if self.image:
             tinted_image = self.image.copy()
@@ -28,14 +28,9 @@ class Button(DeveloperOverlayElement):
             dest = ((self.rect.w - self.image.get_width()) // 2, (self.rect.h - self.image.get_height()) // 2)
             self.surface.blit(tinted_image, dest if not self.pressed else (dest[0]+1, dest[1]+1))
 
-        if self.pressed:
-            draw_border_rect(self.surface,
-                             (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
-        else:
-            draw_border_rect(self.surface,
-                             (0, 0, self.rect.w, self.rect.h), 0,
-                             self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
+    def render(self):
+        self.render_body()
+        self.render_border(inset=self.pressed)
 
     def push_button(self):
         self.pressed = False

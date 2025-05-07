@@ -8,7 +8,6 @@ from itertools import islice
 import types
 import sys
 from collections import deque
-from controlpanel.game_manager.utils import draw_border_rect
 from .dev_overlay_element import DeveloperOverlayElement
 from .button import Button
 from .input_box import InputBox, Autocomplete
@@ -546,8 +545,8 @@ class DeveloperConsole(DeveloperOverlayElement):
                           (0, self.log.surface.get_height() - visible_log_height, self.log.surface.get_width(), visible_log_height))
 
         if visible_log_height > 0:
-            draw_border_rect(self.surface, (self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
-        draw_border_rect(self.surface, (0, 0, self.surface.get_width(), self.surface.get_height()), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
+            self.draw_border_rect(self.surface, pg.Rect(self.overlay.border_offset, self.overlay.border_offset, self.log.surface.get_width(), visible_log_height), inset=True)
+        self.render_border()
 
 
 class Log(DeveloperOverlayElement):

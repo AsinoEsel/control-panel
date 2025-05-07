@@ -1,6 +1,5 @@
 import pygame as pg
 from typing import Type, Union, TYPE_CHECKING, Optional, Callable
-from controlpanel.game_manager.utils import draw_border_rect, maprange
 from .dev_overlay_element import DeveloperOverlayElement
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
@@ -47,6 +46,13 @@ class Slider(DeveloperOverlayElement):
                     self.SLIDER_SIZE[0])
         )
 
+    @staticmethod
+    def maprange(value: int | float, start_range: tuple[int | float, int | float],
+                 end_range: tuple[int | float, int | float]) -> float:
+        w = (value - start_range[0]) / (start_range[1] - start_range[0])
+        y = end_range[0] + w * (end_range[1] - end_range[0])
+        return y
+
     def set_handle_position(self, value: int | float):
         handle_position_relative: float = abs((value - self.value_range[0]) / (self.value_range[1] - self.value_range[0]))
         if not self.vertical:
@@ -56,9 +62,9 @@ class Slider(DeveloperOverlayElement):
 
     def set_value(self, mouse_x: int):
         if not self.vertical:
-            mapped_val = maprange(mouse_x, (self.groove_rect.left, self.groove_rect.right), self.value_range)
+            mapped_val = self.maprange(mouse_x, (self.groove_rect.left, self.groove_rect.right), self.value_range)
         else:
-            mapped_val = maprange(mouse_x, (self.groove_rect.top, self.groove_rect.bottom), self.value_range)
+            mapped_val = self.maprange(mouse_x, (self.groove_rect.top, self.groove_rect.bottom), self.value_range)
 
         minimum, maximum = min(self.value_range), max(self.value_range)
         val = self.domain(min(maximum, max(minimum, mapped_val)))
@@ -77,6 +83,6 @@ class Slider(DeveloperOverlayElement):
         self.surface.fill(self.TRANSPARENCY)
         self.set_handle_position(self.getter())
         pg.draw.rect(self.surface, self.COLOR, self.groove_rect)
-        draw_border_rect(self.surface, (self.groove_rect.left, self.groove_rect.top, self.groove_rect.w, self.groove_rect.h), 0, self.overlay.BORDER_COLOR_DARK, self.overlay.BORDER_COLOR_LIGHT)
+        self.draw_border_rect(self.surface, self.groove_rect, inset=True)
         pg.draw.rect(self.surface, self.overlay.PRIMARY_COLOR, self.handle_rect)
-        draw_border_rect(self.surface, (self.handle_rect.left, self.handle_rect.top, self.handle_rect.w, self.handle_rect.h), 0, self.overlay.BORDER_COLOR_LIGHT, self.overlay.BORDER_COLOR_DARK)
+        self.draw_border_rect(self.surface, self.handle_rect, inset=False)
