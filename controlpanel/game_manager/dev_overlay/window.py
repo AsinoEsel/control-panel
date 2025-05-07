@@ -1,5 +1,5 @@
 import pygame as pg
-import os
+from .assets import load_file_stream
 from .dev_overlay_element import DeveloperOverlayElement
 from .button import Button
 from typing import TYPE_CHECKING, Optional
@@ -8,26 +8,26 @@ if TYPE_CHECKING:
 
 
 class Window(DeveloperOverlayElement):
-    close_button_image: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "x.png"))
-    pin_button_image: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "pin.png"))
-    button_size: int = 14
+    CLOSE_BUTTON_IMAGE: pg.Surface = pg.image.load(load_file_stream("x.png"))
+    PIN_BUTTON_IMAGE: pg.Surface = pg.image.load(load_file_stream("pin.png"))
+    BUTTON_SIZE: int = 14
 
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect, title: str):
         super().__init__(overlay, parent, rect)
         self.title: str = title
         close_button: Button = Button(overlay, self,
-                                      pg.Rect(self.rect.w - self.overlay.border_offset - self.button_size,
+                                      pg.Rect(self.rect.w - self.overlay.border_offset - self.BUTTON_SIZE,
                                               self.overlay.border_offset,
-                                              self.button_size, self.button_size),
+                                              self.BUTTON_SIZE, self.BUTTON_SIZE),
                                       self.close,
-                                      image=self.close_button_image
+                                      image=self.CLOSE_BUTTON_IMAGE,
                                       )
         pin_button: Button = Button(overlay, self,
-                                    pg.Rect(self.rect.w - 2 * self.button_size - 2 * self.overlay.border_offset,
+                                    pg.Rect(self.rect.w - 2 * self.BUTTON_SIZE - 2 * self.overlay.border_offset,
                                             self.overlay.border_offset,
-                                            self.button_size, self.button_size),
+                                            self.BUTTON_SIZE, self.BUTTON_SIZE),
                                     self.toggle_pinned,
-                                    image=self.pin_button_image,
+                                    image=self.PIN_BUTTON_IMAGE,
                                     toggle=True
                                     )
         self.children.append(close_button)

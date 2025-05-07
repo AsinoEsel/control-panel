@@ -22,4 +22,7 @@ setup(
                       "opencv-python",
                       "pyperclip",
                       ],
+    package_data={
+        "controlpanel.game_manager.dev_overlay.assets": ["*.*"],
+    }
 )

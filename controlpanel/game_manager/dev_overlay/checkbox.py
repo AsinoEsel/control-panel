@@ -1,6 +1,6 @@
 import pygame as pg
-import os
 from controlpanel.game_manager.utils import draw_border_rect
+from .assets import load_file_stream
 from .dev_overlay_element import DeveloperOverlayElement
 from typing import Callable, TYPE_CHECKING, Optional
 if TYPE_CHECKING:
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 class Checkbox(DeveloperOverlayElement):
     SIZE = 18
-    CHECK_IMAGE: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "check.png"))
+    CHECK_IMAGE: pg.Surface = pg.image.load(load_file_stream("check.png"))
 
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"],
                  position: tuple[int, int],

@@ -1,8 +1,8 @@
 import pygame as pg
 import numpy as np
-import os
 import colorsys
 import math
+from .assets import load_file_stream
 from .dev_overlay_element import DeveloperOverlayElement
 from .slider import Slider
 from .button import Button
@@ -132,7 +132,7 @@ class ColorPicker(DeveloperOverlayElement):
 class ColorWheel(DeveloperOverlayElement):
     SIZE = 200
     WHEEL_SIZE = SIZE
-    COLOR_PICKER_CARET: pg.Surface = pg.image.load(os.path.join(os.path.dirname(__file__), "assets", "color_picker_caret.png"))
+    COLOR_PICKER_CARET: pg.Surface = pg.image.load(load_file_stream("color_picker_caret.png"))
     COLOR_WHEEL: pg.Surface = generate_color_wheel(SIZE)
 
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], pos: tuple[int, int],

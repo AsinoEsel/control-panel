@@ -14,6 +14,7 @@ from .button import Button
 from .input_box import InputBox, Autocomplete
 from pathlib import Path
 import traceback
+from .assets import load_file_stream
 if TYPE_CHECKING:
     from controlpanel.game_manager import GameManager, BaseGame
     from .dev_overlay import DeveloperOverlay
@@ -58,10 +59,10 @@ class Logger:
                  screen_surface: pg.Surface,
                  max_relative_height: float = 0.3,
                  *,
-                 font_name: str = os.path.join(os.path.dirname(__file__), "assets", "clacon2.ttf"),
+                 font_name: str = "clacon2.ttf",
                  font_size: int = 20
                  ):
-        self.font = pg.font.Font(font_name, font_size)
+        self.font = pg.font.Font(load_file_stream(font_name), font_size)
         max_lines = int(screen_surface.get_height() * max_relative_height / self.font.get_height())
 
         self.surface = pg.Surface((screen_surface.get_width(), max_lines * self.font.get_height()), flags=pg.SRCALPHA)

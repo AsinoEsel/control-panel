@@ -1,4 +1,5 @@
 import pygame as pg
+from .assets import load_file_stream
 from .dev_overlay_element import DeveloperOverlayElement
 from .checkbox import Checkbox
 from .button import Button
@@ -8,7 +9,6 @@ from .window import Window
 from .color_picker import ColorButton
 from typing import Callable, TYPE_CHECKING, Optional, Any, get_type_hints, Type
 from types import MethodType
-from pathlib import Path
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
 
@@ -81,7 +81,7 @@ class VariableMonitor(DeveloperOverlayElement):
     def __init__(self, overlay: "DeveloperOverlay", parent: Optional["DeveloperOverlayElement"], rect: pg.Rect):
         super().__init__(overlay, parent, rect)
         self.variable_height: int = int(overlay.char_height * 1.75) // 2 * 2
-        add_image: pg.Surface = pg.image.load(Path(__file__).resolve().parent / "assets" / "add.png")
+        add_image: pg.Surface = pg.image.load(load_file_stream("add.png"))
         add_image.fill(overlay.HIGHLIGHT_COLOR + (255,), special_flags=pg.BLEND_RGB_MULT)
         text_surf: pg.Surface = overlay.font2.render("Add variable", False, overlay.HIGHLIGHT_COLOR, overlay.PRIMARY_COLOR)
         button_surf: pg.Surface = pg.Surface(((add_image.get_width()+overlay.border_offset+text_surf.get_width()), max(add_image.get_height(), text_surf.get_height())))
