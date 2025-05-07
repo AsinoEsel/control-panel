@@ -1,9 +1,8 @@
-import importlib
 import time
 import pygame as pg
 import os
 import inspect
-from typing import get_type_hints, TYPE_CHECKING, Callable, Any, Union
+from typing import get_type_hints, TYPE_CHECKING, Callable, Any
 from itertools import islice
 import types
 import sys
@@ -16,8 +15,10 @@ from pathlib import Path
 import traceback
 from .assets import load_file_stream
 if TYPE_CHECKING:
-    from controlpanel.game_manager import GameManager, BaseGame
     from .dev_overlay import DeveloperOverlay
+
+
+CommandCarrierType = Any  # Any namespace that contains console commands
 
 
 class OutputRedirector:
@@ -36,7 +37,7 @@ class OutputRedirector:
         self.stdout.flush()
 
 
-def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None, hint: Callable[[Union["GameManager", "BaseGame", "DeveloperConsole"]], Any] | None = None):
+def console_command(*aliases: str, is_cheat_protected: bool = False, show_return_value: bool = False, autocomplete_function: Callable[[str], tuple[int, list["Autocomplete.Option"]]] | None = None, hint: Callable[[CommandCarrierType], Any] | None = None):
     # This cursed if statement ensures that the decorator works even when used without parentheses
     if len(aliases) == 1 and callable(aliases[0]) and not isinstance(aliases[0], str):
         f = aliases[0]
@@ -59,10 +60,9 @@ class Logger:
                  screen_surface: pg.Surface,
                  max_relative_height: float = 0.3,
                  *,
-                 font_name: str = "clacon2.ttf",
-                 font_size: int = 20
+                 font_override: pg.font.Font | None = None
                  ):
-        self.font = pg.font.Font(load_file_stream(font_name), font_size)
+        self.font: pg.font.Font = font_override or pg.font.Font(load_file_stream("trebuc.ttf"), 18)
         max_lines = int(screen_surface.get_height() * max_relative_height / self.font.get_height())
 
         self.surface = pg.Surface((screen_surface.get_width(), max_lines * self.font.get_height()), flags=pg.SRCALPHA)
@@ -129,7 +129,7 @@ class DeveloperConsole(DeveloperOverlayElement):
         self.children.append(self.input_box)
         self.children.append(submit_button)
 
-        self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
+        # self._namespace: types.SimpleNamespace = self._setup_namespace()  # Used for exec and eval commands
 
     def dev_console_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
         if not text:
@@ -138,11 +138,12 @@ class DeveloperConsole(DeveloperOverlayElement):
         if len(words) == 1:
             position, options = 0, []
             for command, func in self.get_all_commands().items():
+                command: str
                 if not command.startswith(text) or command == text:
                     continue
                 retrieved_value = None
                 if hint := getattr(func, "_hint", None):
-                    for command_carrier in (self, self.overlay.game_manager, self.overlay.game_manager.get_game()):
+                    for command_carrier in self.overlay.namespace.__dict__.values():
                         try:
                             retrieved_value = hint(command_carrier)
                             break
@@ -162,19 +163,6 @@ class DeveloperConsole(DeveloperOverlayElement):
             position += offset
             return position, options
 
-    def _setup_namespace(self) -> types.SimpleNamespace:
-        """Updates the namespace that allows for the eval and exec commands to find the names of attributes and such."""
-        from controlpanel.scripts import ControlAPI
-        import controlpanel as cp
-        namespace = types.SimpleNamespace()
-        setattr(namespace, "api", ControlAPI)
-        setattr(namespace, "game_manager", self.overlay.game_manager)
-        setattr(namespace, "pg", pg)
-        setattr(namespace, "cp", cp)
-        for script_name, script in ControlAPI.loaded_scripts.items():
-            setattr(namespace, script_name, script)
-        return namespace
-
     def print_exception_to_log(self, e: Exception) -> None:
         self.log.print(f"{e.__class__.__name__}: {str(e)}", color=self.overlay.ERROR_COLOR,
                        mirror_to_stdout=True)
@@ -182,7 +170,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             self.log.print(line, color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
 
     def exec_cfg_autocomplete(self, text: str) -> tuple[int, list["Autocomplete.Option"]]:
-        directory = Path(self.overlay.game_manager._base_cwd) / "configs"
+        directory = Path.cwd() / "configs"
         if not directory.exists():
             return 0, [Autocomplete.Option("", f"No configs/ directory was found.")]
         files = [f.name for f in Path(directory).iterdir() if f.is_file() and f.name.startswith(text) and f.name != text]
@@ -202,14 +190,14 @@ class DeveloperConsole(DeveloperOverlayElement):
         """Executes any file containing python code in the configs/ directory"""
         if not config.endswith(".cfg"):
             config += ".cfg"
-        filename = Path(self.overlay.game_manager._base_cwd) / "configs" / config
+        filename = Path.cwd() / "configs" / config
         if not filename.exists():
             print(f"Config {config} does not exist.")
             return
         with open(filename, 'r') as file:
             code = file.read()
             try:
-                exec(code, None, self._namespace.__dict__)
+                exec(code, None, self.overlay.namespace.__dict__)
             except Exception as e:
                 self.print_exception_to_log(e)
 
@@ -223,47 +211,9 @@ class DeveloperConsole(DeveloperOverlayElement):
         """Changes the CWD, relative paths only."""
         os.chdir(os.path.join(os.getcwd(), path))
 
-    @console_command(is_cheat_protected=True)
-    def load_game(self, module_name: str, module_directory: str = ".", *args) -> None:
-        """Dynamically load a game from a different directory. Example: 'load_game game_module.main ../GameDirectory'"""
-        from controlpanel.game_manager import BaseGame
-
-        # If an extra_path is provided, join it with CWD and add to sys.path
-        if module_directory:
-            # Make sure to join the provided extra_path with the current working directory
-            module_directory = Path(module_directory).resolve()  # Resolves the path to an absolute path
-            sys.path.append(str(module_directory))
-
-        try:
-            # Try importing the game module
-            print(f"Attempting to load {module_name} from {module_directory}...")
-            game_module = importlib.import_module(module_name)
-        except ModuleNotFoundError as e:
-            print(f'Failed to load module "{module_name}" due to missing module: {e}')
-            return
-
-        # Scan the module for classes that inherit from BaseGame
-        games = []
-        for name, obj in inspect.getmembers(game_module, inspect.isclass):
-            # Make sure the class is defined in the module (not just imported into it)
-            if issubclass(obj, BaseGame) and obj is not BaseGame and obj.__module__ == game_module.__name__:
-                games.append(obj)
-        if not games:
-            print(f'Cannot load game: Successfully imported module {module_name},'
-                  f'but failed to find any instance of BaseGame inside.')
-            return
-
-        # Instantiate and use them
-        for cls in games:
-            os.chdir(module_directory)
-            instance = cls(*args)
-            instance._working_directory_override = module_directory
-            print(f"Successfully loaded {cls.__name__}")
-            self.overlay.game_manager.add_game(instance, True)
-
     @staticmethod
-    def find_commands(instance: Union["GameManager", "BaseGame", "DeveloperConsole"]) -> dict[str: Callable[..., Any]]:
-        commands = dict()
+    def find_commands(instance: CommandCarrierType) -> dict[str: Callable[..., Any]]:
+        commands: dict[str: Callable[..., Any]] = dict()
         for name, method in inspect.getmembers(instance, predicate=inspect.ismethod):
             if not getattr(method, "_is_console_command", False):
                 continue
@@ -276,14 +226,13 @@ class DeveloperConsole(DeveloperOverlayElement):
         return commands
 
     def get_all_commands(self) -> dict[str: Callable[..., Any]]:
-        return (self.find_commands(self) |
-                self.find_commands(self.overlay.game_manager) |
-                self.find_commands(self.overlay.game_manager.get_game()))
+        all_commands: dict[str: Callable[..., Any]] = dict()
+        for command_carrier in self.overlay.namespace.__dict__.values():
+            all_commands.update(self.find_commands(command_carrier))
+        return all_commands
 
     def list_all_commands(self):
-        all_commands = (self.find_commands(self) |
-                        self.find_commands(self.overlay.game_manager) |
-                        self.find_commands(self.overlay.game_manager.get_game())).keys()
+        all_commands = self.get_all_commands().keys()
         if not all_commands:
             self.log.print("No console commands found.", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             return
@@ -313,7 +262,7 @@ class DeveloperConsole(DeveloperOverlayElement):
             self.print_usage_string(command)
         else:
             self.log.print(
-                f"No command {command_name} exists in the game {self.overlay.game_manager.get_game().name}.",
+                f"The command {command_name} could not be found.",
                 color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
         return
 
@@ -346,7 +295,7 @@ class DeveloperConsole(DeveloperOverlayElement):
 
         names = text.split(".")
 
-        current = self._namespace
+        current = self.overlay.namespace
         for i, name in enumerate(names):
             attr = getattr(current, name, None)
             if i < len(names) - 1:
@@ -378,7 +327,7 @@ class DeveloperConsole(DeveloperOverlayElement):
     def eval(self, eval_string: str):
         """Evaluate an arbitrary string"""
         try:
-            return eval(eval_string, None, self._namespace.__dict__)
+            return eval(eval_string, None, self.overlay.namespace.__dict__)
         except Exception as e:
             self.print_exception_to_log(e)
 
@@ -386,65 +335,14 @@ class DeveloperConsole(DeveloperOverlayElement):
     def exec(self, exec_string: str):
         """Execute an arbitrary string"""
         try:
-            exec(exec_string, None, self._namespace.__dict__)
+            exec(exec_string, None, self.overlay.namespace.__dict__)
         except Exception as e:
             self.print_exception_to_log(e)
 
-    @console_command(is_cheat_protected=True)
-    def send_artdmx(self, device_name_or_universe: str | int, *values: int) -> None:
-        """Sends any number of integer values (0-255) to the universe of the given device"""
-        from controlpanel.scripts import ControlAPI
-        if ControlAPI.artnet:
-            data = bytes(values)
-            if type(device_name_or_universe) is str:
-                ControlAPI.send_dmx(device_name_or_universe, data)
-            elif type(device_name_or_universe) is int and 0 <= device_name_or_universe <= 65535:
-                ControlAPI.artnet.send_dmx(device_name_or_universe, 0, bytearray(data))
-        else:
-            print("Cannot send ArtDMX because artnet is not initialized")
-
-    @console_command(is_cheat_protected=True)
-    def send_artcmd(self, cmd: str):
-        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
-        from controlpanel.scripts import ControlAPI
-        if ControlAPI.artnet:
-            ControlAPI.artnet.send_command(cmd.encode("ascii"))
-        else:
-            print("Cannot send ArtCommand because artnet is not initialized")
-
-    @console_command(is_cheat_protected=True)
-    def send_arttrigger(self, key: int, subkey: int, data: str):
-        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
-        from controlpanel.scripts import ControlAPI
-        if ControlAPI.artnet:
-            ControlAPI.artnet.send_trigger(key, subkey, bytearray(data.encode("ASCII")))
-        else:
-            print("Cannot send ArtTrigger because artnet is not initialized")
-
-    # @console_command(is_cheat_protected=True)
-    # def set_dmx_channel(self, device_name: str, channel: int, value: int):
-    #     from controlpanel.scripts import ControlAPI
-    #     if ControlAPI.dmx is None:
-    #         print("DMX Universe is not initialized.")
-    #         return
-    #     if not 0 <= value <= 255:
-    #         print("Value needs to be in range 0..255")
-    #         return
-    #     from controlpanel.dmx import DMXDevice
-    #     device: DMXDevice | None = ControlAPI.dmx.devices.get(device_name)
-    #     if not device:
-    #         print(f"No DMX device with name {device_name} found in DMX manifest")
-    #         return
-    #     if not 0 < channel <= device.num_chans:
-    #         print(f"Channel {channel} outside of device channel range")
-    #         return
-    #     ControlAPI.dmx.set_int(device.chan_no, channel, value)
-
-    @console_command(is_cheat_protected=True)
-    def set_dmx_attr(self, device_name: str, attribute: str, value):
-        """Sets any attribute of any DMX device to any value"""
-        from controlpanel.scripts import ControlAPI
-        setattr(ControlAPI.dmx.devices.get(device_name), attribute, value)
+    @console_command("toggleconsole")
+    def toggle_dev_console(self):
+        """Toggles the developer console"""
+        self.overlay.open = not self.overlay.open
 
     def handle_command(self, command: str, *, suppress_logging: bool = False, ignore_cheat_protection: bool = False):
         if not command:
@@ -456,7 +354,7 @@ class DeveloperConsole(DeveloperOverlayElement):
         if func is None:
             self.log.print(f"No command {command_name} exists in the current game.", color=self.overlay.ERROR_COLOR, mirror_to_stdout=True)
             return
-        if getattr(func, "_is_cheat_protected", False) and not self.overlay.game_manager.cheats_enabled and not ignore_cheat_protection:
+        if getattr(func, "_is_cheat_protected", False) and not self.overlay.cheats_enabled and not ignore_cheat_protection:
             self.log.print(f"The command {command_name} is cheat protected.", color=self.overlay.HIGHLIGHT_COLOR, mirror_to_stdout=True)
             return
         try:
@@ -512,7 +410,7 @@ class DeveloperConsole(DeveloperOverlayElement):
     def resize(self, new_height: int = 100):
         # This is janky af
         old_height = self.surface.get_height()
-        new_height = min(self.overlay.game_manager._screen.get_height(), max(self.input_box.surface.get_height() + 2 * self.overlay.border_offset, new_height))
+        new_height = min(self.overlay.surface.get_height(), max(self.input_box.surface.get_height() + 2 * self.overlay.border_offset, new_height))
         diff = new_height - old_height
         for child in self.children:
             child.rect.move_ip(0, diff)
@@ -520,7 +418,7 @@ class DeveloperConsole(DeveloperOverlayElement):
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            self.overlay.game_manager.toggle_dev_console()
+            self.toggle_dev_console()
         elif event.type == pg.KEYDOWN and (event.key == 1073741921 or event.key == pg.K_PAGEUP):
             self.resize(self.surface.get_height() - 50)
         elif event.type == pg.KEYDOWN and (event.key == 1073741915 or event.key == pg.K_PAGEDOWN):
@@ -529,8 +427,6 @@ class DeveloperConsole(DeveloperOverlayElement):
             self.log.history_index -= event.y
             self.log.history_index = max(0, min(self.log.history_index, len(self.log.history)-1))
             self.log.render()
-        # elif self.autocomplete.handle_event(event):
-        #     pass  # event got eaten by Autocompleter
         elif self.input_box.handle_event(event):
             pass  # event got eaten by input box
         else:

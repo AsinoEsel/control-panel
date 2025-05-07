@@ -1,10 +1,6 @@
 import pygame as pg
 
 
-ColorType = tuple[int, int, int]
-MOUSEMOTION_2 = pg.event.custom_type()
-
-
 def get_display_flags(fullscreen: bool, use_shaders: bool) -> int:
     """
     Determines the flags to be passed to pygame.display.set_mode()

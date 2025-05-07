@@ -113,14 +113,14 @@ class VariableMonitor(DeveloperOverlayElement):
         if any(char in text for char in ("(", ")")) or not "." in text:
             return False
         try:
-            eval(text, None, self.overlay.dev_console._namespace.__dict__)
+            eval(text, None, self.overlay.namespace.__dict__)
         except (SyntaxError, NameError, AttributeError):
             return False
         return True
 
     def object_setter(self, text: str) -> None:
         object_name, attr = text.rsplit(".", maxsplit=1)
-        obj = eval(object_name, None, self.overlay.dev_console._namespace.__dict__)
+        obj = eval(object_name, None, self.overlay.namespace.__dict__)
         self.register_variable(obj, attr, attr)
         self.new_var_button.children.clear()
 

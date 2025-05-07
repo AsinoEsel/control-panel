@@ -1,13 +1,12 @@
 import pygame as pg
 import sys
-from typing import TYPE_CHECKING
+from typing import Any
+from types import SimpleNamespace
 from .dev_console import DeveloperConsole, Logger, OutputRedirector
 from .dev_overlay_element import DeveloperOverlayElement
 from .input_box import Autocomplete
-from controlpanel.game_manager.utils import MOUSEMOTION_2
 from .assets import load_file_stream
-if TYPE_CHECKING:
-    from controlpanel.game_manager import GameManager
+from .mousemotion2 import MOUSEMOTION_2
 
 
 class DeveloperOverlay(DeveloperOverlayElement):
@@ -21,20 +20,21 @@ class DeveloperOverlay(DeveloperOverlayElement):
     ERROR_COLOR: tuple[int, int, int] = (255, 64, 64)
 
     def __init__(self,
-                 game_manager: "GameManager",
+                 namespaces: dict[str:Any],
                  surface: pg.Surface,
                  *,
-                 font_name: str = "clacon2.ttf",
-                 font_size: int = 20,
-                 font_name2: str = "trebuc.ttf",
-                 font_size2: int = 12):
+                 enable_cheats: bool = False,
+                 primary_font_override: pg.font.Font | None = None,
+                 secondary_font_override: pg.font.Font | None = None,
+                 logger_font_override: pg.font.Font | None = None):
         super().__init__(self, None, pg.Rect((0, 0), surface.get_size()))
         self.surface = surface
-        self.font = pg.font.Font(load_file_stream(font_name), font_size)
-        self.font2 = pg.font.Font(load_file_stream(font_name2), font_size2)
+        self.font = primary_font_override or pg.font.Font(load_file_stream("clacon2.ttf"), 20)
+        self.font2 = secondary_font_override or pg.font.Font(load_file_stream("trebuc.ttf"), 12)
 
-        self.game_manager = game_manager
-        self._logger = Logger(self.surface, font_name="trebuc.ttf", font_size=18)
+        self.cheats_enabled: bool = enable_cheats
+
+        self._logger = Logger(self.surface, font_override=logger_font_override)
         self.open: bool = False
 
         self.char_width = self.font.render("A", False, (255, 255, 255)).get_width()
@@ -47,6 +47,7 @@ class DeveloperOverlay(DeveloperOverlayElement):
 
         self._developer_mode = False
 
+        self.namespace = SimpleNamespace(dev_console=self.dev_console, pg=pg, **namespaces)
         sys.stdout = OutputRedirector(self.dev_console.log.print, self._logger.print)
 
     def handle_events(self, events: list[pg.event.Event]):

@@ -1,7 +1,7 @@
 import pygame as pg
-from controlpanel.game_manager.utils import MOUSEMOTION_2
 from .dev_overlay_element import DeveloperOverlayElement
 from typing import Callable, TYPE_CHECKING, Optional
+from .mousemotion2 import MOUSEMOTION_2
 if TYPE_CHECKING:
     from .dev_overlay import DeveloperOverlay
 
