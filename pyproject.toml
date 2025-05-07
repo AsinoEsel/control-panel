@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ControlPanel"
+version = "0.0.1"
+description = ""
+authors = [
+    { name = "Dachboden", email = "info@dachboden.berlin" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pygame",
+    "pyftdi",
+    "moderngl",
+    "numpy-quaternion",
+    "numpy-stl",
+    "opencv-python",
+    "pyperclip"
+]
+
+[project.scripts]
+controlpanel = "controlpanel.main:main"
+transfer = "controlpanel.upy.transfer.transfer:transfer"
+flash_firmware = "controlpanel.upy.firmware.flash_firmware:main"
+
+[tool.setuptools]
+packages = { find = {} }
+
+[tool.setuptools.package-data]
+"controlpanel.game_manager.dev_overlay.assets" = ["*.*"]
