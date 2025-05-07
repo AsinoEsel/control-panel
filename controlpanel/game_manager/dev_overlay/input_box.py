@@ -180,8 +180,7 @@ class InputBox(DeveloperOverlayElement):
                         self.erase_selection_range()
                     self.text = self.text[:self.caret_position] + clipboard + self.text[self.caret_position:]
                     self.move_caret(len(clipboard))
-            else:
-                return False
+            return True  # Always eat KEYDOWN events!
         else:
             return False
         return True

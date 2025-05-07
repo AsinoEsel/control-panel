@@ -50,57 +50,66 @@ class DeveloperOverlay(DeveloperOverlayElement):
         self.namespace = SimpleNamespace(dev_console=self.dev_console, pg=pg, **namespaces)
         sys.stdout = OutputRedirector(self.dev_console.log.print, self._logger.print)
 
-    def handle_events(self, events: list[pg.event.Event]):
+    def handle_event(self, event: pg.event.Event) -> bool:
+        if event.type == pg.KEYDOWN and event.scancode == 53:
+            self.open = not self.open
+            return True
+
+        if not self.open and not any(getattr(child, "pinned", False) for child in self.children):
+            return False
+
         # TODO: LOTS of shared code with DevOverlayElement.handle_event_recursively. Merge?
-        for event in events:
-            # First, we check if the autocomplete is open. If it is, it has absolute priority.
-            if self.autocomplete.show:
-                if self.autocomplete.handle_event(event):
-                    continue
+        # First, we check if the autocomplete is open. If it is, it has absolute priority.
+        if self.autocomplete.show:
+            if self.autocomplete.handle_event(event):
+                return True
 
-            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-                if not self.get_selected_element():
-                    self.selected_child = self.children[0]
-                    continue
-                self.get_selected_element().select_next()
-                continue
+        if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
+            if not self.get_selected_element():
+                self.selected_child = self.children[0]
+                return True
+            self.get_selected_element().select_next()
+            return True
 
-            # If it's a MOUSEMOTION event, we immediately fire our own MOUSEMOTION_2 event.
-            # This makes it so that elements are notified when the cursor moves away from them.
-            if event.type == pg.MOUSEMOTION:
-                mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict.copy())
-                mouse_motion2.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
-                for child in self.children:
-                    if not child.rect.collidepoint(mouse_motion2.pos):
-                        continue
-                    if child.handle_event_recursively(mouse_motion2):
-                        break
-
-            # We prioritize the selected element if it exists.
-            if event.type != pg.MOUSEBUTTONDOWN and self.get_selected_element():
-                event_copy = pg.event.Event(event.type, event.dict)
-
-                if hasattr(event, "pos"):
-                    current = self
-                    while current != self.get_selected_element():
-                        current = current.selected_child
-                        event_copy.pos = (event.pos[0] - current.rect.left, event.pos[1] - current.rect.top)
-
-                if self.get_selected_element().handle_event(event_copy):
-                    continue
-
-            # We finally propagate the event normally down the tree
+        # If it's a MOUSEMOTION event, we immediately fire our own MOUSEMOTION_2 event.
+        # This makes it so that elements are notified when the cursor moves away from them.
+        if event.type == pg.MOUSEMOTION:
+            mouse_motion2 = pg.event.Event(MOUSEMOTION_2, event.dict.copy())
+            mouse_motion2.pos = (event.pos[0] - event.rel[0], event.pos[1] - event.rel[1])
             for child in self.children:
-                if hasattr(event, "pos") and not child.rect.collidepoint(event.pos):
+                if not child.rect.collidepoint(mouse_motion2.pos):
                     continue
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    self.selected_child = child
-                if child.handle_event_recursively(event):
-                    return
+                if child.handle_event_recursively(mouse_motion2):
+                    break
 
-            # Deselection in case nothing was clicked on
-            if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
-                self.selected_child = None
+        # We prioritize the selected element if it exists.
+        if event.type != pg.MOUSEBUTTONDOWN and self.get_selected_element():
+            event_copy = pg.event.Event(event.type, event.dict)
+
+            if hasattr(event, "pos"):
+                current = self
+                while current != self.get_selected_element():
+                    current = current.selected_child
+                    event_copy.pos = (event.pos[0] - current.rect.left, event.pos[1] - current.rect.top)
+
+            if self.get_selected_element().handle_event(event_copy):
+                return True
+
+        # We finally propagate the event normally down the tree
+        for child in self.children:
+            if hasattr(event, "pos") and not child.rect.collidepoint(event.pos):
+                continue
+            if event.type == pg.MOUSEBUTTONDOWN:
+                self.selected_child = child
+            if child.handle_event_recursively(event):
+                return True
+
+        # Deselection in case nothing was clicked on
+        if event.type == pg.MOUSEBUTTONDOWN and not any(child.rect.collidepoint(event.pos) for child in self.children):
+            self.selected_child = None
+            return True
+
+        return True if self.open else False
 
     def render(self):
         if not self.open:
