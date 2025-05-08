@@ -1,5 +1,5 @@
 import pygame as pg
-from controlpanel.game_manager.dev_overlay import console_command
+from anaconsole import console_command
 import random
 
 

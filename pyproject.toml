@@ -14,10 +14,8 @@ dependencies = [
     "pygame",
     "pyftdi",
     "moderngl",
-    "numpy-quaternion",
-    "numpy-stl",
+    "anaconsole @ git+https://github.com/AsinoEsel/anaconsole-pygame.git@main#egg=anaconsole",
     "opencv-python",
-    "pyperclip"
 ]
 
 [project.scripts]
