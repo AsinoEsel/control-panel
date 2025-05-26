@@ -60,7 +60,7 @@ class CCCGame(WindowManager):
 
     def shuffle_targets(self):
         self.plug_targets = random.sample(range(0, 6), 4)
-        banana_plugs = ControlAPI.devices.get("BananaPlugs")
+        banana_plugs = ControlAPI.get_device("BananaPlugs")
         current_connections = [x for x in banana_plugs.connections if x is not banana_plugs.NO_CONNECTION]
         while current_connections == banana_plugs.connections:
             self.plug_targets = random.sample(range(0, 6), 4)
@@ -90,7 +90,7 @@ class CCCGame(WindowManager):
         self.plug_puzzle_completed = 0
         self.start_time = datetime.now()
 
-        ControlAPI.devices.get("Batterie").intensity = self.battery_charge
+        ControlAPI.get_device("Batterie").intensity = self.battery_charge
 
     def handle_events(self, events: list[pg.event.Event]) -> None:
         for event in events:
@@ -165,10 +165,10 @@ class CCCGame(WindowManager):
             hat = joystick.get_hat(0)
 
         self.calculate_color_of_moving_head(
-            ControlAPI.devices.get("ButtonRed").state,
-            ControlAPI.devices.get("ButtonGreen").state,
-            ControlAPI.devices.get("ButtonBlue").state,
-            ControlAPI.devices.get("ButtonPower").state,
+            ControlAPI.get_device("ButtonRed").state,
+            ControlAPI.get_device("ButtonGreen").state,
+            ControlAPI.get_device("ButtonBlue").state,
+            ControlAPI.get_device("ButtonPower").state,
         )
 
     def check_moving_head_alignment(self):
@@ -199,21 +199,21 @@ class CCCGame(WindowManager):
     def update_battery_charge(self):
         old_charge_level = self.battery_charge
 
-        if not ControlAPI.devices.get("BatteryButton").state:
-            multiplicator = 3.0 if ControlAPI.devices.get("PowerSwitch").state else 1.0
+        if not ControlAPI.get_device("BatteryButton").state:
+            multiplicator = 3.0 if ControlAPI.get_device("PowerSwitch").state else 1.0
             self.battery_charge = max(0.0, self.battery_charge - self.BATTERY_DRAIN * self.dt * multiplicator)
         else:
             self.battery_charge = min(1.0, self.battery_charge + self.BATTERY_CHARGE_SPEED * self.dt)
             charge_points = int(ccc_game.battery_charge * 6)
             for i in range(charge_points):
-                ControlAPI.devices.get("BVGPanel").set_bit(41 + i)
-        ControlAPI.devices.get("Batterie").intensity = self.battery_charge
-        if ControlAPI.devices.get("BatteryButtonLadestation").state:
+                ControlAPI.get_device("BVGPanel").set_bit(41 + i)
+        ControlAPI.get_device("Batterie").intensity = self.battery_charge
+        if ControlAPI.get_device("BatteryButtonLadestation").state:
             for i in range(1, 5):
-                ControlAPI.devices.get(f"Voltmeter{i}").intensity = ccc_game.battery_charge
+                ControlAPI.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
 
         if self.battery_charge < 0.4:
-            ControlAPI.devices.get("ChronometerLampen").set_pixel(2, (255, 0, 0))
+            ControlAPI.get_device("ChronometerLampen").set_pixel(2, (255, 0, 0))
             # ccc_game.print_to_log(f"WARNING: BATTERY AT {ccc_game.battery_charge:.2%}!", (255, 255, 0))
 
         if self.battery_charge < self.BATTERY_WARNING_THRESHOLD < old_charge_level:
@@ -221,12 +221,12 @@ class CCCGame(WindowManager):
                                "Please take the battery out of the recepticle and insert it into the charging station.")
             self.print_to_log(f"WARNING. ENERGY CELL STATUS CRITICAL.", color=(255, 0, 0))
             self.print_to_log(f"PLEASE CHARGE BATTERY.", color=(255, 0, 0))
-        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and ControlAPI.devices.get("BatteryButtonLadestation").state:
+        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and ControlAPI.get_device("BatteryButtonLadestation").state:
             popup = ccc_game.desktop.widget_manifest.get("WARNING. ENERGY CELL STATUS CRITICAL.")
             if popup:
                 popup.close()
                 self.print_to_log(f"Energy cell successfully recharged to {self.battery_charge:.0%}.")
-                ControlAPI.devices.get("ChronometerLampen").set_pixel(2, (0, 0, 0))
+                ControlAPI.get_device("ChronometerLampen").set_pixel(2, (0, 0, 0))
 
     def print_to_log(self, text: str, color: tuple[int, int, int] = (0, 255, 0)):
         self.desktops.get("intro").widget_manifest.get("TerminalLog").print_to_log(text, color, True)
@@ -250,10 +250,10 @@ class CCCGame(WindowManager):
             return
         sender_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar1")
         receiver_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar2")
-        r = 255 if ControlAPI.devices.get("ButtonRed").state else 0
-        g = 255 if ControlAPI.devices.get("ButtonGreen").state else 0
-        b = 255 if ControlAPI.devices.get("ButtonBlue").state else 0
-        sender_color = (r, g, b) if ControlAPI.devices.get("ButtonPower").state else (0, 0, 0)
+        r = 255 if ControlAPI.get_device("ButtonRed").state else 0
+        g = 255 if ControlAPI.get_device("ButtonGreen").state else 0
+        b = 255 if ControlAPI.get_device("ButtonBlue").state else 0
+        sender_color = (r, g, b) if ControlAPI.get_device("ButtonPower").state else (0, 0, 0)
         sender_starbar.set_leds_to_color(sender_color)
         if sender_color == self.antenna_receiver_color:
             self.antennas_aligned += 1
@@ -304,11 +304,11 @@ def antenna_aligned(event: Event):
 @ControlAPI.call_with_frequency(1.0)
 def update_temperature():
     try:
-        ControlAPI.devices.get("Temperature").intensity = ccc_game.current_temp
+        ControlAPI.get_device("Temperature").intensity = ccc_game.current_temp
         if ccc_game.current_temp > ccc_game.TEMPERATURE_WARNING_THRESHOLD:
-            ControlAPI.devices.get("WarnLED").intensity = 0.0 if ControlAPI.devices.get("WarnLED").intensity else 1.0
+            ControlAPI.get_device("WarnLED").intensity = 0.0 if ControlAPI.get_device("WarnLED").intensity else 1.0
         else:
-            ControlAPI.devices.get("WarnLED").intensity = 0.0
+            ControlAPI.get_device("WarnLED").intensity = 0.0
     except NameError:
         pass
 
@@ -328,7 +328,7 @@ def start_plug_puzzle(event: Event):
 
 @ControlAPI.callback(source_name="BananaPlugs", event_name="PlugConnected")
 def plug_plugged(event: Event):
-    banana_plugs = ControlAPI.devices.get("BananaPlugs")
+    banana_plugs = ControlAPI.get_device("BananaPlugs")
     if banana_plugs.connections == ccc_game.plug_targets:
         ControlAPI.fire_event(name="PlugPuzzleCompleted")
 
@@ -369,32 +369,32 @@ def any_key_pressed(event: Event):
 def battery_interaction_ladestation(event: Event):
     if event.value:  # PLUG IN
         for i in range(1, 5):
-            ControlAPI.devices.get(f"Voltmeter{i}").intensity = ccc_game.battery_charge
+            ControlAPI.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
             time.sleep(0.05)
         if ccc_game.battery_charge > 0.6:
-            ControlAPI.devices.get("BatterySlotBVG-LEDStrip").set_animation(1)
-            ControlAPI.devices.get("BatterySlotLadestation-LEDStrip").fill((255, 0, 0))
+            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
+            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((255, 0, 0))
             time.sleep(3)
-            ControlAPI.devices.get("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
+            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
     else:  # PLUG OUT
         for i in range(1, 5):
-            ControlAPI.devices.get(f"Voltmeter{i}").intensity = 0.0
+            ControlAPI.get_device(f"Voltmeter{i}").intensity = 0.0
         if ccc_game.battery_charge <= 0.6:
-            ControlAPI.devices.get("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
-            ControlAPI.devices.get("BatterySlotBVG-LEDStrip").set_animation(1)
+            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
+            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
 
 
 @ControlAPI.callback("BatteryButton")
 def battery_interaction_bvgpanel(event: Event):
     if event.value:  # PLUG IN
-        ControlAPI.devices.get("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
+        ControlAPI.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
     else:  # PLUG OUT
-        ControlAPI.devices.get("BVGPanel").blackout()
+        ControlAPI.get_device("BVGPanel").blackout()
         if ccc_game.battery_charge > 0.8:
-            ControlAPI.devices.get("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
-            ControlAPI.devices.get("BatterySlotLadestation-LEDStrip").fill((0, 0, 255))
+            ControlAPI.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
+            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 255))
         else:
-            ControlAPI.devices.get("BatterySlotBVG-LEDStrip").set_animation(1)
+            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
 
 
 class PressAnyKeyWindow(widgets.Window):
@@ -435,9 +435,10 @@ class BatteryChargeStatus(widgets.Widget):
 
     def render_body(self):
         from gui.window_manager import FONT_PATH
-        font = pg.font.Font(FONT_PATH, size=17)
-        battery_inserted = ControlAPI.devices.get("BatteryButtonLadestation").state
-        battery_inserted_charger = ControlAPI.devices.get("BatteryButton").state
+        from gui.media import load_file_stream
+        font = pg.font.Font(load_file_stream(FONT_PATH), size=17)
+        battery_inserted = ControlAPI.get_device("BatteryButtonLadestation").state
+        battery_inserted_charger = ControlAPI.get_device("BatteryButton").state
         self.surface.fill(self.accent_color)
         for rect in self.charge_rects[:self.box_count]:
             if ccc_game.battery_charge > 0.8:
@@ -453,7 +454,7 @@ class BatteryChargeStatus(widgets.Widget):
             else:
                 text = "BATTERY DISCONNECTED"
             text_color = (255, 255, 255)
-        elif ControlAPI.devices.get("ButtonPower").state:
+        elif ControlAPI.get_device("ButtonPower").state:
             text = "ANTENNA ONLINE. HIGH DRAIN."
             text_color = (255, 0, 0)
         else:
@@ -467,7 +468,7 @@ def set_up_desktops():
     intro.add_element(widgets.Terminal("Terminal", intro, x=DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH // 2 - 2 * DEFAULT_GAP, h=RENDER_HEIGHT - 2 * DEFAULT_GAP))
     intro.add_element(widgets.Log("Log", intro, x=RENDER_WIDTH // 2 + DEFAULT_GAP, y=DEFAULT_GAP, w=RENDER_WIDTH // 2 - 2 * DEFAULT_GAP, h=RENDER_HEIGHT // 2 - 2 * DEFAULT_GAP))
     intro.add_element(widgets.Image("Image", intro, x=RENDER_WIDTH // 2 + DEFAULT_GAP, y=RENDER_HEIGHT // 2 + DEFAULT_GAP, w=RENDER_WIDTH // 2 - 2 * DEFAULT_GAP, h=RENDER_HEIGHT // 2 - 2 * DEFAULT_GAP,
-                      image_path=os.path.join(os.path.dirname(__file__), "gui", "media", "robot36.png")))
+                      image_path="robot36.png"))
 
     warning_window = PressAnyKeyWindow("IntroWindow", intro, "ALERT", RENDER_WIDTH // 2, RENDER_HEIGHT // 2, "PRESS ANY BUTTON TO CONTINUE.")
     intro.add_element(BatteryChargeStatus(intro))
@@ -484,16 +485,16 @@ def set_up_dmx_fixtures():
 
 @ControlAPI.call_with_frequency(1)
 def bvg_panel_glitch():
-    if ControlAPI.devices.get("BatteryButton").state:  # dont glitch if charging
+    if ControlAPI.get_device("BatteryButton").state:  # dont glitch if charging
         return
-    bvgpanel: devices.DummySipoShiftRegister = ControlAPI.devices.get("BVGPanel")
+    bvgpanel: devices.DummySipoShiftRegister = ControlAPI.get_device("BVGPanel")
     payload: bytes = bytes(0xFF if random.getrandbits(1) else 0x00 for _ in range(bvgpanel._number_of_bits))
     bvgpanel.send_dmx_data(payload)
 
 
 @ControlAPI.call_with_frequency(5)
 def uv_random_strobe():
-    uv: devices.DummyPWM = ControlAPI.devices.get("UVStrobe")
+    uv: devices.DummyPWM = ControlAPI.get_device("UVStrobe")
     if random.randint(0, 5) == 0:
         uv.intensity = random.uniform(0.5, 1.0)
         time.sleep(random.uniform(0.1, 0.4))
@@ -504,8 +505,8 @@ def uv_random_strobe():
 @ControlAPI.callback(source_name="AuthorizationKeyCharge")
 def zuendung(event: Event):
     # Both Keys are pressed. We can Check if all conditions are met to start time traveling
-    if ControlAPI.devices.get("AuthorizationKeyBVG") and ControlAPI.devices.get("AuthorizationKeyCharge"):
-        ControlAPI.devices.get("Chronometer").intensity = 1.0
+    if ControlAPI.get_device("AuthorizationKeyBVG") and ControlAPI.get_device("AuthorizationKeyCharge"):
+        ControlAPI.get_device("Chronometer").intensity = 1.0
     else:
         return
 
@@ -514,14 +515,14 @@ def zuendung(event: Event):
     # One needs to solve the Plug Puzzle Game
     if not ccc_game.plug_puzzle_completed:
         time.sleep(2.0)
-        ControlAPI.devices.get("Chronometer").intensity = 0.0
+        ControlAPI.get_device("Chronometer").intensity = 0.0
         ControlAPI.fire_event(name="StartPlugPuzzle")
         return
 
     # The Antennas needs to be configured:
     if ccc_game.antennas_aligned < 12:
         time.sleep(2.0)
-        ControlAPI.devices.get("Chronometer").intensity = 0.0
+        ControlAPI.get_device("Chronometer").intensity = 0.0
         text = "The communication antennas are not configured." if ccc_game.antennas_aligned == 0 else "The communication antennas are not fully configured"
         text += "Ensure that both antennas are communicating on the same frequency bands before proceeding."
         ccc_game.add_any_key_popup("MISALIGNMENT IN ANTENNA ARRAY.", text)

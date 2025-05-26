@@ -1,0 +1,55 @@
+{
+  "bvgpanel": [
+    ["SipoShiftRegister", {"name": "BVGPanel", "count": 8}],
+    ["LEDStrip", {"name": "BatterySlotBVG-LEDStrip", "length": 30}],
+    ["Button", {"name": "BatteryButton", "pin": 13}],
+    ["Button", {"name": "AuthorizationKeyBVG", "pin": 12}]
+  ],
+  "chronometer": [
+    ["PWM", {"name": "Chronometer"}],
+    ["LEDStrip", {"name": "ChronometerLampen", "length": 3}],
+    ["Button", {"name": "BigRedButton"}]
+  ],
+  "kommunikation": [
+    ["Button", {"name": "ButtonRed"}],
+    ["Button", {"name": "ButtonGreen"}],
+    ["Button", {"name": "ButtonBlue"}],
+    ["Button", {"name": "ButtonPower"}]
+  ],
+  "kuehlwasser": [
+    ["LEDStrip", {"name": "StatusLEDs", "length": 3}],
+    ["PWM", {"name": "WarnLED"}],
+    ["PWM", {"name": "WaterPressure"}],
+    ["PWM", {"name": "Temperature"}],
+    ["WaterSensor", {"name": "WaterFlowSensor"}]
+  ],
+  "ladestation": [
+    ["PWM", {"name": "Voltmeter1"}],
+    ["PWM", {"name": "Voltmeter2"}],
+    ["PWM", {"name": "Voltmeter3"}],
+    ["PWM", {"name": "Voltmeter4"}],
+    ["PWM", {"name": "Batterie"}],
+    ["LEDStrip", {"name": "BatterySlotLadestation-LEDStrip", "length": 30}],
+    ["Button", {"name": "AuthorizationKeyCharge"}],
+    ["Button", {"name": "BatteryButtonLadestation"}],
+    ["Button", {"name": "PhiSwitch"}]
+  ],
+  "mainframe": [
+    ["PisoShiftRegister", {"name": "MainframeKeys", "count": 30}],
+    ["LEDStrip", {"name": "MainframeLEDs", "length": 240}]
+  ],
+  "pilz": [
+    ["PWM", {"name": "UVStrobe", "intensity": 1.0}],
+    ["LEDStrip", {"name": "PilzLEDs", "length": 5}],
+    ["BananaPlugs", {"name": "BananaPlugs", "plug_count": 4}]
+  ],
+  "waehlscheibe": [
+    ["SipoShiftRegister", {"name": "RedYellowLEDs"}],
+    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "digits": 16}],
+    ["RotaryDial", {"name": "RotaryDial"}],
+    ["Button", {"name": "PowerSwitch"}],
+    ["Button", {"name": "DialReset"}],
+    ["Button", {"name": "TestHebel"}],
+    ["LEDStrip", {"name": "StatusLED", "length": 1}]
+  ]
+}

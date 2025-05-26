@@ -14,12 +14,15 @@ dependencies = [
     "pygame",
     "pyftdi",
     "moderngl",
+    "numpy",
     "anaconsole @ git+https://github.com/AsinoEsel/anaconsole-pygame.git@main#egg=anaconsole",
-    "opencv-python",
+    "artnet-python @ git+https://github.com/AsinoEsel/artnet-python.git@main#egg=artnet",
+    "controlware-gui @ git+https://github.com/japhsc/ControlWare-GUI.git@main",
 ]
 
 [project.scripts]
 controlpanel = "controlpanel.main:main"
+build_overloads = "controlpanel.event_manager.generate_overloads:main"
 transfer = "controlpanel.upy.transfer.transfer:transfer"
 flash_firmware = "controlpanel.upy.firmware.flash_firmware:main"
 
@@ -27,4 +30,4 @@ flash_firmware = "controlpanel.upy.firmware.flash_firmware:main"
 packages = { find = {} }
 
 [tool.setuptools.package-data]
-"controlpanel.game_manager.dev_overlay.assets" = ["*.*"]
+"controlpanel.shared" = ["*.json",]

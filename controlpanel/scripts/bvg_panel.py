@@ -10,7 +10,7 @@ def callback_bvgpanel_button(event: Event):
             star_bar.function = button_id
 
     toggle_buttons = [hash(str(button_id+36*i)) % 36 for i in range(5)]
-    bvg_panel = ControlAPI.devices.get("TestBVGPanel")
+    bvg_panel = ControlAPI.get_device("TestBVGPanel")
 
     for button in toggle_buttons:
         bvg_panel._output_states[button] = not bvg_panel._output_states[button]

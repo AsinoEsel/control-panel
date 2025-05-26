@@ -26,7 +26,7 @@ def row(a):
 
 @ControlAPI.callback("MainframeKeys", "ButtonsChanged", None)
 def keyboard_callback(event: Event):
-    keyboard_leds: DummyLEDStrip = ControlAPI.devices.get("MainframeLEDs")
+    keyboard_leds: DummyLEDStrip = ControlAPI.get_device("MainframeLEDs")
 
     global old_states
     # states = [byte for byte in event.value]

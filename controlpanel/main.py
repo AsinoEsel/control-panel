@@ -43,6 +43,12 @@ def main():
     else:
         artnet = event_manager = None
 
+    ControlAPI.artnet = artnet
+    ControlAPI.event_manager = event_manager
+    if ControlAPI.event_manager is not None:
+        from controlpanel.event_manager import device_getter
+        device_getter.devices = event_manager.devices
+
     game_manager = GameManager(resolution=(args.width, args.height),
                                dev_args=unknown_args,
                                is_fullscreen=not args.windowed,
@@ -51,9 +57,6 @@ def main():
                                enable_cheats=args.cheats,
                                )
 
-    ControlAPI.artnet = artnet
-    ControlAPI.event_manager = event_manager
-    ControlAPI.devices = event_manager.devices if event_manager else None
     ControlAPI.game_manager = game_manager
     try:
         ControlAPI.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)

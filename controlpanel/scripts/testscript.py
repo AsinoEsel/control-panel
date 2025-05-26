@@ -13,20 +13,20 @@ def rfid_scanned(event: Event):
 
 @ControlAPI.callback("BigRedButton", None, None)
 def turn_on_motor(event: Event):
-    chronometer: DummyPWM = ControlAPI.devices.get("Chronometer")
+    chronometer: DummyPWM = ControlAPI.get_device("Chronometer")
     if event.value:
         chronometer.intensity = 1.0
     else:
         chronometer.intensity = 0.0
     # color_val = (255, 255, 255) if event.value else (0, 0, 0)
-    # leds: DummyLEDStrip = ControlAPI.devices.get("ChronometerLampen")
+    # leds: DummyLEDStrip = ControlAPI.get_device("ChronometerLampen")
     # leds[0] = color_val
 
 
 def start_countdown():
     for i in range(10):
         print(10-i)
-        display = ControlAPI.devices.get("Display1")
+        display = ControlAPI.get_device("Display1")
         display.text = str(10-i)
         time.sleep(1)
 
@@ -38,7 +38,7 @@ entered_numbers: list[int] = []
 def rotary_callback(event: Event):
     number = event.value
     entered_numbers.append(number)
-    seven_segment: DummySevenSegmentDisplay = ControlAPI.devices.get("SevenSegmentDisplay")
+    seven_segment: DummySevenSegmentDisplay = ControlAPI.get_device("SevenSegmentDisplay")
     seven_segment.set_text("".join(str(number) for number in entered_numbers))
     if len(entered_numbers) >= 8:
         for i in range(8):
@@ -56,7 +56,7 @@ def rotary_callback(event: Event):
 @ControlAPI.callback("DialReset")
 def rotary_reset_callback(event: Event):
     entered_numbers.clear()
-    seven_segment: DummySevenSegmentDisplay = ControlAPI.devices.get("SevenSegmentDisplay")
+    seven_segment: DummySevenSegmentDisplay = ControlAPI.get_device("SevenSegmentDisplay")
     seven_segment.set_text(" ")
 
 

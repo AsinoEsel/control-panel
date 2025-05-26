@@ -16,9 +16,10 @@ import sys
 import importlib
 from functools import wraps
 from controlpanel.event_manager import Event
+from controlpanel.event_manager.device_getter import get_device
 if TYPE_CHECKING:
-    from controlpanel.shared.device_manifest import DeviceManifestType
-    from controlpanel.event_manager import EventManager, EventNameType, EventValueType, Event, CallbackType, SourceNameType
+    from controlpanel.event_manager import EventNameType, EventValueType, CallbackType, SourceNameType
+    from controlpanel.event_manager.event_manager import EventManager
     from artnet import ArtNet
 
 
@@ -28,10 +29,10 @@ T = TypeVar("T", bound="BaseGame")
 class ControlAPI:
     artnet: "ArtNet" = None
     event_manager: "EventManager" = None
-    devices: "DeviceManifestType" = None
     game_manager: GameManager = None
     dmx: DMXUniverse = None
     loaded_scripts: dict[str, types.ModuleType] = {}
+    get_device = get_device
 
     @classmethod
     def add_game(cls, game: T, *, make_current: bool = False) -> T:
@@ -118,7 +119,7 @@ def load_scripts(args: list[str]) -> None:
                 args.remove(arg)
                 break
 
-    failed: list[tuple[str, Exception]] = []
+    failed: list[tuple[str, Exception, str]] = []
     success: list[tuple[str, set[str]]] = []
     for arg in args:
         if arg.endswith(".py"):
@@ -144,7 +145,8 @@ def load_scripts(args: list[str]) -> None:
 
             success.append((arg, dependencies))
         except (ModuleNotFoundError, ImportError) as e:
-            failed.append((arg, e))
+            import traceback
+            failed.append((arg, e, traceback.format_exc()))
 
     if success:
         print("Successfully loaded the following scripts:")
@@ -154,6 +156,9 @@ def load_scripts(args: list[str]) -> None:
                 print(f"- {dependency:<15} (dependency of {script})")
 
     if failed:
+        import traceback
         print("Failed to load the following scripts:")
-        for script, error in failed:
+        for script, error, traceback in failed:
             print(f"- {script} ({error.__class__.__name__}: {str(error)})")
+            for line in traceback.split("\n"):
+                print(line)

@@ -2,7 +2,7 @@ from typing import Any
 import time
 from threading import Thread
 from collections import defaultdict
-from controlpanel.shared.device_manifest import get_instantiated_devices
+from .instantiate_manifest import get_instantiated_devices
 from controlpanel.shared.base import Sensor, Fixture, Device
 from controlpanel.event_manager import *
 import pygame as pg
@@ -24,7 +24,7 @@ class EventManager:
     def __init__(self, artnet: ArtNet):
         self.artnet = artnet
         self.artnet.subscribe_all(self.receive)
-        self.print_incoming_packets: bool = True
+        self.print_incoming_packets: bool = False
         self.register: dict[Condition:list[Subscriber]] = defaultdict(list)
         self.devices: dict[str: Device] = get_instantiated_devices(artnet)
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
