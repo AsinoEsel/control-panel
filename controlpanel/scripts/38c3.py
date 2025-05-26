@@ -561,7 +561,6 @@ def get_highscore(event: Event):
 
 ccc_game = CCCGame()
 ControlAPI.add_game(ccc_game, make_current=True)
-print(ControlAPI.game_manager.get_game("CCCGame"))
 set_up_desktops()
 intro: widgets.Desktop = ccc_game.desktops.get("intro")
 set_up_dmx_fixtures()
