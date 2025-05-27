@@ -283,13 +283,13 @@ class CCCGame(WindowManager):
             self.desktop.add_element(CriticalWarningWindow(title, self.desktop, title, RENDER_WIDTH // 2, RENDER_HEIGHT // 2, text), make_active_element=True)
 
 
-@ControlAPI.callback(source_name="WaterFlowSensor")
+@ControlAPI.callback(source="WaterFlowSensor")
 def cooling_water(event: Event):
     COOLING_RATE = 0.005
     ccc_game.current_temp = max(0.0, ccc_game.current_temp - COOLING_RATE * event.value)
 
 
-@ControlAPI.callback(event_name="AntennaAligned")
+@ControlAPI.callback(action="AntennaAligned")
 def antenna_aligned(event: Event):
     if event.value < 12:
         ControlAPI.dmx.devices.get("StarBar2").strobe = 100
@@ -313,7 +313,7 @@ def update_temperature():
         pass
 
 
-@ControlAPI.callback(event_name="StartPlugPuzzle")
+@ControlAPI.callback(action="StartPlugPuzzle")
 def start_plug_puzzle(event: Event):
     if ccc_game.plug_puzzle_started:
         return
@@ -326,14 +326,14 @@ def start_plug_puzzle(event: Event):
         ccc_game.print_to_log(f"    Verbindung {i + 1}: {PLUG_COLORS[target]}")
 
 
-@ControlAPI.callback(source_name="BananaPlugs", event_name="PlugConnected")
+@ControlAPI.callback(source="BananaPlugs", action="PlugConnected")
 def plug_plugged(event: Event):
     banana_plugs = ControlAPI.get_device("BananaPlugs")
     if banana_plugs.connections == ccc_game.plug_targets:
         ControlAPI.fire_event(name="PlugPuzzleCompleted")
 
 
-@ControlAPI.callback(event_name="PlugPuzzleCompleted")
+@ControlAPI.callback(action="PlugPuzzleCompleted")
 def plug_puzzle_completed(event: Event):
     ccc_game.print_to_log("Rerouting ventilation...", (255, 255, 0))
     time.sleep(3.0)
@@ -501,8 +501,8 @@ def uv_random_strobe():
         uv.intensity = 0.0
 
 
-@ControlAPI.callback(source_name="AuthorizationKeyBVG")
-@ControlAPI.callback(source_name="AuthorizationKeyCharge")
+@ControlAPI.callback(source="AuthorizationKeyBVG")
+@ControlAPI.callback(source="AuthorizationKeyCharge")
 def zuendung(event: Event):
     # Both Keys are pressed. We can Check if all conditions are met to start time traveling
     if ControlAPI.get_device("AuthorizationKeyBVG") and ControlAPI.get_device("AuthorizationKeyCharge"):
@@ -533,7 +533,7 @@ def zuendung(event: Event):
         ccc_game.print_to_log(f"Ready to Start Time Traveling")
         ccc_game.antennas_completed = 1
 
-@ControlAPI.callback(source_name="BigRedButton")
+@ControlAPI.callback(source="BigRedButton")
 def the_end(event: Event):
     # The game is finished, congratulation to the user
     if ccc_game.antennas_completed and ccc_game.plug_puzzle_completed:

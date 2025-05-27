@@ -20,7 +20,7 @@ def callback_battery(event: Event):
         battery_is_plugged_in = False
         return
 
-    if "ladestation" in event.name.lower():
+    if "ladestation" in event.action.lower():
         battery_is_plugged_in = "ladestation"
     else:
         battery_is_plugged_in = "bvgpanel"

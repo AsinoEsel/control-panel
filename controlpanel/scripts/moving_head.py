@@ -8,10 +8,10 @@ from controlpanel.dmx.devices import MovingHead
 # @ControlAPI.callback("ButtonBlue", "ButtonPressed")
 @ControlAPI.callback("ButtonPower", "ButtonPressed")
 def callback_rgb(event: Event):
-    red = "red" in event.name.lower()
-    green = "green" in event.name.lower()
-    blue = "blue" in event.name.lower()
-    power = "power" in event.name.lower()
+    red = "red" in event.action.lower()
+    green = "green" in event.action.lower()
+    blue = "blue" in event.action.lower()
+    power = "power" in event.action.lower()
     print(red, green, blue, power)
 
     starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar1")

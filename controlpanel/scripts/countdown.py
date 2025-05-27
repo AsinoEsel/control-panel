@@ -8,7 +8,7 @@ UNIVERSE = 14
 DISPLAY_COUNT = 3
 
 
-@ControlAPI.callback(event_name="StartCountdown")
+@ControlAPI.callback(action="StartCountdown")
 def start_countdown(event: Event):
     target = datetime.datetime.now() + datetime.timedelta(seconds=event.value)
 

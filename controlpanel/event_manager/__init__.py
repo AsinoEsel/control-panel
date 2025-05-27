@@ -1,9 +1,8 @@
 from .commons import (
     KEY_CONTROL_PANEL_PROTOCOL,
     CONTROL_PANEL_EVENT,
-    SubKey,
     SourceNameType,
-    EventNameType,
+    EventActionType,
     EventValueType,
     Event,
     Condition,

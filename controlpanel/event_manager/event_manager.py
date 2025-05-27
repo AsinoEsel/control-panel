@@ -42,15 +42,6 @@ class EventManager:
                 if key != KEY_CONTROL_PANEL_PROTOCOL:
                     return
 
-                subkey_raw = reply.get("SubKey")
-                if subkey_raw is None:
-                    return
-                try:
-                    subkey = SubKey(subkey_raw)
-                except ValueError:
-                    print(f"Invalid sub key {subkey_raw}!")
-                    return
-
                 data: bytes = reply.get("Data", b"")
                 data_fields = data.split(b"\x00", maxsplit=1)
                 if len(data_fields) != 2:
@@ -81,17 +72,17 @@ class EventManager:
                     print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
 
     def fire_event(self, event: Event):
-        print(f"{"Firing event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} from {event.sender}")
-        pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.name, value=event.value, sender=event.sender))
+        print(f"{"Firing event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
+        pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
         for key_func in self.POSSIBLE_EVENT_TYPES:
-            source, name, value = key_func(event.source, event.name, event.value)
+            source, name, value = key_func(event.source, event.action, event.value)
             listeners: list[Subscriber] = self.register.get(Condition(source, name, value), [])
             for listener in listeners:
                 if not listener.allow_parallelism:
                     if listener.thread is not None and listener.thread.is_alive():
                         print("Cannot start thread: old thread is still alive.")
                         return
-                print(f"{"Receiving event:":<16}{event.source:<20} -> {event.name:<20} -> {str(event.value):<20} -> {listener.callback.__name__:<20}")
+                print(f"{"Receiving event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} -> {listener.callback.__name__:<20}")
                 listener.thread = Thread(target=listener.callback, args=(event,), daemon=True)
                 listener.thread.start()
                 if listener.fire_once:
@@ -108,7 +99,7 @@ class EventManager:
 
         self._parse_op(sender, ts, op_code, reply)
 
-    def subscribe(self, callback: CallbackType, source: SourceNameType, event_name: EventNameType, condition_value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
+    def subscribe(self, callback: CallbackType, source: SourceNameType, action: EventActionType, value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
         listener = Subscriber(callback, fire_once, allow_parallelism)
-        condition = Condition(source, event_name, condition_value)
+        condition = Condition(source, action, value)
         self.register[condition].append(listener)

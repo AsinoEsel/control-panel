@@ -18,7 +18,7 @@ from functools import wraps
 from controlpanel.event_manager import Event
 from controlpanel.event_manager.device_getter import get_device
 if TYPE_CHECKING:
-    from controlpanel.event_manager import EventNameType, EventValueType, CallbackType, SourceNameType
+    from controlpanel.event_manager import EventActionType, EventValueType, CallbackType, SourceNameType
     from controlpanel.event_manager.event_manager import EventManager
     from artnet import ArtNet
 
@@ -70,18 +70,19 @@ class ControlAPI:
         return decorator
 
     @classmethod
-    def subscribe(cls, callback: "CallbackType", source_name: Optional["SourceNameType"], event_name: Optional["EventNameType"], condition_value: Optional["EventValueType"], *, fire_once=False, allow_parallelism: bool = False):
+    def subscribe(cls, callback: "CallbackType", source_name: Optional["SourceNameType"], event_name: Optional[
+        "EventActionType"], condition_value: Optional["EventValueType"], *, fire_once=False, allow_parallelism: bool = False):
         cls.event_manager.subscribe(callback, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
     @classmethod
-    def callback(cls, source_name: Optional["SourceNameType"] = None, event_name: Optional["EventNameType"] = None, condition_value: Optional["EventValueType"] = None, *, fire_once=False, allow_parallelism: bool = False):
+    def callback(cls, source: Optional["SourceNameType"] = None, action: Optional["EventActionType"] = None, value: Optional["EventValueType"] = None, *, fire_once=False, allow_parallelism: bool = False):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 return func(*args, **kwargs)
 
             # Register the function as a callback with the event manager
-            cls.event_manager.subscribe(func, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
+            cls.event_manager.subscribe(func, source, action, value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
             return wrapper
 
