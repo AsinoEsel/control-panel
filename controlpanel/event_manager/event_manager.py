@@ -24,7 +24,9 @@ class EventManager:
     def __init__(self, artnet: ArtNet):
         self.artnet = artnet
         self.artnet.subscribe_all(self.receive)
-        self.print_incoming_packets: bool = False
+        self.print_incoming_arttrigger_packets: bool = False
+        self.print_incoming_artdmx_packets: bool = False
+        self.print_incoming_artcmd_packets: bool = False
         self.register: dict[Condition:list[Subscriber]] = defaultdict(list)
         self.devices: dict[str: Device] = get_instantiated_devices(artnet)
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
@@ -33,7 +35,7 @@ class EventManager:
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
         match op_code:
             case OpCode.ArtTrigger:
-                if self.print_incoming_packets:
+                if self.print_incoming_arttrigger_packets:
                     print(f"Receiving ArtTrigger event from {sender[0]}: {reply}")
 
                 key = reply.get("Key")
@@ -65,7 +67,7 @@ class EventManager:
                     self.fire_event(Event("Trigger", sensor_name, sensor_data, sender, ts))
 
             case OpCode.ArtDmx:
-                if self.print_incoming_packets:
+                if self.print_incoming_artdmx_packets:
                     universe = reply.get("Universe")
                     fixture: Fixture | None = self.fixture_dict.get(universe)
                     values = [int(byte) for byte in reply.get("Data")]
@@ -75,7 +77,7 @@ class EventManager:
                         print(f"Receiving ArtDMX event from {sender[0]} to universe {reply.get("Universe")}: {reply.get("Data")}")
 
             case OpCode.ArtCommand:
-                if self.print_incoming_packets:
+                if self.print_incoming_artcmd_packets:
                     print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
 
     def fire_event(self, event: Event):
