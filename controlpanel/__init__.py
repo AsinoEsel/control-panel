@@ -6,7 +6,7 @@ with contextlib.redirect_stdout(None):
     importlib.import_module("pygame")
 
 from controlpanel.game_manager.games import BaseGame
-from controlpanel.scripts import load_scripts
+from controlpanel import scripts
 from anaconsole import console_command, Autocomplete
 import pygame as pg
 try:

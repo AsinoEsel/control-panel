@@ -1,7 +1,7 @@
 import time
 import random
 import controlpanel.dmx
-from controlpanel.scripts import ControlAPI, Event
+from controlpanel import api
 from gui.window_manager import WindowManager
 from gui.window_manager.window_manager_setup import *
 from gui import widgets
@@ -60,7 +60,7 @@ class CCCGame(WindowManager):
 
     def shuffle_targets(self):
         self.plug_targets = random.sample(range(0, 6), 4)
-        banana_plugs = ControlAPI.get_device("BananaPlugs")
+        banana_plugs = api.get_device("BananaPlugs")
         current_connections = [x for x in banana_plugs.connections if x is not banana_plugs.NO_CONNECTION]
         while current_connections == banana_plugs.connections:
             self.plug_targets = random.sample(range(0, 6), 4)
@@ -90,12 +90,12 @@ class CCCGame(WindowManager):
         self.plug_puzzle_completed = 0
         self.start_time = datetime.now()
 
-        ControlAPI.get_device("Batterie").intensity = self.battery_charge
+        api.get_device("Batterie").intensity = self.battery_charge
 
     def handle_events(self, events: list[pg.event.Event]) -> None:
         for event in events:
-            if ControlAPI.dmx and ControlAPI.dmx.devices.get("Laser"):
-                laser = ControlAPI.dmx.devices.get("Laser")
+            if api.dmx and api.dmx.devices.get("Laser"):
+                laser = api.dmx.devices.get("Laser")
                 mods = pg.key.get_mods()
                 if event.type == pg.JOYBUTTONDOWN and event.button == 0:
                     laser.strobe = True
@@ -127,9 +127,9 @@ class CCCGame(WindowManager):
 
     @staticmethod
     def calculate_color_of_moving_head(red, green, blue, power):
-        if not ControlAPI.dmx:
+        if not api.dmx:
             return
-        moving_head: controlpanel.dmx.devices.MovingHead = ControlAPI.dmx.devices.get("Laser")
+        moving_head: controlpanel.dmx.devices.MovingHead = api.dmx.devices.get("Laser")
         if not power or (not red and not green and not blue):
             moving_head.intensity = 0
         else:
@@ -151,13 +151,13 @@ class CCCGame(WindowManager):
 
     def update_moving_head(self):
         from math import radians
-        from controlpanel.scripts import ControlAPI
+        from controlpanel import api
         max_speed = radians(45)
         max_distance = max_speed * self.dt
 
         for joystick in self._joysticks.values():
             axes: list[float] = [joystick.get_axis(i) for i in range(joystick.get_numaxes())]
-            laser: controlpanel.dmx.devices.MovingHead = ControlAPI.dmx.devices.get("Laser")
+            laser: controlpanel.dmx.devices.MovingHead = api.dmx.devices.get("Laser")
             laser.yaw += axes[0] * abs(axes[0]) * max_distance
             laser.pitch -= axes[1] * abs(axes[1]) * max_distance
             laser.gobo2_rotation = axes[2]
@@ -165,24 +165,24 @@ class CCCGame(WindowManager):
             hat = joystick.get_hat(0)
 
         self.calculate_color_of_moving_head(
-            ControlAPI.get_device("ButtonRed").state,
-            ControlAPI.get_device("ButtonGreen").state,
-            ControlAPI.get_device("ButtonBlue").state,
-            ControlAPI.get_device("ButtonPower").state,
+            api.get_device("ButtonRed").state,
+            api.get_device("ButtonGreen").state,
+            api.get_device("ButtonBlue").state,
+            api.get_device("ButtonPower").state,
         )
 
     def check_moving_head_alignment(self):
-        if not ControlAPI.dmx:
+        if not api.dmx:
             return
         from math import degrees, ceil
         target_yaw = 5.17
         target_pitch = -1.44
         target_vector = pg.Vector3.from_spherical((1.0, degrees(target_pitch), degrees(target_yaw)))
-        moving_head: controlpanel.dmx.devices.MovingHead = ControlAPI.dmx.devices.get("Laser")
+        moving_head: controlpanel.dmx.devices.MovingHead = api.dmx.devices.get("Laser")
         moving_head_vector = pg.Vector3.from_spherical((1.0, degrees(moving_head.pitch), degrees(moving_head.yaw)))
         angle = target_vector.angle_to(moving_head_vector)
-        starbar1: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar1")
-        starbar2: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar2")
+        starbar1: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar1")
+        starbar2: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar2")
         rating = 1.0 - min(1.0, max(0.0, angle/50))
         adjusted_rating = rating ** 2
         stars = ceil(starbar1.LED_COUNT * adjusted_rating)
@@ -199,21 +199,21 @@ class CCCGame(WindowManager):
     def update_battery_charge(self):
         old_charge_level = self.battery_charge
 
-        if not ControlAPI.get_device("BatteryButton").state:
-            multiplicator = 3.0 if ControlAPI.get_device("PowerSwitch").state else 1.0
+        if not api.get_device("BatteryButton").state:
+            multiplicator = 3.0 if api.get_device("PowerSwitch").state else 1.0
             self.battery_charge = max(0.0, self.battery_charge - self.BATTERY_DRAIN * self.dt * multiplicator)
         else:
             self.battery_charge = min(1.0, self.battery_charge + self.BATTERY_CHARGE_SPEED * self.dt)
             charge_points = int(ccc_game.battery_charge * 6)
             for i in range(charge_points):
-                ControlAPI.get_device("BVGPanel").set_bit(41 + i)
-        ControlAPI.get_device("Batterie").intensity = self.battery_charge
-        if ControlAPI.get_device("BatteryButtonLadestation").state:
+                api.get_device("BVGPanel").set_bit(41 + i)
+        api.get_device("Batterie").intensity = self.battery_charge
+        if api.get_device("BatteryButtonLadestation").state:
             for i in range(1, 5):
-                ControlAPI.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
+                api.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
 
         if self.battery_charge < 0.4:
-            ControlAPI.get_device("ChronometerLampen").set_pixel(2, (255, 0, 0))
+            api.get_device("ChronometerLampen").set_pixel(2, (255, 0, 0))
             # ccc_game.print_to_log(f"WARNING: BATTERY AT {ccc_game.battery_charge:.2%}!", (255, 255, 0))
 
         if self.battery_charge < self.BATTERY_WARNING_THRESHOLD < old_charge_level:
@@ -221,12 +221,12 @@ class CCCGame(WindowManager):
                                "Please take the battery out of the recepticle and insert it into the charging station.")
             self.print_to_log(f"WARNING. ENERGY CELL STATUS CRITICAL.", color=(255, 0, 0))
             self.print_to_log(f"PLEASE CHARGE BATTERY.", color=(255, 0, 0))
-        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and ControlAPI.get_device("BatteryButtonLadestation").state:
+        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and api.get_device("BatteryButtonLadestation").state:
             popup = ccc_game.desktop.widget_manifest.get("WARNING. ENERGY CELL STATUS CRITICAL.")
             if popup:
                 popup.close()
                 self.print_to_log(f"Energy cell successfully recharged to {self.battery_charge:.0%}.")
-                ControlAPI.get_device("ChronometerLampen").set_pixel(2, (0, 0, 0))
+                api.get_device("ChronometerLampen").set_pixel(2, (0, 0, 0))
 
     def print_to_log(self, text: str, color: tuple[int, int, int] = (0, 255, 0)):
         self.desktops.get("intro").widget_manifest.get("TerminalLog").print_to_log(text, color, True)
@@ -246,18 +246,18 @@ class CCCGame(WindowManager):
                 self.print_to_log(f"Temperature sucessfully stabilized.")
 
     def update_antenna(self):
-        if not ControlAPI.dmx:
+        if not api.dmx:
             return
-        sender_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar1")
-        receiver_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = ControlAPI.dmx.devices.get("StarBar2")
-        r = 255 if ControlAPI.get_device("ButtonRed").state else 0
-        g = 255 if ControlAPI.get_device("ButtonGreen").state else 0
-        b = 255 if ControlAPI.get_device("ButtonBlue").state else 0
-        sender_color = (r, g, b) if ControlAPI.get_device("ButtonPower").state else (0, 0, 0)
+        sender_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar1")
+        receiver_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar2")
+        r = 255 if api.get_device("ButtonRed").state else 0
+        g = 255 if api.get_device("ButtonGreen").state else 0
+        b = 255 if api.get_device("ButtonBlue").state else 0
+        sender_color = (r, g, b) if api.get_device("ButtonPower").state else (0, 0, 0)
         sender_starbar.set_leds_to_color(sender_color)
         if sender_color == self.antenna_receiver_color:
             self.antennas_aligned += 1
-            ControlAPI.fire_event(name="AntennaAligned", value=self.antennas_aligned)
+            api.fire_event(action="AntennaAligned", value=self.antennas_aligned)
             while self.antenna_receiver_color == sender_color:
                 self.antenna_receiver_color = random.choice(ANTENNA_COLORS)
             receiver_starbar.set_leds_to_color(self.antenna_receiver_color)
@@ -283,38 +283,38 @@ class CCCGame(WindowManager):
             self.desktop.add_element(CriticalWarningWindow(title, self.desktop, title, RENDER_WIDTH // 2, RENDER_HEIGHT // 2, text), make_active_element=True)
 
 
-@ControlAPI.callback(source="WaterFlowSensor")
-def cooling_water(event: Event):
+@api.callback(source="WaterFlowSensor")
+def cooling_water(event: api.Event):
     COOLING_RATE = 0.005
     ccc_game.current_temp = max(0.0, ccc_game.current_temp - COOLING_RATE * event.value)
 
 
-@ControlAPI.callback(action="AntennaAligned")
-def antenna_aligned(event: Event):
+@api.callback(action="AntennaAligned")
+def antenna_aligned(event: api.Event):
     if event.value < 12:
-        ControlAPI.dmx.devices.get("StarBar2").strobe = 100
+        api.dmx.devices.get("StarBar2").strobe = 100
         time.sleep(1)
-        ControlAPI.dmx.devices.get("StarBar2").strobe = 0
+        api.dmx.devices.get("StarBar2").strobe = 0
     else:
         ccc_game.add_any_key_popup("CALIBRATION COMPLETE", "The communication array has been calibrated.")
         ccc_game.print_to_log("Calibration successful.")
 
 
 
-@ControlAPI.call_with_frequency(1.0)
+@api.call_with_frequency(1.0)
 def update_temperature():
     try:
-        ControlAPI.get_device("Temperature").intensity = ccc_game.current_temp
+        api.get_device("Temperature").intensity = ccc_game.current_temp
         if ccc_game.current_temp > ccc_game.TEMPERATURE_WARNING_THRESHOLD:
-            ControlAPI.get_device("WarnLED").intensity = 0.0 if ControlAPI.get_device("WarnLED").intensity else 1.0
+            api.get_device("WarnLED").intensity = 0.0 if api.get_device("WarnLED").intensity else 1.0
         else:
-            ControlAPI.get_device("WarnLED").intensity = 0.0
+            api.get_device("WarnLED").intensity = 0.0
     except NameError:
         pass
 
 
-@ControlAPI.callback(action="StartPlugPuzzle")
-def start_plug_puzzle(event: Event):
+@api.callback(action="StartPlugPuzzle")
+def start_plug_puzzle(event: api.Event):
     if ccc_game.plug_puzzle_started:
         return
     ccc_game.shuffle_targets()
@@ -326,22 +326,22 @@ def start_plug_puzzle(event: Event):
         ccc_game.print_to_log(f"    Verbindung {i + 1}: {PLUG_COLORS[target]}")
 
 
-@ControlAPI.callback(source="BananaPlugs", action="PlugConnected")
-def plug_plugged(event: Event):
-    banana_plugs = ControlAPI.get_device("BananaPlugs")
+@api.callback(source="BananaPlugs", action="PlugConnected")
+def plug_plugged(event: api.Event):
+    banana_plugs = api.get_device("BananaPlugs")
     if banana_plugs.connections == ccc_game.plug_targets:
-        ControlAPI.fire_event(name="PlugPuzzleCompleted")
+        api.fire_event(action="PlugPuzzleCompleted")
 
 
-@ControlAPI.callback(action="PlugPuzzleCompleted")
-def plug_puzzle_completed(event: Event):
+@api.callback(action="PlugPuzzleCompleted")
+def plug_puzzle_completed(event: api.Event):
     ccc_game.print_to_log("Rerouting ventilation...", (255, 255, 0))
     time.sleep(3.0)
     ccc_game.print_to_log("Reroute Successful!", (0, 255, 0))
     ccc_game.plug_puzzle_completed = 1
 
-@ControlAPI.callback("IntroWindow", "PressedAnyKey", fire_once=True)
-def any_key_pressed(event: Event):
+@api.callback("IntroWindow", "PressedAnyKey", fire_once=True)
+def any_key_pressed(event: api.Event):
     # ccc_game.print_to_log("You may now enter your destination coordinates.", (255, 0, 0))
     # time.sleep(1.0)
     # ccc_game.print_to_log("Please note that failure to commence travel within a window of...", (255, 255, 0))
@@ -355,52 +355,52 @@ def any_key_pressed(event: Event):
     # ccc_game.print_to_log("Starting...", (255, 255, 0))
     # time.sleep(2.0)
     # ccc_game.print_to_log("Now.", (255, 0, 0))
-    if ControlAPI.dmx:
-        ControlAPI.dmx.devices.get("StarBar1").turn_on_lights()
-        ControlAPI.dmx.devices.get("StarBar2").turn_on_lights()
-        ControlAPI.dmx.devices.get("StarBar1").set_leds_to_color((255, 0, 0))
-        ControlAPI.dmx.devices.get("StarBar2").set_leds_to_color((255, 0, 0))
-        ControlAPI.dmx.devices.get("Spot1").animation = controlpanel.dmx.animations.red_strobe
-        ControlAPI.dmx.devices.get("Spot2").animation = controlpanel.dmx.animations.red_strobe
-    ControlAPI.fire_event("", "StartCountdown", 600)
+    if api.dmx:
+        api.dmx.devices.get("StarBar1").turn_on_lights()
+        api.dmx.devices.get("StarBar2").turn_on_lights()
+        api.dmx.devices.get("StarBar1").set_leds_to_color((255, 0, 0))
+        api.dmx.devices.get("StarBar2").set_leds_to_color((255, 0, 0))
+        api.dmx.devices.get("Spot1").animation = controlpanel.dmx.animations.red_strobe
+        api.dmx.devices.get("Spot2").animation = controlpanel.dmx.animations.red_strobe
+    api.fire_event("", "StartCountdown", 600)
 
 
-@ControlAPI.callback("BatteryButtonLadestation")
-def battery_interaction_ladestation(event: Event):
+@api.callback("BatteryButtonLadestation")
+def battery_interaction_ladestation(event: api.Event):
     if event.value:  # PLUG IN
         for i in range(1, 5):
-            ControlAPI.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
+            api.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
             time.sleep(0.05)
         if ccc_game.battery_charge > 0.6:
-            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
-            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((255, 0, 0))
+            api.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
+            api.get_device("BatterySlotLadestation-LEDStrip").fill((255, 0, 0))
             time.sleep(3)
-            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
+            api.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
     else:  # PLUG OUT
         for i in range(1, 5):
-            ControlAPI.get_device(f"Voltmeter{i}").intensity = 0.0
+            api.get_device(f"Voltmeter{i}").intensity = 0.0
         if ccc_game.battery_charge <= 0.6:
-            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
-            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
+            api.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 0))
+            api.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
 
 
-@ControlAPI.callback("BatteryButton")
-def battery_interaction_bvgpanel(event: Event):
+@api.callback("BatteryButton")
+def battery_interaction_bvgpanel(event: api.Event):
     if event.value:  # PLUG IN
-        ControlAPI.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
+        api.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
     else:  # PLUG OUT
-        ControlAPI.get_device("BVGPanel").blackout()
+        api.get_device("BVGPanel").blackout()
         if ccc_game.battery_charge > 0.8:
-            ControlAPI.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
-            ControlAPI.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 255))
+            api.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
+            api.get_device("BatterySlotLadestation-LEDStrip").fill((0, 0, 255))
         else:
-            ControlAPI.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
+            api.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
 
 
 class PressAnyKeyWindow(widgets.Window):
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.KEYDOWN:
-            ControlAPI.fire_event(self.name, "PressedAnyKey", None)
+            api.fire_event(self.name, "PressedAnyKey", None)
             self.close()
         super().handle_event(event)
 
@@ -437,8 +437,8 @@ class BatteryChargeStatus(widgets.Widget):
         from gui.window_manager import FONT_PATH
         from gui.media import load_file_stream
         font = pg.font.Font(load_file_stream(FONT_PATH), size=17)
-        battery_inserted = ControlAPI.get_device("BatteryButtonLadestation").state
-        battery_inserted_charger = ControlAPI.get_device("BatteryButton").state
+        battery_inserted = api.get_device("BatteryButtonLadestation").state
+        battery_inserted_charger = api.get_device("BatteryButton").state
         self.surface.fill(self.accent_color)
         for rect in self.charge_rects[:self.box_count]:
             if ccc_game.battery_charge > 0.8:
@@ -454,7 +454,7 @@ class BatteryChargeStatus(widgets.Widget):
             else:
                 text = "BATTERY DISCONNECTED"
             text_color = (255, 255, 255)
-        elif ControlAPI.get_device("ButtonPower").state:
+        elif api.get_device("ButtonPower").state:
             text = "ANTENNA ONLINE. HIGH DRAIN."
             text_color = (255, 0, 0)
         else:
@@ -476,37 +476,37 @@ def set_up_desktops():
 
 
 def set_up_dmx_fixtures():
-    if not ControlAPI.dmx:
+    if not api.dmx:
         return
-    for device in ControlAPI.dmx.devices.values():
+    for device in api.dmx.devices.values():
         if isinstance(device, controlpanel.dmx.RGBWLED):
             device._animation = controlpanel.dmx.animations.red_strobe
 
 
-@ControlAPI.call_with_frequency(1)
+@api.call_with_frequency(1)
 def bvg_panel_glitch():
-    if ControlAPI.get_device("BatteryButton").state:  # dont glitch if charging
+    if api.get_device("BatteryButton").state:  # dont glitch if charging
         return
-    bvgpanel: devices.DummySipoShiftRegister = ControlAPI.get_device("BVGPanel")
+    bvgpanel: devices.DummySipoShiftRegister = api.get_device("BVGPanel")
     payload: bytes = bytes(0xFF if random.getrandbits(1) else 0x00 for _ in range(bvgpanel._number_of_bits))
     bvgpanel.send_dmx_data(payload)
 
 
-@ControlAPI.call_with_frequency(5)
+@api.call_with_frequency(5)
 def uv_random_strobe():
-    uv: devices.DummyPWM = ControlAPI.get_device("UVStrobe")
+    uv: devices.DummyPWM = api.get_device("UVStrobe")
     if random.randint(0, 5) == 0:
         uv.intensity = random.uniform(0.5, 1.0)
         time.sleep(random.uniform(0.1, 0.4))
         uv.intensity = 0.0
 
 
-@ControlAPI.callback(source="AuthorizationKeyBVG")
-@ControlAPI.callback(source="AuthorizationKeyCharge")
-def zuendung(event: Event):
+@api.callback(source="AuthorizationKeyBVG")
+@api.callback(source="AuthorizationKeyCharge")
+def zuendung(event: api.Event):
     # Both Keys are pressed. We can Check if all conditions are met to start time traveling
-    if ControlAPI.get_device("AuthorizationKeyBVG") and ControlAPI.get_device("AuthorizationKeyCharge"):
-        ControlAPI.get_device("Chronometer").intensity = 1.0
+    if api.get_device("AuthorizationKeyBVG") and api.get_device("AuthorizationKeyCharge"):
+        api.get_device("Chronometer").intensity = 1.0
     else:
         return
 
@@ -515,14 +515,14 @@ def zuendung(event: Event):
     # One needs to solve the Plug Puzzle Game
     if not ccc_game.plug_puzzle_completed:
         time.sleep(2.0)
-        ControlAPI.get_device("Chronometer").intensity = 0.0
-        ControlAPI.fire_event(name="StartPlugPuzzle")
+        api.get_device("Chronometer").intensity = 0.0
+        api.fire_event(action="StartPlugPuzzle")
         return
 
     # The Antennas needs to be configured:
     if ccc_game.antennas_aligned < 12:
         time.sleep(2.0)
-        ControlAPI.get_device("Chronometer").intensity = 0.0
+        api.get_device("Chronometer").intensity = 0.0
         text = "The communication antennas are not configured." if ccc_game.antennas_aligned == 0 else "The communication antennas are not fully configured"
         text += "Ensure that both antennas are communicating on the same frequency bands before proceeding."
         ccc_game.add_any_key_popup("MISALIGNMENT IN ANTENNA ARRAY.", text)
@@ -533,8 +533,8 @@ def zuendung(event: Event):
         ccc_game.print_to_log(f"Ready to Start Time Traveling")
         ccc_game.antennas_completed = 1
 
-@ControlAPI.callback(source="BigRedButton")
-def the_end(event: Event):
+@api.callback(source="BigRedButton")
+def the_end(event: api.Event):
     # The game is finished, congratulation to the user
     if ccc_game.antennas_completed and ccc_game.plug_puzzle_completed:
         text = f"You are flying through the time line, towards a the year {random.randint(2026,2999)} where everyone lives in peace and harmony. Please enter your name to store in the leader board"
@@ -542,8 +542,8 @@ def the_end(event: Event):
         ccc_game.add_any_key_popup("FINISHED TIMETRAVEL", text)
         ccc_game.ready_for_highscore = 1
 
-@ControlAPI.callback("TerminalInputBox", "TextInput")
-def get_highscore(event: Event):
+@api.callback("TerminalInputBox", "TextInput")
+def get_highscore(event: api.Event):
     # Get the high score name and add it to a txt file
     if ccc_game.antennas_completed and ccc_game.ready_for_highscore:
         name = str(event.value)
@@ -560,7 +560,7 @@ def get_highscore(event: Event):
         ccc_game.reset()
 
 ccc_game = CCCGame()
-ControlAPI.add_game(ccc_game, make_current=True)
+api.add_game(ccc_game, make_current=True)
 set_up_desktops()
 intro: widgets.Desktop = ccc_game.desktops.get("intro")
 set_up_dmx_fixtures()

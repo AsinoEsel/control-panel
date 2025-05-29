@@ -1,7 +1,7 @@
 from threading import Thread
 from controlpanel.game_manager import GameManager
-from controlpanel.scripts import load_scripts, ControlAPI
 from controlpanel.dmx import DMXUniverse, device_list
+from controlpanel.api import Services, load_scripts
 import argparse
 
 
@@ -43,9 +43,9 @@ def main():
     else:
         artnet = event_manager = None
 
-    ControlAPI.artnet = artnet
-    ControlAPI.event_manager = event_manager
-    if ControlAPI.event_manager is not None:
+    Services.artnet = artnet
+    Services.event_manager = event_manager
+    if Services.event_manager is not None:
         from controlpanel.event_manager import device_getter
         device_getter.devices = event_manager.devices
 
@@ -57,9 +57,9 @@ def main():
                                enable_cheats=args.cheats,
                                )
 
-    ControlAPI.game_manager = game_manager
+    Services.game_manager = game_manager
     try:
-        ControlAPI.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
+        Services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
     except ValueError as err:
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)

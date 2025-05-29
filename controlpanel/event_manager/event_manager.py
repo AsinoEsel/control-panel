@@ -89,14 +89,8 @@ class EventManager:
                     listeners.remove(listener)
 
     def receive(self, op_code: OpCode, ip: str, port: int, reply: Any) -> None:
-        # if self.print_incoming_packets:
-            # print(f"Received {op_code} from {ip}:{port}")
-            # for k, v in reply.items():
-            #     print(f"\t{k} = {v}")
-
         sender = (ip, port)
         ts = time.time()
-
         self._parse_op(sender, ts, op_code, reply)
 
     def subscribe(self, callback: CallbackType, source: SourceNameType, action: EventActionType, value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
