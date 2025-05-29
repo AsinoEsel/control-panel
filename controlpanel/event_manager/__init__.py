@@ -7,5 +7,6 @@ from .commons import (
     Event,
     Condition,
     CallbackType,
-    Subscriber
+    Subscriber,
     )
+from .event_manager import EventManager

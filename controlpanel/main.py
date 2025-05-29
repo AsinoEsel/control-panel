@@ -1,11 +1,13 @@
 from threading import Thread
+from artnet import ArtNet
 from controlpanel.game_manager import GameManager
+from controlpanel.event_manager import EventManager, device_getter
 from controlpanel.dmx import DMXUniverse, device_list
 from controlpanel.api import Services, load_scripts
 import argparse
 
 
-def main():
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(description='Control Panel')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--no-gui', action='store_true',
@@ -28,26 +30,18 @@ def main():
                         help='Disable artnet support, disabling the event manager.')
     parser.add_argument('--cheats', '-c', action='store_true', default=False,
                         help='Enable cheat-protected console commands (disabled by default)')
-    args, unknown_args = parser.parse_known_args()
+    return parser.parse_known_args()
 
-    try:
-        from artnet import ArtNet
-        failed_to_import_artnet: bool = False
-    except ImportError:
-        failed_to_import_artnet: bool = True
 
-    if not args.no_artnet and not failed_to_import_artnet:
-        from controlpanel.event_manager.event_manager import EventManager
-        artnet = ArtNet()  # This is where we initialise our one and ONLY ArtNet instance for the entire program.
-        event_manager = EventManager(artnet)
-    else:
-        artnet = event_manager = None
+def main():
+    args, unknown_args = parse_args()
 
+    artnet = ArtNet()  # This is where we initialise our one and ONLY ArtNet instance for the entire program.
     Services.artnet = artnet
+
+    event_manager = EventManager(artnet)
     Services.event_manager = event_manager
-    if Services.event_manager is not None:
-        from controlpanel.event_manager import device_getter
-        device_getter.devices = event_manager.devices
+    device_getter.devices = event_manager.devices
 
     game_manager = GameManager(resolution=(args.width, args.height),
                                dev_args=unknown_args,
@@ -56,22 +50,16 @@ def main():
                                stretch_to_fit=args.stretch_to_fit,
                                enable_cheats=args.cheats,
                                )
-
     Services.game_manager = game_manager
+
     try:
         Services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
     except ValueError as err:
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
 
-    if args.no_artnet:
-        print('Running with --no-artnet, event manager was not initialized.')
-    elif failed_to_import_artnet:
-        print('Failed to import artnet. Event manager was not initialized.')
-
-    if not args.no_artnet and not failed_to_import_artnet:
-        artnet_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
-        artnet_thread.start()
+    artnet_thread = Thread(target=artnet.listen, args=(None,), daemon=True)
+    artnet_thread.start()
 
     if args.load_scripts is not None:
         load_scripts(args.load_scripts)
