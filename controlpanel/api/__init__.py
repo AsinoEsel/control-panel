@@ -1,9 +1,24 @@
-from typing import Literal
+from typing import Literal, TYPE_CHECKING, Callable, TypeVar
 from controlpanel.event_manager.device_getter import get_device
 from controlpanel.event_manager import Event
 from .services import Services
 from .load_scripts import load_scripts
 from .api import callback, call_with_frequency, fire_event
+
+if TYPE_CHECKING:
+    from artnet import ArtNet
+    from controlpanel.event_manager import EventManager
+    from controlpanel.game_manager import GameManager, BaseGame
+    from controlpanel.dmx import DMXUniverse
+    from types import ModuleType
+    artnet: ArtNet
+    event_manager: EventManager
+    game_manager: GameManager
+    dmx: DMXUniverse
+    loaded_scripts: dict[str: ModuleType]
+    T = TypeVar("T", bound=BaseGame)
+    add_game: Callable[[T, bool], T]
+    get_game: Callable[[str | None], BaseGame | None]
 
 
 def __getattr__(name: Literal["artnet", "event_manager", "game_manager", "dmx"]):
@@ -21,4 +36,4 @@ def __getattr__(name: Literal["artnet", "event_manager", "game_manager", "dmx"])
         return Services.game_manager.add_game
     elif name == "get_game":
         return Services.game_manager.get_game
-    raise AttributeError(f"module has no attribute {name}")
+    raise ImportError(f"cannot import name '{name}' from '{__package__}'")
