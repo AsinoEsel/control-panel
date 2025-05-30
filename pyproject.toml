@@ -17,7 +17,7 @@ dependencies = [
     "numpy",
     "anaconsole @ git+https://github.com/AsinoEsel/anaconsole-pygame.git@main#egg=anaconsole",
     "artnet-python @ git+https://github.com/AsinoEsel/artnet-python.git@main#egg=artnet",
-    "controlware-gui @ git+https://github.com/japhsc/ControlWare-GUI.git@main",
+    "control-panel-terminal @ git+https://github.com/AsinoEsel/control-panel-terminal.git@main",
 ]
 
 [project.scripts]
