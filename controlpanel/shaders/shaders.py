@@ -1,6 +1,7 @@
 import pygame as pg
 from array import array
 import moderngl
+import importlib.resources
 from .shader_manifest import shader_params
 from pathlib import Path
 current_dir = Path(__file__).parent
@@ -58,11 +59,9 @@ class Shaders:
                 
 
 def get_shader_program(ctx: moderngl.Context, vert_shader_path: str, frag_shader_path: str, shader_parameters: dict[str: int | float]) -> moderngl.Program:
-    full_vert_shader_path = current_dir / vert_shader_path
-    full_frag_shader_path = current_dir / frag_shader_path
-    with open(full_vert_shader_path) as v:
+    with importlib.resources.open_text(__package__, vert_shader_path) as v:
         vert_shader = v.read()
-    with open(full_frag_shader_path) as f:
+    with importlib.resources.open_text(__package__, frag_shader_path) as f:
         frag_shader = f.read()
     program = ctx.program(vertex_shader=vert_shader, fragment_shader=frag_shader)
     for name, value in shader_parameters.items():

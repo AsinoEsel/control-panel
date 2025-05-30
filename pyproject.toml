@@ -32,3 +32,4 @@ packages = { find = {} }
 [tool.setuptools.package-data]
 "controlpanel.shared" = ["*.json",]
 "controlpanel.game_manager" = ["icon.png"]
+"controlpanel.shaders" = ["*.vert", "*.frag"]
