@@ -26,8 +26,6 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
                         help='Load script files (in gui/scripts), all by default. '
                              'Alternatively, supply the filenames of the script files (or presets) to load.'
                              'A preset is a .txt file containing newline-separated script file names')
-    parser.add_argument('--no-artnet', action='store_true',
-                        help='Disable artnet support, disabling the event manager.')
     parser.add_argument('--cheats', '-c', action='store_true', default=False,
                         help='Enable cheat-protected console commands (disabled by default)')
     return parser.parse_known_args()
