@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ControlPanel"
+name = "control-panel"
 version = "0.0.1"
 description = ""
 authors = [
