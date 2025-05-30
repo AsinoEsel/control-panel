@@ -36,4 +36,3 @@ def __getattr__(name: Literal["artnet", "event_manager", "game_manager", "dmx"])
         return Services.game_manager.add_game
     elif name == "get_game":
         return Services.game_manager.get_game
-    raise ImportError(f"cannot import name '{name}' from '{__package__}'")
