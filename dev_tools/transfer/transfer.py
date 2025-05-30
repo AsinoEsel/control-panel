@@ -1,14 +1,89 @@
 import subprocess
 import argparse
-import os
-from pathlib import Path
-from .ignore_patterns import IGNORE_PATTERNS, should_ignore
 from .checksumtest import file_has_changed, update_checksum
 from artnet import ArtNet
+import fnmatch
+import os
+from pathlib import Path
 
+RELATIVE_PATH_TO_IGNORE = '.webreplignore'
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = Path(__file__).resolve().parent
 last_espname_storage_path = os.path.join(script_dir, "last_esp.txt")
+path_to_ignore = script_dir / RELATIVE_PATH_TO_IGNORE
+
+
+def read_ignore_patterns(filename: Path) -> list[str]:
+    """Read ignore patterns from the ignore file."""
+    if not filename.exists():
+        return []
+    with open(filename, 'r') as f:
+        patterns = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    return patterns
+
+
+def should_ignore(rel_path: str, patterns: list[str]) -> bool:
+    """Return True if the given path matches any ignore pattern."""
+    return any(fnmatch.fnmatch(rel_path, pattern) for pattern in patterns)
+
+
+# Load patterns
+IGNORE_PATTERNS = read_ignore_patterns(path_to_ignore)
+ALWAYS_IGNORE = [str(path_to_ignore), f"{Path(__file__).name}"]
+IGNORE_PATTERNS.extend(ALWAYS_IGNORE)
+
+
+def send_all_files(esp_name: str, ip: str, password: str, directory: Path, *,
+                   give_up_on_failed_attempt: bool = False,
+                   ignore_checksums: bool = False):
+    print(f'Sending ALL files in {directory} to ESP "{esp_name}" @ {ip}')
+    successful_transfers = []
+    failed_transfers = []
+
+    directory = Path(directory).resolve()
+    for root, dirs, files in os.walk(directory):
+        root_path = Path(root)
+        rel_root = root_path.relative_to(directory)
+
+        # Skip unwanted root folders
+        if ("venv" in root_path.parts) or (not {"upy", "shared"} & set(root_path.parts)):
+            continue
+
+        # Filter subdirs
+        dirs[:] = [d for d in dirs if not should_ignore(str(rel_root / d), IGNORE_PATTERNS)]
+
+        for file in files:
+            rel_path = rel_root / file
+            rel_path_str = str(rel_path)
+
+            if should_ignore(rel_path_str, IGNORE_PATTERNS):
+                continue
+
+            if not ignore_checksums and not file_has_changed(str(rel_path), esp_name):
+                continue
+
+            new_file_path = None
+            if file.startswith("main_") and file != f"main_{esp_name}.py":
+                continue
+            elif file == f"main_{esp_name}.py":
+                new_file_path = "main.py"
+
+            if file in ("boot.py", "boot.py.backup", "credentials.py", "utils.py"):
+                new_file_path = file
+
+            result = send_file(esp_name, ip, password, str(rel_path), new_file_path)
+
+            if not result.stderr:
+                print(f"Successfully sent {rel_path} to {esp_name}")
+                successful_transfers.append(str(rel_path))
+                update_checksum(str(rel_path), esp_name)
+            else:
+                print(result.stderr)
+                failed_transfers.append(str(rel_path))
+                if give_up_on_failed_attempt:
+                    return successful_transfers, failed_transfers
+
+    return successful_transfers, failed_transfers
 
 
 def get_wifi_ssid():
@@ -27,7 +102,7 @@ def get_wifi_ssid():
 
 ACCESS_POINT_IP = "192.168.4.1"
 PASSWORD = "incubator"  # password used in webrepl setup
-PATH_TO_WEBREPL = os.path.join(os.path.dirname(script_dir), "webrepl", "webrepl_cli.py")
+PATH_TO_WEBREPL = Path(__file__).resolve().parent / "webrepl_cli.py"
 
 
 def send_file(esp_name: str, ip: str, password: str, file_path: str, new_file_path: str|None = None) -> subprocess.CompletedProcess:
@@ -48,51 +123,6 @@ def send_file(esp_name: str, ip: str, password: str, file_path: str, new_file_pa
         ]
     )
     return subprocess.run(executable, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-
-def send_all_files(esp_name: str, ip: str, password: str, directory: str | Path, *,
-                   give_up_on_failed_attempt: bool = False,
-                   ignore_checksums: bool = False):
-    print(f'Sending ALL files in {directory} to ESP "{esp_name}" @ {ip}')
-    successful_transfers = []
-    failed_transfers = []
-
-    for root, dirs, files in os.walk(directory):
-        if (not "upy" in root and not "shared" in root) or "venv" in root:
-            continue
-        dirs[:] = [d for d in dirs if not should_ignore(d, IGNORE_PATTERNS)]
-        for file in files:
-            path = os.path.join(os.path.relpath(root, os.getcwd()), file)
-            path = path.lstrip("./\\")
-            if should_ignore(file, IGNORE_PATTERNS):
-                continue
-            if not file_has_changed(path, esp_name) and not ignore_checksums:
-                continue
-                        
-            new_file_path = None
-            if file.startswith("main_"):
-                if file != f"main_{esp_name}.py":
-                    # print(f"Skipping {path}, not meant for us!")
-                    continue
-                else:
-                    new_file_path = "main.py"
-            root_files = ("boot.py", "boot.py.backup", "credentials.py", "utils.py")
-            for root_file in root_files:
-                if file == root_file:
-                    new_file_path = root_file
-
-            result = send_file(esp_name, ip, password, path, new_file_path)
-            if not result.stderr:
-                print(f"Sucessfully sent {path} to {esp_name}")
-                # print(result.stdout)
-                successful_transfers.append(path)
-                update_checksum(path, esp_name)
-            else:
-                print(result.stderr)
-                failed_transfers.append(path)
-                if give_up_on_failed_attempt:
-                    return successful_transfers, failed_transfers
-    return successful_transfers, failed_transfers
 
 
 def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool, give_up_on_failed_attempt: bool):

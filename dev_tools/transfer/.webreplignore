@@ -1,3 +1,5 @@
+build/*
+*.pyc
 .venv
 .idea
 .git
@@ -8,7 +10,7 @@ firmware
 .old
 transfer
 .webreplignore
-.gitignore
+/.gitignore
 devices/dummy
 /__init__.py
 __pycache__

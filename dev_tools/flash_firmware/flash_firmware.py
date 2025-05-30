@@ -42,8 +42,8 @@ def flash_firmware(file_path: str, port: str) -> subprocess.CompletedProcess:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Control Panel GUI')
-    parser.add_argument("--port", type=str, help='The port where the chip is plugged in', required=True)
+    parser = argparse.ArgumentParser(description='Control Panel ESP32 Flashing Tool')
+    parser.add_argument("-p", "--port", type=str, help='The port where the chip is plugged in', required=True)
     parser.add_argument("--firmware", type=str, help='The relative path to the firmware')
     args = parser.parse_args()
 

@@ -20,16 +20,21 @@ dependencies = [
     "control-panel-terminal @ git+https://github.com/AsinoEsel/control-panel-terminal.git@main",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "micropython-esp32-stubs==1.25.0.*"
+]
+
 [project.scripts]
 controlpanel = "controlpanel.main:main"
 build_overloads = "controlpanel.event_manager.generate_overloads:main"
-transfer = "controlpanel.upy.transfer.transfer:transfer"
-flash_firmware = "controlpanel.upy.firmware.flash_firmware:main"
+transfer = "dev_tools.transfer.transfer:transfer"
+flash_firmware = "dev_tools.flash_firmware.flash_firmware:main"
 
 [tool.setuptools]
 packages = { find = {} }
 
 [tool.setuptools.package-data]
-"controlpanel.shared" = ["*.json",]
+"controlpanel.shared" = ["*.json"]
 "controlpanel.game_manager" = ["icon.png"]
 "controlpanel.shaders" = ["*.vert", "*.frag"]
