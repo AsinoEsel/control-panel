@@ -36,9 +36,9 @@ def call_with_frequency(frequency: float | int):
     return decorator
 
 
-def subscribe(callback: "CallbackType", source_name: Optional["SourceNameType"], event_name: Optional[
+def subscribe(callback: "CallbackType", source_name: Optional["SourceNameType"], action: Optional[
     "EventActionType"], condition_value: Optional["EventValueType"], *, fire_once=False, allow_parallelism: bool = False):
-    Services.event_manager.subscribe(callback, source_name, event_name, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
+    Services.event_manager.subscribe(callback, source_name, action, condition_value, fire_once=fire_once, allow_parallelism=allow_parallelism)
 
 
 def callback(source: str | Iterable[str] | None = None,
