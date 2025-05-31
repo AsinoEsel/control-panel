@@ -4,8 +4,6 @@ import math
 
 
 class BasePisoShiftRegister(Sensor, BaseShiftRegister):
-    SUBKEY = 8
-
     def __init__(self, artnet, name: str, count=1, *, remapping: list[int] | None = None):
         super().__init__(artnet, name)
         BaseShiftRegister.__init__(self, count, remapping=remapping)

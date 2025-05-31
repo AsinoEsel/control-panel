@@ -1,3 +1,3 @@
-from .dummy_piso_sipo_module import DummyPisoSipoModule
-from .dummy_piso_shift_register import DummyPisoShiftRegister
-from .dummy_sipo_shift_register import DummySipoShiftRegister
+from .piso_sipo_module import PisoSipoModule
+from .piso_shift_register import PisoShiftRegister
+from .sipo_shift_register import SipoShiftRegister

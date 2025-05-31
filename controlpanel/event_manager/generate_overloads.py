@@ -19,9 +19,8 @@ def generate_device_overloads(json_path: Path, output_path: Path) -> None:
                 raise ValueError(f"Duplicate device name found: {name}")
             seen_names.add(name)
 
-            dummy_class = f"Dummy{class_name}"
             overloads.append(
-                f'@overload\ndef get_device(device_name: Literal["{name}"]) -> {dummy_class}: ...'
+                f'@overload\ndef get_device(device_name: Literal["{name}"]) -> {class_name}: ...'
             )
             device_names.append(name)
 

@@ -37,7 +37,7 @@ def get_instantiated_devices(artnet: "ArtNet") -> DeviceManifestType:
     universe = START_UNIVERSE
     for esp_name, devices in manifest.items():
         for (cls_name, params) in devices:
-            cls = getattr(dummylib, "Dummy" + cls_name)
+            cls = getattr(dummylib, cls_name)
             if cls is None:
                 print(cls_name)
             if issubclass(cls, Fixture):

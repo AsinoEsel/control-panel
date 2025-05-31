@@ -5,21 +5,12 @@ from .device import Device
 class Fixture(Device):
     def __init__(self, artnet, name: str, *, universe: int | None) -> None:
         super().__init__(artnet, name)
-        if universe is None:
-            universe = self.calculate_hash()
-            # print(f"Auto-assigned universe {universe} to {self.name}.")
-        self.universe = universe
+        self.universe = self._calculate_hash(name) if universe is None else universe
 
-    def calculate_hash(self) -> int:
-        hash_object = hashlib.sha1(self.name.encode())
+    @staticmethod
+    def _calculate_hash(string: str) -> int:
+        hash_object = hashlib.sha1(string.encode())
         return int.from_bytes(hash_object.digest(), "big") & 0x7FFF
-
-    def send_dmx_data(self, payload: bytes):
-        # for i in range(5):
-        self.artnet.send_dmx(self.universe, 0, payload)
-
-    def parse_dmx_data(self, data: bytes):
-        raise NotImplementedError("Needs to be implemented by subclass!")
 
     def blackout(self) -> None:
         pass

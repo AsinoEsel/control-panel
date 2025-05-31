@@ -487,14 +487,14 @@ def set_up_dmx_fixtures():
 def bvg_panel_glitch():
     if api.get_device("BatteryButton").state:  # dont glitch if charging
         return
-    bvgpanel: devices.DummySipoShiftRegister = api.get_device("BVGPanel")
+    bvgpanel = api.get_device("BVGPanel")
     payload: bytes = bytes(0xFF if random.getrandbits(1) else 0x00 for _ in range(bvgpanel._number_of_bits))
     bvgpanel.send_dmx_data(payload)
 
 
 @api.call_with_frequency(5)
 def uv_random_strobe():
-    uv: devices.DummyPWM = api.get_device("UVStrobe")
+    uv = api.get_device("UVStrobe")
     if random.randint(0, 5) == 0:
         uv.intensity = random.uniform(0.5, 1.0)
         time.sleep(random.uniform(0.1, 0.4))

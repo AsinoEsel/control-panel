@@ -1,8 +1,8 @@
-from enum import IntEnum
 from dataclasses import dataclass
 from typing import Callable
 from threading import Thread
 import pygame as pg
+from collections.abc import Hashable
 
 # Atomic numbers: iron = 26, oxygen = 8
 # Iron(II) oxide (FeO): 32 protons
@@ -13,7 +13,7 @@ CONTROL_PANEL_EVENT = pg.event.custom_type()
 
 SourceNameType = str
 EventActionType = str
-EventValueType = bool | int | str | tuple | bytes | None
+EventValueType = Hashable
 
 
 @dataclass(frozen=True)
