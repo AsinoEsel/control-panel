@@ -16,9 +16,12 @@ def get_mac_address() -> str:
 
 
 def get_hostname() -> str:
-    from controlpanel.shared.hostname_manifest import hostname_manifest
-    name = hostname_manifest.get(get_mac_address())
-    return name if name is not None else "ControlPanelESP"
+    import ujson
+    with open("hostname_manifest.json") as f:
+        data = ujson.load(f)
+    name = data.get(get_mac_address())
+    del data
+    return name or "ControlPanelESP"
 
 
 def create_ap(ssid, password, authmode):
@@ -143,18 +146,10 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
         
         
 def main():
-    try:
-        create_modules()
-        establish_wifi_connection()
-        webrepl.start()
-        print(f"MAC address is {get_mac_address()}")
-    except Exception as e:
-        print("Encountered an error in boot:")
-        print(e)
-        print("Falling back to backup...")
-        os.remove("boot.py")
-        os.rename("boot.py.backup", "boot.py")
-        machine.reset()
+    create_modules()
+    establish_wifi_connection()
+    webrepl.start()
+    print(f"MAC address is {get_mac_address()}")
 
 
 main()
