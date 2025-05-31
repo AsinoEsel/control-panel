@@ -31,7 +31,7 @@ def add_known_network(new_ssid: str, new_password: str):
     from credentials import KNOWN_NETWORKS, AP_SSID, AP_PASSWORD
     data = 'KNOWN_NETWORKS = {\n'
     for ssid, password in KNOWN_NETWORKS.items():
-        data += f'    "{ssid}: "{password}",\n'
+        data += f'    "{ssid}": "{password}",\n'
     data += f'    "{new_ssid}": "{new_password}",\n'
     data += '}\n'
     data += f'AP_SSID, AP_PASSWORD = "{AP_SSID}", "{AP_PASSWORD}"\n'
