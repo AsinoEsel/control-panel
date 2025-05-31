@@ -126,7 +126,7 @@ class DMXUniverse:
                 continue
 
             if device.chan_overlap(other):
-                raise Exception('partial channel overlap between devices "{}" and "{}"'.format(device.name, other.action))
+                raise Exception('partial channel overlap between devices "{}" and "{}"'.format(device.name, other.name))
 
         self.devices[device.name] = device
         return device
