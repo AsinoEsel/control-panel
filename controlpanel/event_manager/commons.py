@@ -11,14 +11,14 @@ KEY_CONTROL_PANEL_PROTOCOL = 76
 CONTROL_PANEL_EVENT = pg.event.custom_type()
 
 
-SourceNameType = str
+EventSourceType = str
 EventActionType = str
-EventValueType = Hashable
+EventValueType = Hashable | None
 
 
 @dataclass(frozen=True)
 class Event:
-    source: SourceNameType
+    source: EventSourceType
     action: EventActionType
     value: EventValueType
     sender: tuple[str, int] | None
@@ -27,7 +27,7 @@ class Event:
 
 @dataclass(frozen=True)
 class Condition:
-    source: SourceNameType
+    source: EventSourceType
     action: EventActionType
     value: EventValueType
 

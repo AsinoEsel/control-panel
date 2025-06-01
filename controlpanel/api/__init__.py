@@ -2,7 +2,8 @@ from typing import Literal, TYPE_CHECKING, Callable, TypeVar
 from controlpanel.event_manager import Event
 from .services import Services
 from .load_scripts import load_scripts
-from .api import callback, call_with_frequency, fire_event
+from .api import call_with_frequency, fire_event
+from .callback import callback
 from .get_device import get_device
 
 if TYPE_CHECKING:

@@ -2,6 +2,7 @@ from typing import Any
 import time
 from threading import Thread
 from collections import defaultdict
+import artnet
 from controlpanel.shared.base import Sensor, Fixture, Device
 from controlpanel.shared.mixins import DummySensorMixin
 from controlpanel.event_manager import *
@@ -10,7 +11,7 @@ from artnet import ArtNet, OpCode
 import importlib.resources
 import json
 import io
-from . import dummy
+from . import dummy, EventSourceType, EventActionType, EventValueType
 
 
 class EventManager:
@@ -36,6 +37,19 @@ class EventManager:
         self.devices: dict[str: Device] = self._get_devices()
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self.fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
+        self.ip = self._get_local_ip()
+
+    @staticmethod
+    def _get_local_ip() -> str:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('10.255.255.255', 1))
+            return s.getsockname()[0]
+        except Exception:
+            return '127.0.0.1'
+        finally:
+            s.close()
 
     def _get_devices(self, *, assign_sequential_universes: bool = False, start_universe: int = 5000) -> dict[str: Device]:
         """Read the device_manifest.json and instantiate the devices into a dictionary.
@@ -83,9 +97,9 @@ class EventManager:
                 sensor: DummySensorMixin | None = self.sensor_dict.get(sensor_name)
                 if sensor:
                     event_action, event_value = sensor.parse_trigger(sensor_data)
-                    self.fire_event(Event(sensor_name, event_action, event_value, sender, ts))
+                    self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)
                 else:
-                    self.fire_event(Event("Trigger", sensor_name, sensor_data, sender, ts))
+                    self.fire_event("Trigger", sensor_name, sensor_data, sender=sender, ts=ts)
 
             case OpCode.ArtDmx:
                 if self.print_incoming_artdmx_packets:
@@ -101,7 +115,15 @@ class EventManager:
                 if self.print_incoming_artcmd_packets:
                     print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
 
-    def fire_event(self, event: Event):
+    def fire_event(self,
+                   source: EventSourceType,
+                   action: EventActionType,
+                   value: EventValueType, *,
+                   sender: tuple[str, int] | None = None,
+                   ts: float | None = None) -> None:
+        sender = sender if sender is not None else (self.ip, artnet.ART_NET_PORT)
+        ts = ts if ts is not None else time.time()
+        event = Event(source, action, value, sender, ts)
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
         pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
         for key_func in self.POSSIBLE_EVENT_TYPES:
@@ -123,7 +145,7 @@ class EventManager:
         ts = time.time()
         self._parse_op(sender, ts, op_code, reply)
 
-    def subscribe(self, callback: CallbackType, source: SourceNameType, action: EventActionType, value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
+    def subscribe(self, callback: CallbackType, source: EventSourceType, action: EventActionType, value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
         listener = Subscriber(callback, fire_once, allow_parallelism)
         condition = Condition(source, action, value)
         self.register[condition].append(listener)
