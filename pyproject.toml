@@ -27,7 +27,7 @@ dev = [
 
 [project.scripts]
 controlpanel = "controlpanel.main:main"
-build_overloads = "controlpanel.event_manager.generate_overloads:main"
+generate_stubs = "dev_tools.generate_stubs.main:generate_all_stubs"
 transfer = "dev_tools.transfer.transfer:transfer"
 flash_firmware = "dev_tools.flash_firmware.flash_firmware:main"
 

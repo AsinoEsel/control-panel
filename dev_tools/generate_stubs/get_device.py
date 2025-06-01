@@ -1,9 +1,14 @@
 import json
 from pathlib import Path
+import importlib.util
+from . import DEVICE_MANIFEST_PATH
 
 
-def generate_device_overloads(json_path: Path, output_path: Path) -> None:
-    with open(json_path, "r") as f:
+STUB_PATH = Path(importlib.util.find_spec("controlpanel.api").origin).parent / "get_device.pyi"
+
+
+def generate_device_stub_file() -> None:
+    with open(DEVICE_MANIFEST_PATH, "r") as f:
         data = json.load(f)
 
     seen_names = set()
@@ -31,29 +36,19 @@ def generate_device_overloads(json_path: Path, output_path: Path) -> None:
     # Final combined file content
     boilerplate = """from typing import overload, Literal
 from controlpanel.shared.base import Device
-from .dummy import *
+from controlpanel.event_manager.dummy import *
 
 
 """
 
     footer = f"""
-
-
-devices: dict[str, Device] = dict()
-
-
-def get_device(device_name) -> Device:
-    return devices.get(device_name)
+def get_device(device_name: str) -> Device: ...
 """
 
     full_code = boilerplate + "\n".join(overloads) + footer
 
-    Path(output_path).write_text(full_code)
-
-
-def main():
-    generate_device_overloads(Path(__file__).parent / '..' / 'shared' / 'device_manifest.json', Path(__file__).parent / "device_getter.py")
+    Path(STUB_PATH).write_text(full_code)
 
 
 if __name__ == "__main__":
-    main()
+    generate_device_stub_file()

@@ -1,6 +1,6 @@
 from typing import overload, Literal
 from controlpanel.shared.base import Device
-from .dummy import *
+from controlpanel.event_manager.dummy import *
 
 
 @overload
@@ -77,10 +77,4 @@ def get_device(device_name: Literal["DialReset"]) -> Button: ...
 def get_device(device_name: Literal["TestHebel"]) -> Button: ...
 @overload
 def get_device(device_name: Literal["StatusLED"]) -> LEDStrip: ...
-
-
-devices: dict[str, Device] = dict()
-
-
-def get_device(device_name) -> Device:
-    return devices.get(device_name)
+def get_device(device_name: str) -> Device: ...

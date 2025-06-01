@@ -3,7 +3,6 @@ import time
 from threading import Thread
 from collections import defaultdict
 from .instantiate_manifest import get_instantiated_devices
-from . import device_getter
 from controlpanel.shared.base import Sensor, Fixture, Device
 from controlpanel.shared.mixins import DummySensorMixin
 from controlpanel.event_manager import *
@@ -33,7 +32,6 @@ class EventManager:
         self.devices: dict[str: Device] = get_instantiated_devices(artnet)
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self.fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
-        device_getter.devices = self.devices
 
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
         match op_code:
