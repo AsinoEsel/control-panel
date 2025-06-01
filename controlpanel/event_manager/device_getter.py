@@ -79,11 +79,8 @@ def get_device(device_name: Literal["TestHebel"]) -> Button: ...
 def get_device(device_name: Literal["StatusLED"]) -> LEDStrip: ...
 
 
-ValidDeviceNames = Literal["AuthorizationKeyBVG", "AuthorizationKeyCharge", "BVGPanel", "BananaPlugs", "Batterie", "BatteryButton", "BatteryButtonLadestation", "BatterySlotBVG-LEDStrip", "BatterySlotLadestation-LEDStrip", "BigRedButton", "ButtonBlue", "ButtonGreen", "ButtonPower", "ButtonRed", "Chronometer", "ChronometerLampen", "DialReset", "MainframeKeys", "MainframeLEDs", "PhiSwitch", "PilzLEDs", "PowerSwitch", "RedYellowLEDs", "RotaryDial", "SevenSegmentDisplay", "StatusLED", "StatusLEDs", "Temperature", "TestHebel", "UVStrobe", "Voltmeter1", "Voltmeter2", "Voltmeter3", "Voltmeter4", "WarnLED", "WaterFlowSensor", "WaterPressure"]
-
-
 devices: dict[str, Device] = dict()
 
 
-def get_device(device_name: ValidDeviceNames) -> Device:
+def get_device(device_name) -> Device:
     return devices.get(device_name)

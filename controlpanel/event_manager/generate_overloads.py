@@ -27,7 +27,6 @@ def generate_device_overloads(json_path: Path, output_path: Path) -> None:
     # Create the ValidDeviceNames alias
     sorted_names = sorted(device_names)
     valid_names_literal = ", ".join(f'"{name}"' for name in sorted_names)
-    type_alias = f"ValidDeviceNames = Literal[{valid_names_literal}]"
 
     # Final combined file content
     boilerplate = """from typing import overload, Literal
@@ -40,13 +39,10 @@ from .dummy import *
     footer = f"""
 
 
-{type_alias}
-
-
 devices: dict[str, Device] = dict()
 
 
-def get_device(device_name: ValidDeviceNames) -> Device:
+def get_device(device_name) -> Device:
     return devices.get(device_name)
 """
 
