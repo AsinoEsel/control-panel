@@ -2,12 +2,15 @@ from typing import Any
 import time
 from threading import Thread
 from collections import defaultdict
-from .instantiate_manifest import get_instantiated_devices
 from controlpanel.shared.base import Sensor, Fixture, Device
 from controlpanel.shared.mixins import DummySensorMixin
 from controlpanel.event_manager import *
 import pygame as pg
 from artnet import ArtNet, OpCode
+import importlib.resources
+import json
+import io
+from . import dummy
 
 
 class EventManager:
@@ -21,6 +24,7 @@ class EventManager:
         lambda source, name, value: (None, None, value),
         lambda source, name, value: (None, None, None),
     ]
+    DEVICE_MANIFEST_FILENAME = 'device_manifest.json'
 
     def __init__(self, artnet: ArtNet):
         self.artnet = artnet
@@ -29,9 +33,34 @@ class EventManager:
         self.print_incoming_artdmx_packets: bool = False
         self.print_incoming_artcmd_packets: bool = False
         self.register: dict[Condition:list[Subscriber]] = defaultdict(list)
-        self.devices: dict[str: Device] = get_instantiated_devices(artnet)
+        self.devices: dict[str: Device] = self._get_devices()
         self.sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self.fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
+
+    def _get_devices(self, *, assign_sequential_universes: bool = False, start_universe: int = 5000) -> dict[str: Device]:
+        """Read the device_manifest.json and instantiate the devices into a dictionary.
+        NOTE: assign_sequential_universes is not yet implemented in the upy package, rendering the feature effectively broken.
+        """
+        with importlib.resources.open_binary("controlpanel.shared", self.DEVICE_MANIFEST_FILENAME) as file:
+            manifest = json.load(io.BytesIO(file.read()))
+
+        devices = dict()
+        universe = start_universe
+        for esp_name, devices_data in manifest.items():
+            for (cls_name, kwargs) in devices_data:
+                cls = getattr(dummy, cls_name)
+                if cls is None:
+                    print(cls_name)
+                if issubclass(cls, Fixture):
+                    if assign_sequential_universes and kwargs.get("universe") is None:
+                        kwargs["universe"] = universe
+                        print(f"Assigned universe {universe} to {kwargs.get("name", "<UNKNOWN>")}.")
+                        universe += 1
+                filtered_params = {key: value for key, value in kwargs.items() if
+                                   key in cls.__init__.__code__.co_varnames}
+                device = cls(artnet=self.artnet, **filtered_params)
+                devices[device.name] = device
+        return devices
 
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
         match op_code:
