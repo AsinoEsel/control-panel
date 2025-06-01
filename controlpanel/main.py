@@ -1,7 +1,7 @@
 from threading import Thread
 from artnet import ArtNet
 from controlpanel.game_manager import GameManager
-from controlpanel.event_manager import EventManager, device_getter
+from controlpanel.event_manager import EventManager
 from controlpanel.dmx import DMXUniverse, device_list
 from controlpanel.api import Services, load_scripts
 import argparse
@@ -39,7 +39,6 @@ def main():
 
     event_manager = EventManager(artnet)
     Services.event_manager = event_manager
-    device_getter.devices = event_manager.devices
 
     game_manager = GameManager(resolution=(args.width, args.height),
                                dev_args=unknown_args,
