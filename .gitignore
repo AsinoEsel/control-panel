@@ -163,3 +163,4 @@ cython_debug/
 
 # controlpanel checksums
 *-checksums.json
+*.pyi
