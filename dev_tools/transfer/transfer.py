@@ -152,7 +152,7 @@ def transfer():
     if args.IP is not None:
         ip = args.IP
     else:
-        print("Getting ip... ", end="")
+        print("Getting ip... ", end="", flush=True)
         import socket
         try:
             ip = socket.gethostbyname(args.hostname)
