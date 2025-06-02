@@ -1,3 +1,8 @@
+FALLBACK_AP_PASSWORD = "micropython"
+CREDENTIALS = "credentials.json"
+HOSTNAME_MANIFEST = "hostname_manifest.json"
+
+
 def get_mac_address() -> str:
     from binascii import hexlify
     import network
@@ -7,12 +12,10 @@ def get_mac_address() -> str:
 
 
 def get_hostname() -> str:
-    import ujson
-    with open("hostname_manifest.json") as f:
-        data = ujson.load(f)
-    name = data.get(get_mac_address())
-    del data
-    return name or "ControlPanelESP"
+    data: dict = load_json(HOSTNAME_MANIFEST) or dict()
+    mac_address: str = get_mac_address()
+    hostname: str = data.get(mac_address)
+    return hostname or "ESP-" + mac_address.replace(":", "")[-4:]
 
 
 def create_ap(ssid, password, authmode):
@@ -67,7 +70,10 @@ def create_modules():
 
 
 def establish_wifi_connection(timeout_ms: int = 10_000):
-    from credentials import KNOWN_NETWORKS, AP_SSID, AP_PASSWORD
+    data = load_json(CREDENTIALS) or dict()
+
+    known_networks = data.get("known_networks", dict())
+    access_point = data.get("access_point", {"ssid": get_hostname(), "password": FALLBACK_AP_PASSWORD})
     import network
     import time
     import sys
@@ -87,8 +93,8 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
     p = select.poll()
     p.register(sys.stdin)
 
-    for ssid in sorted(KNOWN_NETWORKS.keys(), key=lambda ssid: (ssid != last_connected_ssid, ssid)):
-        password = KNOWN_NETWORKS[ssid]
+    for ssid in sorted(known_networks.keys(), key=lambda ssid: (ssid != last_connected_ssid, ssid)):
+        password = known_networks[ssid]
         print(f"Attempting to connect to {ssid}...")
         sta_if.connect(ssid, password)
         start_connection_time = time.ticks_ms()
@@ -114,7 +120,7 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
             break
 
     if not sta_if.isconnected():
-        create_ap(AP_SSID, AP_PASSWORD, authmode=3)
+        create_ap(access_point["ssid"], access_point["password"], authmode=3)
 
 
 def establish_lan_connection():
@@ -178,14 +184,34 @@ def rm_all(whitelist: list[str]|None = None):
     print(f"Removed all files and directories except:\n- {"\n- ".join(file for file in whitelist if file in os.listdir())}")
 
 
-def add_known_network(new_ssid: str, new_password: str):
-    from credentials import KNOWN_NETWORKS, AP_SSID, AP_PASSWORD
-    data = 'KNOWN_NETWORKS = {\n'
-    for ssid, password in KNOWN_NETWORKS.items():
-        data += f'    "{ssid}": "{password}",\n'
-    data += f'    "{new_ssid}": "{new_password}",\n'
-    data += '}\n'
-    data += f'AP_SSID, AP_PASSWORD = "{AP_SSID}", "{AP_PASSWORD}"\n'
+def load_json(filename: str) -> dict | None:
+    import ujson
+    # Load existing data
+    try:
+        with open(filename, "r") as file:
+            return ujson.load(file)
+    except OSError:
+        return None
 
-    with open("credentials.py", "w") as f:
-        f.write(data)
+
+def save_network(ssid: str, password: str) -> None:
+    import ujson
+
+    data = load_json(CREDENTIALS) or dict()
+
+    if not data.get("known_networks"):
+        data["known_networks"] = dict()
+
+    # Add or update the SSID
+    data["known_networks"][ssid] = password
+
+    # Save it back
+    with open(CREDENTIALS, "w") as file:
+        ujson.dump(data, file)
+
+    print(f"Added/Updated network: {ssid}")
+
+
+def list_saved_networks() -> None:
+    data = load_json(CREDENTIALS)
+    print(data["known_networks"])
