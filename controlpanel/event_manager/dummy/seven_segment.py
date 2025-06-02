@@ -1,7 +1,8 @@
 from controlpanel.shared.base.seven_segment import BaseSevenSegmentDisplay
+from controlpanel.event_manager.dummy import FixtureMixin
 
 
-class SevenSegmentDisplay(BaseSevenSegmentDisplay):
+class SevenSegmentDisplay(BaseSevenSegmentDisplay, FixtureMixin):
     def __init__(self, artnet, name: str, digits: int):
         super().__init__(artnet, name)
         self._text: str = ""

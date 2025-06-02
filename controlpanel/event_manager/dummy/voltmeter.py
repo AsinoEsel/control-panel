@@ -1,7 +1,8 @@
 from controlpanel.shared.base.voltmeter import BaseVoltmeter
+from controlpanel.event_manager.dummy import FixtureMixin
 
 
-class Voltmeter(BaseVoltmeter):
+class Voltmeter(BaseVoltmeter, FixtureMixin):
     def __init__(self, artnet, name: str, intensity: float = 1.0, *, universe: int | None = None):
         super().__init__(artnet, name, universe=universe)
         self._intensity = intensity

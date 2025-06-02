@@ -4,7 +4,7 @@ from threading import Thread
 from collections import defaultdict
 import artnet
 from controlpanel.shared.base import Sensor, Fixture, Device
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 from controlpanel.event_manager import *
 import pygame as pg
 from artnet import ArtNet, OpCode
@@ -94,7 +94,7 @@ class EventManager:
                 sensor_name: str = data_fields[0].decode("ascii")
                 sensor_data: bytes = data_fields[1]
 
-                sensor: DummySensorMixin | None = self.sensor_dict.get(sensor_name)
+                sensor: SensorMixin | None = self.sensor_dict.get(sensor_name)
                 if sensor:
                     event_action, event_value = sensor.parse_trigger_payload(sensor_data)
                     self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)

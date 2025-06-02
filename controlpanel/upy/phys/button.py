@@ -1,10 +1,10 @@
 from machine import Pin
 from controlpanel.shared.base.button import BaseButton
-from controlpanel.shared.mixins import PhysSensorMixin
+from controlpanel.upy.phys import SensorMixin
 import asyncio
 
 
-class Button(BaseButton, PhysSensorMixin):
+class Button(BaseButton, SensorMixin):
     def __init__(self, artnet, name: str, pin: int, *, invert: bool = False) -> None:
         super().__init__(artnet, name)
         self.pin = Pin(pin, Pin.IN, Pin.PULL_UP)

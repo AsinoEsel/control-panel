@@ -1,10 +1,11 @@
 import struct
 from controlpanel.shared.base.banana_plugs import BaseBananaPlugs
+from controlpanel.upy.phys import SensorMixin
 from machine import Pin
 import asyncio
 
 
-class BananaPlugs(BaseBananaPlugs):
+class BananaPlugs(BaseBananaPlugs, SensorMixin):
     def __init__(self, artnet, name: str, plug_pins: list[int], socket_pins: list[int]) -> None:
         super().__init__(artnet, name, len(plug_pins))
         self.plug_pins = [Pin(plug_pin, Pin.OUT) for plug_pin in plug_pins]
@@ -29,7 +30,7 @@ class BananaPlugs(BaseBananaPlugs):
         for plug_idx in range(len(self.connections)):
             if self.connections[plug_idx] != old_connections[plug_idx]:
                 socket_idx = self.connections[plug_idx]
-                self.send_trigger_data(struct.pack('BB', plug_idx, socket_idx))
+                self.send_trigger(struct.pack('BB', plug_idx, socket_idx))
 
     async def run(self, updates_per_second: int):
         sleep_time_ms = int(1000 / updates_per_second)

@@ -1,10 +1,11 @@
 from machine import Pin
 import struct
 from controlpanel.shared.base.water_flow_sensor import BaseWaterFlowSensor
+from controlpanel.upy.phys import SensorMixin
 import asyncio
 
 
-class WaterFlowSensor(BaseWaterFlowSensor):
+class WaterFlowSensor(BaseWaterFlowSensor, SensorMixin):
     def __init__(self, artnet, name: str, pin: int) -> None:
         super().__init__(artnet, name)
         self.pin = Pin(pin, Pin.IN, Pin.PULL_UP)
@@ -17,7 +18,7 @@ class WaterFlowSensor(BaseWaterFlowSensor):
     def update(self):
         print(self.flow_counter)
         if self.flow_counter > 0:
-            self.send_trigger_data(struct.pack("<l", int(self.flow_counter * self.CORRECTION_FACTOR)))
+            self.send_trigger(struct.pack("<l", int(self.flow_counter * self.CORRECTION_FACTOR)))
             self.flow_counter = 0
 
     async def run(self, updates_per_second: float):

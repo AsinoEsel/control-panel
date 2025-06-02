@@ -1,8 +1,8 @@
 from controlpanel.shared.base.pwm import BasePWM
-from controlpanel.shared.mixins import DummyFixtureMixin
+from controlpanel.event_manager.dummy import FixtureMixin
 
 
-class PWM(BasePWM, DummyFixtureMixin):
+class PWM(BasePWM, FixtureMixin):
     def __init__(self, artnet, name: str, intensity: float = 1.0):
         super().__init__(artnet, name)
         self._intensity = intensity

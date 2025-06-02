@@ -1,9 +1,9 @@
 from controlpanel.shared.base.rotary_dial import BaseRotaryDial
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 import time
 
 
-class RotaryDial(BaseRotaryDial, DummySensorMixin):
+class RotaryDial(BaseRotaryDial, SensorMixin):
     EVENT_TYPES = {
         "DigitEntered": int,
     }

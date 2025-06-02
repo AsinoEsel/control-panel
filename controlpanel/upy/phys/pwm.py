@@ -1,8 +1,9 @@
 import machine
 from controlpanel.shared.base.pwm import BasePWM
+from controlpanel.upy.phys import FixtureMixin
 
 
-class PWM(BasePWM):
+class PWM(BasePWM, FixtureMixin):
     def __init__(self, artnet, name: str, pin: int, intensity: float = 1.0, *, universe: int | None = None, freq: int = 512) -> None:
         super().__init__(artnet, name, universe=universe)
         self.pin = machine.Pin(pin)

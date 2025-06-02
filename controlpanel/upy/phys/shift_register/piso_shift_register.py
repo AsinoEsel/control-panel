@@ -1,10 +1,11 @@
 from machine import Pin
 import asyncio
 from controlpanel.shared.base.shift_register import BasePisoShiftRegister
+from controlpanel.upy.phys import SensorMixin
 from .shift_register import ShiftRegister
 
 
-class PisoShiftRegister(BasePisoShiftRegister, ShiftRegister):
+class PisoShiftRegister(BasePisoShiftRegister, ShiftRegister, SensorMixin):
     def __init__(self, artnet, name: str, clock: int, latch: int, serialin: int, count: int = 1, *, remapping: list[int] | None = None):
         BasePisoShiftRegister.__init__(self, artnet, name, count, remapping=remapping)
         ShiftRegister.__init__(self, count, latch, clock)
@@ -24,7 +25,7 @@ class PisoShiftRegister(BasePisoShiftRegister, ShiftRegister):
             self._shift()
         if changed_states:
             # print(f"Update: {changed_states}")
-            self.send_trigger_data(changed_states)
+            self.send_trigger(changed_states)
 
     async def run(self, updates_per_second: int):
         sleep_time_ms = int(1000 / updates_per_second)

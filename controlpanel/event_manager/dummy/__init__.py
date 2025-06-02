@@ -1,3 +1,5 @@
+from .mixins import SensorMixin, FixtureMixin
+
 from .button import Button
 from .led_strip import LEDStrip
 from .pwm import PWM

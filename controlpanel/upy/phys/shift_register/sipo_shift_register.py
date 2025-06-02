@@ -1,10 +1,11 @@
 from machine import Pin
 import asyncio
 from controlpanel.shared.base.shift_register import BaseSipoShiftRegister
+from controlpanel.upy.phys import FixtureMixin
 from .shift_register import ShiftRegister
 
 
-class SipoShiftRegister(BaseSipoShiftRegister, ShiftRegister):
+class SipoShiftRegister(BaseSipoShiftRegister, ShiftRegister, FixtureMixin):
     def __init__(self, artnet, name: str, clock: int, latch: int, serialout: int, count: int = 1, *, universe: int | None = None, remapping: list[int | None] | None = None):
         BaseSipoShiftRegister.__init__(self, artnet, name, count, universe=universe, remapping=remapping)
         ShiftRegister.__init__(self, count, latch, clock)

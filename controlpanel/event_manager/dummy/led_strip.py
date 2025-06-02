@@ -1,8 +1,8 @@
 from controlpanel.shared.base.led_strip import BaseLEDStrip
-from controlpanel.shared.mixins import DummyFixtureMixin
+from controlpanel.event_manager.dummy import FixtureMixin
 
 
-class LEDStrip(BaseLEDStrip, DummyFixtureMixin):
+class LEDStrip(BaseLEDStrip, FixtureMixin):
     def __init__(self, artnet, name: str, length: int, *, universe=None) -> None:
         super().__init__(artnet, name, universe=universe)
         self._pixels: list[tuple[int, int, int]] = [(0, 0, 0) for _ in range(length)]

@@ -1,9 +1,9 @@
 import struct
 from controlpanel.shared.base.water_flow_sensor import BaseWaterFlowSensor
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 
 
-class WaterFlowSensor(BaseWaterFlowSensor, DummySensorMixin):
+class WaterFlowSensor(BaseWaterFlowSensor, SensorMixin):
     EVENT_TYPES = {
         "WaterFlow": int,
     }

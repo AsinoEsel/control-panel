@@ -1,8 +1,8 @@
 from controlpanel.shared.base.banana_plugs import BaseBananaPlugs
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 
 
-class BananaPlugs(BaseBananaPlugs, DummySensorMixin):
+class BananaPlugs(BaseBananaPlugs, SensorMixin):
     EVENT_TYPES = {
         "PlugDisconnected": tuple[int, None],
         "PlugConnected": tuple[int, int],

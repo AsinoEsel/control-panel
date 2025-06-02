@@ -2,9 +2,10 @@ import neopixel
 from machine import Pin
 import asyncio
 from controlpanel.shared.base.led_strip import BaseLEDStrip, animations
+from controlpanel.upy.phys import FixtureMixin
 
 
-class LEDStrip(BaseLEDStrip):
+class LEDStrip(BaseLEDStrip, FixtureMixin):
     ANIMATIONS: list[None | tuple] = [
         None,
         (animations.strobe, 2.0, 0.5, (0, 15, 0), (0, 0, 0)),

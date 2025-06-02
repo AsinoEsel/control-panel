@@ -1,10 +1,11 @@
 from .mfrc522 import MFRC522
 from machine import SoftSPI
-from ...base.rfid_reader import BaseRFIDReader
+from controlpanel.shared.base.rfid_reader import BaseRFIDReader
+from controlpanel.upy.phys import SensorMixin
 import asyncio
 
 
-class RFIDReader(BaseRFIDReader, MFRC522):
+class RFIDReader(BaseRFIDReader, MFRC522, SensorMixin):
     def __init__(self, artnet, name: str, spi: SoftSPI, reset: int, chip_select: int):
         super().__init__(artnet, name)
         MFRC522.__init__(self, spi=spi, gpioRst=reset, gpioCs=chip_select)

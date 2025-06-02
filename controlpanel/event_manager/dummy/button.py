@@ -1,8 +1,8 @@
 from controlpanel.shared.base.button import BaseButton
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 
 
-class Button(BaseButton, DummySensorMixin):
+class Button(BaseButton, SensorMixin):
     EVENT_TYPES = {
         "ButtonPressed": bool,
         "ButtonReleased": bool,

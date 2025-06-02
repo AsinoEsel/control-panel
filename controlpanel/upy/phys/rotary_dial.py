@@ -2,12 +2,14 @@ from machine import Pin
 import time
 from micropython import const
 from controlpanel.shared.base.rotary_dial import BaseRotaryDial
+from controlpanel.upy.phys import SensorMixin
+
 
 DEBOUNCE_TIME = const(50)
 DIGIT_CONFIRMATION_TIME = const(500)
 
 
-class RotaryDial(BaseRotaryDial):
+class RotaryDial(BaseRotaryDial, SensorMixin):
     def __init__(self, artnet, name: str, gpio_counter: int, gpio_reset: int):
         super().__init__(artnet, name)
         self.count: int = 0
@@ -18,7 +20,7 @@ class RotaryDial(BaseRotaryDial):
         if self.count == 0:
             return
         self.count %= 10
-        self.send_trigger_data(self.count.to_bytes(1, "big"))
+        self.send_trigger(self.count.to_bytes(1, "big"))
         self.count = 0
 
     def increment_counter(self):

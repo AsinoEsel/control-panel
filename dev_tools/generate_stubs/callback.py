@@ -66,8 +66,8 @@ def get_device_dict() -> dict[str: dict[str: str]]:
 
     device_names_classnames: dict[str: str] = get_device_names_classnames()
 
-    from controlpanel.shared.mixins import DummySensorMixin
-    dummy_sensor_classes: list[type] = collect_classes_from_libs(collect_dummy_libs(), filter_by_base_class=DummySensorMixin)
+    from controlpanel.event_manager.dummy.mixins import SensorMixin
+    dummy_sensor_classes: list[type] = collect_classes_from_libs(collect_dummy_libs(), filter_by_base_class=SensorMixin)
     dummy_sensor_class_mapping: dict[str: type] = {cls.__name__: cls for cls in dummy_sensor_classes}
 
     sensor_names: dict[str: str] = {name: class_name for name, class_name in device_names_classnames.items() if class_name in dummy_sensor_class_mapping.keys()}

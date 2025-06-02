@@ -1,8 +1,8 @@
 from controlpanel.shared.base.shift_register import BasePisoShiftRegister
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 
 
-class PisoShiftRegister(BasePisoShiftRegister, DummySensorMixin):
+class PisoShiftRegister(BasePisoShiftRegister, SensorMixin):
     def parse_trigger_payload(self, data: bytes) -> tuple[str, tuple[tuple[int, bool], ...]]:
         # self._input_states = [byte for byte in data]  # TODO: Update dummy class
         updates: list[tuple[int, bool]] = []

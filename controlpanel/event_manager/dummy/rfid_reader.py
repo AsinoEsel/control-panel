@@ -1,8 +1,8 @@
 from controlpanel.shared.base.rfid_reader import BaseRFIDReader
-from controlpanel.shared.mixins import DummySensorMixin
+from controlpanel.event_manager.dummy import SensorMixin
 
 
-class RFIDReader(BaseRFIDReader, DummySensorMixin):
+class RFIDReader(BaseRFIDReader, SensorMixin):
     EVENT_TYPES = {
         "TagScanned": bytearray,
     }

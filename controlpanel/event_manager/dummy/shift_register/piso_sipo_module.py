@@ -1,7 +1,8 @@
 from controlpanel.shared.base.shift_register import BasePisoSipoModule
+from controlpanel.event_manager.dummy import FixtureMixin, SensorMixin
 
 
-class PisoSipoModule(BasePisoSipoModule):
+class PisoSipoModule(BasePisoSipoModule, FixtureMixin, SensorMixin):
     def __setitem__(self, index, value: int | bool):
         super().__setitem__(index, value)
         self.send_dmx_data(self.get_dmx_data())

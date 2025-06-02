@@ -1,7 +1,5 @@
 from controlpanel.shared.base.bvg_panel import BaseBVGPanel
 from controlpanel.upy.phys.shift_register import PisoSipoModule
-from micropython import const
-from machine import Pin
 import asyncio
 
 

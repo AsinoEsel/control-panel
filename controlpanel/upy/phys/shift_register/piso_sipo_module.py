@@ -33,4 +33,4 @@ class PisoSipoModule(PisoShiftRegister, SipoShiftRegister):
         self._update_states()
         for i in range(self._number_of_bits):
             if old_states[i] != self._input_states[i]:
-                self.send_trigger_data(bytes(self._input_states))
+                self.send_trigger(bytes(self._input_states))

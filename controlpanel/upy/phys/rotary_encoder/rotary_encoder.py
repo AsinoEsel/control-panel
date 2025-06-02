@@ -1,8 +1,9 @@
 from .rotary_irq_esp import RotaryIRQ
 from controlpanel.shared.base.sensor import Sensor
+from controlpanel.upy.phys import SensorMixin
 
 
-class RotaryEncoder(Sensor, RotaryIRQ):
+class RotaryEncoder(Sensor, RotaryIRQ, SensorMixin):
     SUBKEY = 1
 
     def __init__(self, artnet, name: str, pin_num_clk: int, pin_num_dt: int, callback):
