@@ -7,5 +7,5 @@ from .voltmeter import Voltmeter
 from .banana_plugs import BananaPlugs
 from .bvg_panel import BVGPanel
 from .rfid_reader import RFIDReader
-from .water_flow_sensor import WaterSensor
+from .water_flow_sensor import WaterFlowSensor
 from .rotary_dial import RotaryDial

@@ -1,11 +1,17 @@
 from controlpanel.shared.base.banana_plugs import BaseBananaPlugs
+from controlpanel.shared.mixins import DummySensorMixin
 
 
-class BananaPlugs(BaseBananaPlugs):
+class BananaPlugs(BaseBananaPlugs, DummySensorMixin):
+    EVENT_TYPES = {
+        "PlugDisconnected": tuple[int, None],
+        "PlugConnected": tuple[int, int],
+    }
+
     def __init__(self, artnet, name: str, plug_count: int):
         super().__init__(artnet, name, plug_count)
 
-    def parse_trigger_data(self, data: bytes) -> tuple[str, tuple[int, int | None]]:
+    def parse_trigger_payload(self, data: bytes) -> tuple[str, tuple[int, int | None]]:
         assert len(data) == 2
         plug_idx, socket_idx = data
         self.connections[plug_idx] = socket_idx

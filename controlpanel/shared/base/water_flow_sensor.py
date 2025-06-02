@@ -1,7 +1,7 @@
 from .sensor import Sensor
 
 
-class BaseWaterSensor(Sensor):
+class BaseWaterFlowSensor(Sensor):
     CORRECTION_FACTOR = 1.0
 
     def __init__(self, artnet, name: str) -> None:

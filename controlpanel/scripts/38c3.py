@@ -5,7 +5,6 @@ from controlpanel import api
 from gui.window_manager import WindowManager
 from gui.window_manager.window_manager_setup import *
 from gui import widgets
-import controlpanel.event_manager.dummy as devices
 from datetime import datetime
 from fourteensegment import Display, rgb_to_b16
 
@@ -340,7 +339,7 @@ def plug_puzzle_completed(event: api.Event):
     ccc_game.print_to_log("Reroute Successful!", (0, 255, 0))
     ccc_game.plug_puzzle_completed = 1
 
-@api.callback("IntroWindow", "PressedAnyKey", fire_once=True)
+@api.callback(source="IntroWindow", action="PressedAnyKey", fire_once=True)
 def any_key_pressed(event: api.Event):
     # ccc_game.print_to_log("You may now enter your destination coordinates.", (255, 0, 0))
     # time.sleep(1.0)
@@ -365,7 +364,7 @@ def any_key_pressed(event: api.Event):
     api.fire_event("", "StartCountdown", 600)
 
 
-@api.callback("BatteryButtonLadestation")
+@api.callback(source="BatteryButtonLadestation")
 def battery_interaction_ladestation(event: api.Event):
     if event.value:  # PLUG IN
         for i in range(1, 5):
@@ -384,7 +383,7 @@ def battery_interaction_ladestation(event: api.Event):
             api.get_device("BatterySlotBVG-LEDStrip").set_animation(1)
 
 
-@api.callback("BatteryButton")
+@api.callback(source="BatteryButton")
 def battery_interaction_bvgpanel(event: api.Event):
     if event.value:  # PLUG IN
         api.get_device("BatterySlotBVG-LEDStrip").fill((0, 0, 0))
@@ -542,7 +541,7 @@ def the_end(event: api.Event):
         ccc_game.add_any_key_popup("FINISHED TIMETRAVEL", text)
         ccc_game.ready_for_highscore = 1
 
-@api.callback("TerminalInputBox", "TextInput")
+@api.callback(source="TerminalInputBox", action="TextInput")
 def get_highscore(event: api.Event):
     # Get the high score name and add it to a txt file
     if ccc_game.antennas_completed and ccc_game.ready_for_highscore:

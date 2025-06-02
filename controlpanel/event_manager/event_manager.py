@@ -96,7 +96,7 @@ class EventManager:
 
                 sensor: DummySensorMixin | None = self.sensor_dict.get(sensor_name)
                 if sensor:
-                    event_action, event_value = sensor.parse_trigger(sensor_data)
+                    event_action, event_value = sensor.parse_trigger_payload(sensor_data)
                     self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)
                 else:
                     self.fire_event("Trigger", sensor_name, sensor_data, sender=sender, ts=ts)

@@ -1,7 +1,7 @@
 try:
     from typing import Any
     from abc import abstractmethod
-    from typing import Protocol
+    from typing import Protocol, Hashable
     from artnet import ArtNet
 
     class Device(Protocol):
@@ -9,11 +9,7 @@ try:
         name: str
 except ImportError:
     Any = object()
-
-    def abstractmethod(func):
-        def wrapper(*args, **kwargs):
-            raise NotImplementedError(f"Abstract method '{func.__name__}' must be overridden.")
-        return wrapper
+    Hashable = Any
 
 
 class PhysFixtureMixin:
@@ -40,7 +36,9 @@ class PhysSensorMixin:
 
 
 class DummySensorMixin:
+    EVENT_TYPES: dict[str: Hashable] = dict()
+
     """A mixin class for Dummy Sensors"""
     @abstractmethod
-    def parse_trigger(self: "Device", payload: bytes) -> tuple[str, Any]:
+    def parse_trigger_payload(self: "Device", payload: bytes) -> tuple[str, Any]:
         pass

@@ -7,7 +7,7 @@ from . import DEVICE_MANIFEST_PATH
 STUB_PATH = Path(importlib.util.find_spec("controlpanel.api").origin).parent / "get_device.pyi"
 
 
-def generate_device_stub_file() -> None:
+def generate_get_device_stub_file() -> None:
     with open(DEVICE_MANIFEST_PATH, "r") as f:
         data = json.load(f)
 
@@ -29,10 +29,6 @@ def generate_device_stub_file() -> None:
             )
             device_names.append(name)
 
-    # Create the ValidDeviceNames alias
-    sorted_names = sorted(device_names)
-    valid_names_literal = ", ".join(f'"{name}"' for name in sorted_names)
-
     # Final combined file content
     boilerplate = """from typing import overload, Literal
 from controlpanel.shared.base import Device
@@ -51,4 +47,4 @@ def get_device(device_name: str) -> Device: ...
 
 
 if __name__ == "__main__":
-    generate_device_stub_file()
+    generate_get_device_stub_file()

@@ -1,10 +1,10 @@
 from machine import Pin
 import struct
-from controlpanel.shared.base.water_sensor import BaseWaterSensor
+from controlpanel.shared.base.water_flow_sensor import BaseWaterFlowSensor
 import asyncio
 
 
-class WaterFlowSensor(BaseWaterSensor):
+class WaterFlowSensor(BaseWaterFlowSensor):
     def __init__(self, artnet, name: str, pin: int) -> None:
         super().__init__(artnet, name)
         self.pin = Pin(pin, Pin.IN, Pin.PULL_UP)
