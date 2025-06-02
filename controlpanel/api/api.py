@@ -10,8 +10,12 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound="BaseGame")
 
 
-def fire_event(*args):
-    Services.event_manager.fire_event(*args)
+def fire_event(source: "EventSourceType",
+               action: "EventActionType",
+               value: "EventValueType", *,
+               sender: tuple[str, int] | None = None,
+               ts: float | None = None) -> None:
+    Services.event_manager.fire_event(source, action, value, sender=sender, ts=ts)
 
 
 def call_with_frequency(frequency: float | int):
