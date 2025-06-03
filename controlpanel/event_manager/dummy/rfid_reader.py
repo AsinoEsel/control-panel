@@ -4,7 +4,7 @@ from controlpanel.event_manager.dummy import SensorMixin
 
 class RFIDReader(BaseRFIDReader, SensorMixin):
     EVENT_TYPES = {
-        "TagScanned": bytearray,
+        "TagScanned": bytearray | bytes,
     }
 
     def __init__(self, artnet, name: str, *, callback=None):
