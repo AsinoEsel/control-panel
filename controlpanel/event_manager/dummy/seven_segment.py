@@ -3,19 +3,15 @@ from controlpanel.event_manager.dummy import FixtureMixin
 
 
 class SevenSegmentDisplay(BaseSevenSegmentDisplay, FixtureMixin):
-    def __init__(self, artnet, name: str, digits: int):
+    def __init__(self, artnet, name: str, digit_count: int):
         super().__init__(artnet, name)
         self._text: str = ""
-        self._digits = digits
+        self._digit_count = digit_count
 
     @property
     def text(self):
         return self._text
 
-    @text.setter
-    def text(self, txt: str):
-        self._text = txt[:self._digits]
-        self.send_dmx_data(txt.encode('ASCII'))
-
-    def set_text(self, text: str):
-        self.text = text
+    def display_text(self, text: str):
+        self._text = text[:self._digit_count]
+        self.send_dmx_data(text.encode('ASCII'))
