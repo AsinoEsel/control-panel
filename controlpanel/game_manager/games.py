@@ -110,9 +110,11 @@ class FallbackGame(BaseGame):
         self.error_position += self.error_velocity * self.dt
         bounce_count = 0
         if self.error_position.x + self.error_surf.get_width() > self.screen.get_width() or self.error_position.x < 0:
+            self.error_position.x = max(0, min(self.screen.get_width() - self.error_surf.get_width(), int(self.error_position.x)))
             self.error_velocity.x *= -1
             bounce_count += 1
         if self.error_position.y + self.error_surf.get_height() > self.screen.get_height() or self.error_position.y < 0:
+            self.error_position.y = max(0, min(self.screen.get_height() - self.error_surf.get_height(), int(self.error_position.y)))
             bounce_count += 1
             self.error_velocity.y *= -1
         if bounce_count == 1:
