@@ -1,5 +1,5 @@
 from typing import Iterable, Hashable, Callable, Union, TypeVar
-from controlpanel.event_manager import Event
+from controlpanel.api import Event
 from itertools import product
 from .api import subscribe
 

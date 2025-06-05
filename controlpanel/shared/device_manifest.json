@@ -1,55 +1,55 @@
 {
   "bvgpanel": [
-    ["SipoShiftRegister", {"name": "BVGPanel", "count": 8}],
-    ["LEDStrip", {"name": "BatterySlotBVG-LEDStrip", "length": 30}],
-    ["Button", {"name": "BatteryButton", "pin": 13}],
-    ["Button", {"name": "AuthorizationKeyBVG", "pin": 12}]
+    ["SipoShiftRegister", {"name": "BVGPanel", "count": 8, "pin_clock": 19, "pin_latch": 21, "pin_serialout": 4}, {}],
+    ["LEDStrip", {"name": "BatterySlotBVG-LEDStrip", "pin": 22, "length": 30}, {}],
+    ["Button", {"name": "BatteryButton", "pin": 14}, {}],
+    ["Button", {"name": "AuthorizationKeyBVG", "pin": 12}, {}]
   ],
   "chronometer": [
-    ["PWM", {"name": "Chronometer"}],
-    ["LEDStrip", {"name": "ChronometerLampen", "length": 3}],
-    ["Button", {"name": "BigRedButton"}]
+    ["PWM", {"name": "Chronometer", "pin": 4}, {}],
+    ["LEDStrip", {"name": "ChronometerLampen", "pin": 5, "length": 3}, {}],
+    ["Button", {"name": "BigRedButton", "pin": 32}, {}]
   ],
   "kommunikation": [
-    ["Button", {"name": "ButtonRed"}],
-    ["Button", {"name": "ButtonGreen"}],
-    ["Button", {"name": "ButtonBlue"}],
-    ["Button", {"name": "ButtonPower"}]
+    ["Button", {"name": "ButtonRed", "pin": 14, "invert": true}, {}],
+    ["Button", {"name": "ButtonGreen", "pin": 13}, {}],
+    ["Button", {"name": "ButtonBlue", "pin": 12}, {}],
+    ["Button", {"name": "ButtonPower", "pin": 4}, {}]
   ],
   "kuehlwasser": [
-    ["LEDStrip", {"name": "StatusLEDs", "length": 3}],
-    ["PWM", {"name": "WarnLED"}],
-    ["PWM", {"name": "WaterPressure"}],
-    ["PWM", {"name": "Temperature"}],
-    ["WaterSensor", {"name": "WaterFlowSensor"}]
+    ["LEDStrip", {"name": "StatusLEDs", "pin": 14, "length": 3}, {}],
+    ["PWM", {"name": "WarnLED", "pin": 2}, {}],
+    ["PWM", {"name": "WaterPressure", "pin": 13}, {}],
+    ["PWM", {"name": "Temperature", "pin": 12}, {}],
+    ["WaterFlowSensor", {"name": "WaterFlowSensor", "pin": 4}, {}]
   ],
   "ladestation": [
-    ["PWM", {"name": "Voltmeter1"}],
-    ["PWM", {"name": "Voltmeter2"}],
-    ["PWM", {"name": "Voltmeter3"}],
-    ["PWM", {"name": "Voltmeter4"}],
-    ["PWM", {"name": "Batterie"}],
-    ["LEDStrip", {"name": "BatterySlotLadestation-LEDStrip", "length": 30}],
-    ["Button", {"name": "AuthorizationKeyCharge"}],
-    ["Button", {"name": "BatteryButtonLadestation"}],
-    ["Button", {"name": "PhiSwitch"}]
+    ["PWM", {"name": "Voltmeter1", "pin": 2}, {}],
+    ["PWM", {"name": "Voltmeter2", "pin": 4}, {}],
+    ["PWM", {"name": "Voltmeter3", "pin": 16}, {}],
+    ["PWM", {"name": "Voltmeter4", "pin": 17}, {}],
+    ["PWM", {"name": "Batterie", "pin": 19}, {}],
+    ["LEDStrip", {"name": "BatterySlotLadestation-LEDStrip", "pin": 13, "length": 30}, {}],
+    ["Button", {"name": "AuthorizationKeyCharge", "pin": 15}, {}],
+    ["Button", {"name": "BatteryButtonLadestation", "pin": 21, "invert": true}, {}],
+    ["Button", {"name": "PhiSwitch", "pin": 5, "invert": true}, {}]
   ],
   "mainframe": [
-    ["PisoShiftRegister", {"name": "MainframeKeys", "count": 30}],
-    ["LEDStrip", {"name": "MainframeLEDs", "length": 240}]
+    ["PisoShiftRegister", {"name": "MainframeKeys", "count": 30, "pin_clock": 15, "pin_latch": 4, "pin_serialin": 17}, {}],
+    ["LEDStrip", {"name": "MainframeLEDs", "pin": 16, "length": 240}, {}]
   ],
   "pilz": [
-    ["PWM", {"name": "UVStrobe", "intensity": 1.0}],
-    ["LEDStrip", {"name": "PilzLEDs", "length": 5}],
-    ["BananaPlugs", {"name": "BananaPlugs", "plug_count": 4}]
+    ["PWM", {"name": "UVStrobe", "pin": 21, "intensity": 1.0},{}],
+    ["LEDStrip", {"name": "PilzLEDs", "pin": 16, "length": 5},{}],
+    ["BananaPlugs", {"name": "BananaPlugs", "plug_pins": [33, 2, 32, 4], "socket_pins": [15, 13, 12, 14, 27, 26]}, {}]
   ],
   "waehlscheibe": [
-    ["SipoShiftRegister", {"name": "RedYellowLEDs"}],
-    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "digits": 16}],
-    ["RotaryDial", {"name": "RotaryDial"}],
-    ["Button", {"name": "PowerSwitch"}],
-    ["Button", {"name": "DialReset"}],
-    ["Button", {"name": "TestHebel"}],
-    ["LEDStrip", {"name": "StatusLED", "length": 1}]
+    ["SipoShiftRegister", {"name": "RedYellowLEDs", "count": 1, "pin_clock": 22, "pin_latch": 21, "pin_serialout": 4}, {}],
+    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "digit_count": 16, "pin_chip_select": 19}, {}],
+    ["RotaryDial", {"name": "RotaryDial", "pin_counter": 12, "pin_reset": 23}, {}],
+    ["Button", {"name": "PowerSwitch", "pin": 32}, {}],
+    ["Button", {"name": "DialReset", "pin": 5}, {}],
+    ["Button", {"name": "TestHebel", "pin": 16}, {}],
+    ["LEDStrip", {"name": "StatusLED", "pin": 33, "length": 1}, {}]
   ]
 }

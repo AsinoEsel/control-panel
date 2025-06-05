@@ -1,0 +1,106 @@
+from controlpanel.shared.base.led_strip import BaseLEDStrip
+from .fixture import Fixture
+from typing import SupportsIndex, Literal, Callable
+from artnet import ArtNet
+
+
+class _Pixels:
+    """A proxy class for the pixel list.
+    Automatically calls the update_callback function when a value in the list is changed."""
+    def __init__(self, pixels: list[tuple[int, int, int]], update_callback: Callable[[], None]):
+        self._pixels = pixels
+        self._update_callback = update_callback
+
+    def __getitem__(self, key):
+        return self._pixels[key]
+
+    def __setitem__(self, key, value):
+        self._pixels[key] = value
+        self._update_callback()
+
+    def __len__(self):
+        return len(self._pixels)
+
+    def __iter__(self):
+        return iter(self._pixels)
+
+    def __repr__(self):
+        return repr(self._pixels)
+
+    def __getslice__(self, i, j):
+        return self._pixels[i:j]
+
+    def __setslice__(self, i, j, sequence):
+        self._pixels[i:j] = sequence
+        self._update_callback()
+
+    def __eq__(self, other):
+        return self._pixels == other
+
+
+class LEDStrip(BaseLEDStrip, Fixture):
+    def __init__(self,
+                 _artnet: ArtNet,
+                 name: str,
+                 length: int,
+                 *,
+                 universe=None,
+                 rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB") -> None:
+        super().__init__(_artnet, name, universe=universe)
+        self._pixels: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_dmx)
+        index_map: dict[Literal["R", "G", "B"]: int] = {'R': 0, 'G': 1, 'B': 2}
+        self.rgb_mapping: tuple[int, int, int] = (index_map[rgb_order[0]], index_map[rgb_order[1]], index_map[rgb_order[2]])
+
+    def _send_dmx(self):
+        self._send_dmx_data(self._pack_bytes())
+
+    def _reorder_rgb(self, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+        return rgb[self.rgb_mapping[0]], rgb[self.rgb_mapping[1]], rgb[self.rgb_mapping[2]]
+
+    def _pack_bytes(self) -> bytes:
+        return bytes(value for rgb in self._pixels for value in self._reorder_rgb(rgb))
+
+    def __len__(self):
+        return len(self._pixels)
+
+    def __getitem__(self, item) -> tuple[int, int, int]:
+        return self._pixels[item]
+
+    def __setitem__(self, pixel: SupportsIndex, rgb: tuple[int, int, int]) -> None:
+        self.set_pixel(pixel, rgb)
+
+    def __iter__(self):
+        return iter(self._pixels)
+
+    @property
+    def pixels(self) -> _Pixels:
+        return self._pixels
+
+    @pixels.setter
+    def pixels(self, new_pixels: list[tuple[int, int, int]]):
+        if not isinstance(new_pixels, list):
+            raise TypeError("Pixels must be assigned a list of (R, G, B) tuples.")
+        if len(new_pixels) != len(self):
+            raise ValueError(f"Pixel list must be exactly {len(self)} items long.")
+        if not all(
+                isinstance(rgb, tuple) and len(rgb) == 3 and all(0 <= val <= 255 for val in rgb) for rgb in new_pixels):
+            raise ValueError("Each pixel must be a tuple of three integers between 0 and 255.")
+        self._pixels[:] = new_pixels  # Update the existing Pixels proxy in-place so references don't break
+
+    def set_pixel(self, pixel: SupportsIndex, rgb: tuple[int, int, int]):
+        assert isinstance(rgb, tuple) and len(rgb) == 3 and all(0 <= val <= 255 for val in rgb), "Invalid rgb tuple"
+        self._pixels[pixel] = rgb
+        self._send_dmx()
+
+    def set_pixels(self, pixels: list[tuple[int, int, int]]):
+        self.pixels = pixels
+
+    def fill(self, color: tuple[int, int, int]):
+        self._pixels = [color for _ in range(len(self._pixels))]
+        self._send_dmx()
+
+    def blackout(self) -> None:
+        self.fill((0, 0, 0))
+
+    def whiteout(self) -> None:
+        self.fill((255, 255, 255))

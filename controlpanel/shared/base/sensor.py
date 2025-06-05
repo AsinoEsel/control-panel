@@ -1,10 +1,7 @@
 from .device import Device
-try:
-    from typing import Any
-except ImportError:
-    Any = object
+from controlpanel.shared.compatibility import ArtNet
 
 
-class Sensor(Device):
-    def __init__(self, artnet, name: str):
-        super().__init__(artnet, name)
+class BaseSensor(Device):
+    def __init__(self, _artnet: ArtNet, name: str):
+        super().__init__(_artnet, name)

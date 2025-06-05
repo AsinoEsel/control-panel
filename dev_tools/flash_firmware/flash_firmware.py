@@ -3,7 +3,7 @@ import argparse
 import os
 
 
-FIRMWARE_FILENAME = "ESP32_GENERIC-20231227-v1.22.0.bin"
+FIRMWARE_FILENAME = "ESP32_GENERIC-20250415-v1.25.0.bin"
 
 
 def erase_flash(port: str) -> subprocess.CompletedProcess:

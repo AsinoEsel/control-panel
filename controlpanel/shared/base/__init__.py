@@ -1,3 +1,3 @@
 from .device import Device
-from .fixture import Fixture
-from .sensor import Sensor
+from .fixture import BaseFixture
+from .sensor import BaseSensor

@@ -1,13 +1,8 @@
-from .sensor import Sensor
-try:
-    from micropython import const
-except ImportError:
-    const = lambda x: x
+from controlpanel.shared.compatibility import const
 
 
-class BaseBananaPlugs(Sensor):
+class BaseBananaPlugs:
     NO_CONNECTION = const(255)
 
-    def __init__(self, artnet, name: str, plug_count: int):
-        super().__init__(artnet, name)
-        self.connections: list[int] = [self.NO_CONNECTION for _ in range(plug_count)]
+    def __init__(self, plug_count: int):
+        self._connections: list[int] = [self.NO_CONNECTION for _ in range(plug_count)]

@@ -1,21 +1,32 @@
 import machine
 from controlpanel.shared.base.pwm import BasePWM
-from controlpanel.upy.phys import FixtureMixin
+from controlpanel.shared.compatibility import ArtNet
+from .fixture import Fixture
 
 
-class PWM(BasePWM, FixtureMixin):
-    def __init__(self, artnet, name: str, pin: int, intensity: float = 1.0, *, universe: int | None = None, freq: int = 512) -> None:
-        super().__init__(artnet, name, universe=universe)
+class PWM(BasePWM, Fixture):
+    def __init__(self,
+                 _artnet: ArtNet,
+                 name: str,
+                 pin: int,
+                 *,
+                 universe: int | None = None,
+                 start_intensity: float = 0.5,
+                 freq: int = 512,
+                 ) -> None:
+        Fixture.__init__(self, _artnet, name, universe=universe)
         self.pin = machine.Pin(pin)
         self.pwm = machine.PWM(self.pin)
         self.pwm.freq(freq)
-        self.pwm.duty(int(1023*intensity))
+        self.pwm.duty(int(1023 * start_intensity))
+
+    @staticmethod
+    def get_duty(intensity: float) -> int:
+        return min(1023, max(0, int(1023*intensity)))
+
+    def set_intensity(self, intensity: float) -> None:
+        self.pwm.duty(self.get_duty(intensity))
 
     def parse_dmx_data(self, data: bytes):
-        self.pwm.duty(int(data[0]/255*1023))
-
-    # async def run(self, updates_per_second: int):
-    #     sleep_time = 1 / updates_per_second
-    #     while True:
-    #         self.update()
-    #         await asyncio.sleep(sleep_time)
+        intensity = data[0] / 255
+        self.set_intensity(intensity)

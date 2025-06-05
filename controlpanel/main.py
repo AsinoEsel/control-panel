@@ -1,9 +1,8 @@
 from threading import Thread
 from artnet import ArtNet
 from controlpanel.game_manager import GameManager
-from controlpanel.event_manager import EventManager
 from controlpanel.dmx import DMXUniverse, device_list
-from controlpanel.api import Services, load_scripts
+from controlpanel import api
 import argparse
 
 
@@ -35,10 +34,12 @@ def main():
     args, unknown_args = parse_args()
 
     artnet = ArtNet()  # This is where we initialise our one and ONLY ArtNet instance for the entire program.
-    Services.artnet = artnet
+    api.Services.artnet = artnet
 
-    event_manager = EventManager(artnet)
-    Services.event_manager = event_manager
+    event_manager = api.EventManager(artnet)
+    api.Services.event_manager = event_manager
+    # needs to be called after Services.event_manager has been set
+    event_manager.instantiate_devices([api.dummy,])
 
     game_manager = GameManager(resolution=(args.width, args.height),
                                dev_args=unknown_args,
@@ -47,10 +48,10 @@ def main():
                                stretch_to_fit=args.stretch_to_fit,
                                enable_cheats=args.cheats,
                                )
-    Services.game_manager = game_manager
+    api.Services.game_manager = game_manager
 
     try:
-        Services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
+        api.Services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
     except ValueError as err:
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
@@ -59,7 +60,7 @@ def main():
     artnet_thread.start()
 
     if args.load_scripts is not None:
-        load_scripts(args.load_scripts)
+        api.load_scripts(args.load_scripts)
 
     game_manager_thread = Thread(target=game_manager.run, daemon=False)
     game_manager_thread.run()

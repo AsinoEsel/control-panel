@@ -11,6 +11,12 @@ def get_mac_address() -> str:
     return hexlify(mac_raw, ':').decode().upper()
 
 
+def set_hostname(hostname: str) -> None:
+    data = load_json(HOSTNAME_MANIFEST) or dict()
+    data[get_mac_address()] = hostname
+    dump_json(HOSTNAME_MANIFEST, data)
+
+
 def get_hostname() -> str:
     data: dict = load_json(HOSTNAME_MANIFEST) or dict()
     mac_address: str = get_mac_address()
@@ -55,9 +61,10 @@ def create_modules():
             os.chdir(folder)
 
         with open(filename, 'w+') as destination_file:
-            print(f"Writing to {filename}...")
+            print(f"Writing to {filename}... ", end="")
             destination_file.write(data)
             overwritten_files += 1
+            print("Done.")
 
         for _ in range(len(folders)):
             os.chdir('../..')
@@ -192,6 +199,12 @@ def load_json(filename: str) -> dict | None:
             return ujson.load(file)
     except OSError:
         return None
+
+
+def dump_json(filename: str, data: dict) -> None:
+    import ujson
+    with open(filename, "w+") as file:
+        ujson.dump(data, file)
 
 
 def save_network(ssid: str, password: str) -> None:

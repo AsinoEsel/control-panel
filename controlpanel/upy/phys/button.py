@@ -1,28 +1,28 @@
 from machine import Pin
 from controlpanel.shared.base.button import BaseButton
-from controlpanel.upy.phys import SensorMixin
-import asyncio
+from .sensor import Sensor
 
 
-class Button(BaseButton, SensorMixin):
-    def __init__(self, artnet, name: str, pin: int, *, invert: bool = False) -> None:
-        super().__init__(artnet, name)
+class Button(BaseButton, Sensor):
+    def __init__(self,
+                 _artnet,
+                 name: str,
+                 pin: int,
+                 *,
+                 polling_rate_hz: float = 1.0,
+                 invert: bool = False
+                 ) -> None:
+        Sensor.__init__(self, _artnet, name, polling_rate_hz)
         self.pin = Pin(pin, Pin.IN, Pin.PULL_UP)
         # self.pin.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._handle_interrupt)
-        self._state = self.pin.value() ^ invert
-        self.invert = invert
-        self.min_switch_delay: int = 10
-        self.last_toggle_time: int = 0
+        self._invert = invert
+        self._previous_state: bool = self.get_pressed()
 
-    @property
-    def state(self) -> int:
-        return not self.pin.value() ^ self.invert
+    def get_pressed(self) -> bool:
+        return not self.pin.value() ^ self._invert
 
-    async def _polling_loop(self, sleep_time_seconds: float):
-        while True:
-            await asyncio.sleep(sleep_time_seconds)
-            current_state = self.pin.value() ^ self.invert
-
-            if current_state != self._state:
-                self._state = current_state
-                self.send_trigger(current_state.to_bytes(1, "big"))
+    async def poll(self) -> None:
+        current_state: bool = self.get_pressed()
+        if current_state != self._previous_state:
+            self._previous_state = current_state
+            self.send_trigger(int(current_state).to_bytes(1, "big"))

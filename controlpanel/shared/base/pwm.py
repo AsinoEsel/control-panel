@@ -1,7 +1,7 @@
 from controlpanel.shared.compatibility import abstractmethod
 
 
-class BaseButton:
+class BasePWM:
     @abstractmethod
-    def get_pressed(self) -> bool:
+    def set_intensity(self, intensity: float) -> None:
         pass
