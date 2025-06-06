@@ -1,5 +1,5 @@
 from machine import Pin
-from controlpanel.shared.base.shift_registers import BasePisoShiftRegister, BaseSipoShiftRegister, BasePisoSipoModule
+from controlpanel.shared.base.shift_registers import BasePisoShiftRegister, BaseSipoShiftRegister
 from controlpanel.upy.artnet import ArtNet
 from .sensor import Sensor
 from .fixture import Fixture
