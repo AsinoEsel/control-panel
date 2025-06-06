@@ -80,7 +80,14 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
     data = load_json(CREDENTIALS) or dict()
 
     known_networks = data.get("known_networks", dict())
-    access_point = data.get("access_point", {"ssid": get_hostname(), "password": FALLBACK_AP_PASSWORD})
+    access_point = data.get("access_point")
+    if not access_point:
+        access_point = {"ssid": get_hostname(), "password": FALLBACK_AP_PASSWORD}
+    else:
+        access_point = {
+            "ssid": access_point["ssid"] or get_hostname(),
+            "password": access_point["password"] or FALLBACK_AP_PASSWORD,
+        }
     import network
     import time
     import sys
