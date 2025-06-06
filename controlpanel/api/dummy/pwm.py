@@ -18,6 +18,10 @@ class PWM(BasePWM, Fixture):
     def intensity(self) -> float:
         return self._intensity
 
+    @intensity.setter
+    def intensity(self, value: float) -> None:
+        self.set_intensity(value)
+
     def get_intensity(self) -> float:
         return self._intensity
 
