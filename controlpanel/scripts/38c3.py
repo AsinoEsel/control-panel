@@ -164,10 +164,10 @@ class CCCGame(WindowManager):
             hat = joystick.get_hat(0)
 
         self.calculate_color_of_moving_head(
-            api.get_device("ButtonRed").state,
-            api.get_device("ButtonGreen").state,
-            api.get_device("ButtonBlue").state,
-            api.get_device("ButtonPower").state,
+            api.get_device("ButtonRed").get_pressed(),
+            api.get_device("ButtonGreen").get_pressed(),
+            api.get_device("ButtonBlue").get_pressed(),
+            api.get_device("ButtonPower").get_pressed(),
         )
 
     def check_moving_head_alignment(self):
@@ -198,16 +198,16 @@ class CCCGame(WindowManager):
     def update_battery_charge(self):
         old_charge_level = self.battery_charge
 
-        if not api.get_device("BatteryButton").state:
-            multiplicator = 3.0 if api.get_device("PowerSwitch").state else 1.0
+        if not api.get_device("BatteryButton").get_pressed():
+            multiplicator = 3.0 if api.get_device("PowerSwitch").get_pressed() else 1.0
             self.battery_charge = max(0.0, self.battery_charge - self.BATTERY_DRAIN * self.dt * multiplicator)
         else:
             self.battery_charge = min(1.0, self.battery_charge + self.BATTERY_CHARGE_SPEED * self.dt)
             charge_points = int(ccc_game.battery_charge * 6)
             for i in range(charge_points):
-                api.get_device("BVGPanel").set_bit(41 + i)
+                api.get_device("BVGPanel").turn_on(41 + i)
         api.get_device("Batterie").intensity = self.battery_charge
-        if api.get_device("BatteryButtonLadestation").state:
+        if api.get_device("BatteryButtonLadestation").get_pressed():
             for i in range(1, 5):
                 api.get_device(f"Voltmeter{i}").intensity = ccc_game.battery_charge
 
@@ -220,7 +220,7 @@ class CCCGame(WindowManager):
                                "Please take the battery out of the recepticle and insert it into the charging station.")
             self.print_to_log(f"WARNING. ENERGY CELL STATUS CRITICAL.", color=(255, 0, 0))
             self.print_to_log(f"PLEASE CHARGE BATTERY.", color=(255, 0, 0))
-        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and api.get_device("BatteryButtonLadestation").state:
+        if self.battery_charge > self.BATTERY_WARNING_THRESHOLD and api.get_device("BatteryButtonLadestation").get_pressed():
             popup = ccc_game.desktop.widget_manifest.get("WARNING. ENERGY CELL STATUS CRITICAL.")
             if popup:
                 popup.close()
@@ -249,10 +249,10 @@ class CCCGame(WindowManager):
             return
         sender_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar1")
         receiver_starbar: controlpanel.dmx.devices.VaritecColorsStarbar12 = api.dmx.devices.get("StarBar2")
-        r = 255 if api.get_device("ButtonRed").state else 0
-        g = 255 if api.get_device("ButtonGreen").state else 0
-        b = 255 if api.get_device("ButtonBlue").state else 0
-        sender_color = (r, g, b) if api.get_device("ButtonPower").state else (0, 0, 0)
+        r = 255 if api.get_device("ButtonRed").get_pressed() else 0
+        g = 255 if api.get_device("ButtonGreen").get_pressed() else 0
+        b = 255 if api.get_device("ButtonBlue").get_pressed() else 0
+        sender_color = (r, g, b) if api.get_device("ButtonPower").get_pressed() else (0, 0, 0)
         sender_starbar.set_leds_to_color(sender_color)
         if sender_color == self.antenna_receiver_color:
             self.antennas_aligned += 1
@@ -436,8 +436,8 @@ class BatteryChargeStatus(widgets.Widget):
         from gui.window_manager import FONT_PATH
         from gui.media import load_file_stream
         font = pg.font.Font(load_file_stream(FONT_PATH), size=17)
-        battery_inserted = api.get_device("BatteryButtonLadestation").state
-        battery_inserted_charger = api.get_device("BatteryButton").state
+        battery_inserted = api.get_device("BatteryButtonLadestation").get_pressed()
+        battery_inserted_charger = api.get_device("BatteryButton").get_pressed()
         self.surface.fill(self.accent_color)
         for rect in self.charge_rects[:self.box_count]:
             if ccc_game.battery_charge > 0.8:
@@ -453,7 +453,7 @@ class BatteryChargeStatus(widgets.Widget):
             else:
                 text = "BATTERY DISCONNECTED"
             text_color = (255, 255, 255)
-        elif api.get_device("ButtonPower").state:
+        elif api.get_device("ButtonPower").get_pressed():
             text = "ANTENNA ONLINE. HIGH DRAIN."
             text_color = (255, 0, 0)
         else:
@@ -484,11 +484,11 @@ def set_up_dmx_fixtures():
 
 @api.call_with_frequency(1)
 def bvg_panel_glitch():
-    if api.get_device("BatteryButton").state:  # dont glitch if charging
+    if api.get_device("BatteryButton").get_pressed():  # dont glitch if charging
         return
     bvgpanel = api.get_device("BVGPanel")
-    payload: bytes = bytes(0xFF if random.getrandbits(1) else 0x00 for _ in range(bvgpanel._number_of_bits))
-    bvgpanel.send_dmx_data(payload)
+    payload: bytes = bytes(0xFF if random.getrandbits(1) else 0x00 for _ in bvgpanel)
+    bvgpanel._send_dmx_data(payload)
 
 
 @api.call_with_frequency(5)
