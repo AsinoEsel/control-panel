@@ -68,7 +68,7 @@ def send_all_files(esp_name: str, ip: str, password: str, directory: Path, *,
             elif file == f"main_{esp_name}.py":
                 new_file_path = "main.py"
 
-            if file in ("boot.py", "boot.py.backup", "credentials.json", "utils.py", "hostname_manifest.json"):
+            if file in ("boot.py", "main.py", "credentials.json", "utils.py", "hostname_manifest.json"):
                 new_file_path = file
 
             result = send_file(esp_name, ip, password, str(rel_path), new_file_path)
