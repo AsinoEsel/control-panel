@@ -559,7 +559,7 @@ def pack_command(command_data: bytearray | bytes) -> bytes:
     # Length of Command data
     command_length = struct.pack(">H", size)
 
-    op_code = struct.pack("<H", OpCode.ArtCommand.value)
+    op_code = struct.pack("<H", OpCode.ArtCommand)
     packet: bytes = (
             ART_NET_HEADER +
             op_code +
@@ -569,4 +569,81 @@ def pack_command(command_data: bytearray | bytes) -> bytes:
             command_data
     )
 
+    return packet
+
+
+def pack_poll_reply(ip: str,
+                    port: int,
+                    short_name: str,
+                    long_name: str,
+                    node_report: str,
+                    mac: str | bytes,
+                    ) -> bytes:
+
+    ip_bytes = struct.pack("BBBB", *map(int, ip.split(".")))
+    port_bytes = struct.pack(">H", port)
+
+    vers_info = struct.pack(">H", 0x0001)
+    net_switch = b"\x00"
+    sub_switch = b"\x00"
+    oem = struct.pack("<H", 0x00FF)
+    ubea_version = b"\x00"
+    status1 = b"\xC0"
+    esta_man = struct.pack("<H", 0x0000)
+    short_name = short_name[:18].encode("ascii") + b"\x00" * (18 - len(short_name))
+    long_name = long_name[:64].encode("ascii") + b"\x00" * (64 - len(long_name))
+    node_report = node_report[:64].encode("ascii") + b"\x00" * (64 - len(node_report))
+    num_ports = struct.pack(">H", 1)
+    port_types = b"\x80\x00\x00\x00"
+    good_input = b"\x00\x00\x00\x00"
+    good_output = b"\x80\x00\x00\x00"
+    sw_in = b"\x00\x00\x00\x00"
+    sw_out = b"\x00\x00\x00\x00"
+    sw_video = b"\x00"
+    sw_macro = b"\x00"
+    sw_remote = b"\x00"
+    spare = b"\x00\x00\x00"
+    style = b"\x00"
+    mac = mac if isinstance(mac, bytes) else bytes.fromhex(mac.replace(":", ""))
+    bind_ip = ip_bytes
+    bind_index = b"\x01"
+    status2 = b"\x08"
+    filler = b"\x00" * 26  # final padding
+
+    op_code = struct.pack("<H", OpCode.ArtPollReply)
+
+    packet = (
+        ART_NET_HEADER +  # 8
+        op_code +         # 2
+        ip_bytes +        # 4
+        port_bytes +      # 2
+        vers_info +       # 2
+        net_switch +      # 1
+        sub_switch +      # 1
+        oem +             # 2
+        ubea_version +    # 1
+        status1 +         # 1
+        esta_man +        # 2
+        short_name +      # 18
+        long_name +       # 64
+        node_report +     # 64
+        num_ports +       # 2
+        port_types +      # 4
+        good_input +      # 4
+        good_output +     # 4
+        sw_in +           # 4
+        sw_out +          # 4
+        sw_video +        # 1
+        sw_macro +        # 1
+        sw_remote +       # 1
+        spare +           # 3
+        style +           # 1
+        mac +             # 6
+        bind_ip +         # 4
+        bind_index +      # 1
+        status2 +         # 1
+        filler            # 26
+    )
+
+    assert len(packet) == 239, f"ArtPollReply packet must be 239 bytes, got {len(packet)}"
     return packet

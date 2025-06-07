@@ -14,6 +14,7 @@ from .helper import (
     pack_sync,
     pack_trigger,
     pack_command,
+    pack_poll_reply,
 )
 
 ART_NET_PORT = 6454
@@ -40,6 +41,14 @@ class ArtNet:
         self.server_thread = _thread.start_new_thread(self.__init_socket, ())
 
         self.register: dict[OpCode, ArtNetCallback] = {}
+
+    @property
+    def ip(self) -> str:
+        return self.address[0]
+
+    @property
+    def port(self) -> int:
+        return self.address[1]
 
     def __init_socket(self):
         self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -117,6 +126,23 @@ class ArtNet:
     def send_command(self, command_data: bytearray | bytes = b""):
         """Sends an ArtCommand packet."""
         self.sock.sendto(pack_command(command_data), self.address)
+
+    def send_poll_reply(self,
+                        ip: str,
+                        port: int = ART_NET_PORT,
+                        address: tuple[str, int] | None = None,
+                        short_name: str = "Unnamed Node",
+                        long_name: str = "This is an unnamed node",
+                        node_report: str = "#0001 [OK]",
+                        mac: str | bytes = b"\x02\x00\x00\x00\x00\x01") -> None:
+        """Send an ArtPollReply packet."""
+        self.sock.sendto(pack_poll_reply(ip,
+                                         port,
+                                         short_name,
+                                         long_name,
+                                         node_report,
+                                         mac),
+                         address or self.address)
 
     def configure_ip(
             self,
