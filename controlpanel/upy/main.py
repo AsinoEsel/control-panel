@@ -20,6 +20,7 @@ class ESP:
         self._artnet.subscribe(OpCode.ArtPoll, self.artdmx_callback)
         self.commands: dict[str: Callable[[], None]] = {
             "RESET": reset,
+            "STOP": self.stop_polling,
         }
 
         self.devices: dict[str: Device] = self._instantiate_devices()
@@ -33,6 +34,7 @@ class ESP:
             device.name: device for device in self.devices.values() if isinstance(device, Sensor)
         }
 
+        self._do_polling: bool = False
 
     def _instantiate_devices(self) -> dict[str:Device]:
         manifest = utils.load_json('controlpanel/shared/device_manifest.json')
@@ -47,14 +49,22 @@ class ESP:
             devices[device.name] = device
         return devices
 
-    @staticmethod
-    async def _poll_sensor(sensor: Sensor):
-        while True:
+    def stop_polling(self):
+        print("Stopping sensor polling...")
+        self._do_polling = False
+
+    async def _poll_sensor(self, sensor: Sensor):
+        while self._do_polling:
             await sensor.poll()
             await asyncio.sleep_ms(sensor.polling_rate_ms)
 
     async def poll_all_sensors(self):
-        tasks = [asyncio.create_task(self._poll_sensor(sensor)) for sensor in self.sensors.values() if sensor.polling_rate_ms]
+        self._do_polling = True
+        tasks = [
+            self._poll_sensor(sensor)
+            for sensor in self.sensors.values()
+            if sensor.polling_rate_ms
+        ]
         await asyncio.gather(*tasks)
 
     def artcmd_callback(self, op_code: OpCode, ip: str, port: int, reply):
