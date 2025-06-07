@@ -45,11 +45,26 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  length: int,
                  *,
                  universe=None,
-                 rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB") -> None:
+                 rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",
+                 use_compression: bool = False
+                 ) -> None:
         super().__init__(_artnet, name, universe=universe)
-        self._pixels: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_dmx)
+        self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_dmx)
         index_map: dict[Literal["R", "G", "B"]: int] = {'R': 0, 'G': 1, 'B': 2}
         self.rgb_mapping: tuple[int, int, int] = (index_map[rgb_order[0]], index_map[rgb_order[1]], index_map[rgb_order[2]])
+        self._use_compression: bool = use_compression
+
+    @staticmethod
+    def _compress_rgb(rgb: tuple[int, int, int]) -> int:
+        """
+        Convert an RGB tuple (R, G, B) with values in the range 0..255
+        into a single RGB byte in the format RRRGGGBB.
+        """
+        r, g, b = rgb
+        r = (r >> 5) & 0x07  # Take the top 3 bits of R
+        g = (g >> 5) & 0x07  # Take the top 3 bits of G
+        b = (b >> 6) & 0x03  # Take the top 2 bits of B
+        return (r << 5) | (g << 2) | b
 
     def _send_dmx(self):
         self._send_dmx_data(self._pack_bytes())
@@ -58,23 +73,26 @@ class LEDStrip(BaseLEDStrip, Fixture):
         return rgb[self.rgb_mapping[0]], rgb[self.rgb_mapping[1]], rgb[self.rgb_mapping[2]]
 
     def _pack_bytes(self) -> bytes:
-        return bytes(value for rgb in self._pixels for value in self._reorder_rgb(rgb))
+        if not self._use_compression:
+            return bytes(value for rgb in self._pixel_proxy for value in self._reorder_rgb(rgb))
+        else:
+            return bytes(self._compress_rgb(self._reorder_rgb(rgb)) for rgb in self._pixel_proxy)
 
     def __len__(self):
-        return len(self._pixels)
+        return len(self._pixel_proxy)
 
     def __getitem__(self, item) -> tuple[int, int, int]:
-        return self._pixels[item]
+        return self._pixel_proxy[item]
 
     def __setitem__(self, pixel: SupportsIndex, rgb: tuple[int, int, int]) -> None:
         self.set_pixel(pixel, rgb)
 
     def __iter__(self):
-        return iter(self._pixels)
+        return iter(self._pixel_proxy)
 
     @property
     def pixels(self) -> _Pixels:
-        return self._pixels
+        return self._pixel_proxy
 
     @pixels.setter
     def pixels(self, new_pixels: list[tuple[int, int, int]]):
@@ -85,19 +103,18 @@ class LEDStrip(BaseLEDStrip, Fixture):
         if not all(
                 isinstance(rgb, tuple) and len(rgb) == 3 and all(0 <= val <= 255 for val in rgb) for rgb in new_pixels):
             raise ValueError("Each pixel must be a tuple of three integers between 0 and 255.")
-        self._pixels[:] = new_pixels  # Update the existing Pixels proxy in-place so references don't break
+        self._pixel_proxy[:] = new_pixels  # Update the existing Pixels proxy in-place so references don't break
 
     def set_pixel(self, pixel: SupportsIndex, rgb: tuple[int, int, int]):
         assert isinstance(rgb, tuple) and len(rgb) == 3 and all(0 <= val <= 255 for val in rgb), "Invalid rgb tuple"
-        self._pixels[pixel] = rgb
+        self._pixel_proxy[pixel] = rgb
         self._send_dmx()
 
     def set_pixels(self, pixels: list[tuple[int, int, int]]):
         self.pixels = pixels
 
     def fill(self, color: tuple[int, int, int]):
-        self._pixels = [color for _ in range(len(self._pixels))]
-        self._send_dmx()
+        self._pixel_proxy[:] = [color] * len(self)
 
     def blackout(self) -> None:
         self.fill((0, 0, 0))
