@@ -12,14 +12,14 @@ class SevenSegmentDisplay(BaseSevenSegmentDisplay, Fixture):
     def __init__(self,
                  _artnet: ArtNet,
                  name: str,
-                 digits: int,
+                 digit_count: int,
                  pin_chip_select: int,
                  hardware_spi: Literal[1, 2],
                  *,
                  universe: int | None = None
                  ) -> None:
         Fixture.__init__(self, _artnet, name, universe=universe)
-        self._display = SevenSegment(digits, cs=pin_chip_select, spi_bus=hardware_spi, reverse=True)
+        self._display = SevenSegment(digit_count, cs=pin_chip_select, spi_bus=hardware_spi, reverse=True)
 
     def parse_dmx_data(self, data: bytes) -> None:
         brightness: int = data[0] // 16
