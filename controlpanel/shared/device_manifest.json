@@ -45,7 +45,7 @@
   ],
   "waehlscheibe": [
     ["SipoShiftRegister", {"name": "RedYellowLEDs", "count": 1, "pin_clock": 22, "pin_latch": 21, "pin_serialout": 4}, {}],
-    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "digit_count": 16, "pin_chip_select": 19}, {}],
+    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "hardware_spi": 1, "digit_count": 16, "pin_chip_select": 19}, {}],
     ["RotaryDial", {"name": "RotaryDial", "pin_counter": 12, "pin_reset": 23}, {}],
     ["Button", {"name": "PowerSwitch", "pin": 32}, {}],
     ["Button", {"name": "DialReset", "pin": 5}, {}],

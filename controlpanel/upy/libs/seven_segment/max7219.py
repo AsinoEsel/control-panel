@@ -1,33 +1,34 @@
 from machine import Pin, SPI
 import time
+from micropython import const
 
 from .seven_segment_ascii import get_char2
 
 
-MAX7219_DIGITS = 8
+_MAX7219_DIGITS = const(8)
 
-MAX7219_REG_NOOP = 0x0
-MAX7219_REG_DIGIT0 = 0x1
-MAX7219_REG_DIGIT1 = 0x2
-MAX7219_REG_DIGIT2 = 0x3
-MAX7219_REG_DIGIT3 = 0x4
-MAX7219_REG_DIGIT4 = 0x5
-MAX7219_REG_DIGIT5 = 0x6
-MAX7219_REG_DIGIT6 = 0x7
-MAX7219_REG_DIGIT7 = 0x8
-MAX7219_REG_DECODEMODE = 0x9
-MAX7219_REG_INTENSITY = 0xA
-MAX7219_REG_SCANLIMIT = 0xB
-MAX7219_REG_SHUTDOWN = 0xC
-MAX7219_REG_DISPLAYTEST = 0xF
+_MAX7219_REG_NOOP = const(0x0)
+_MAX7219_REG_DIGIT0 = const(0x1)
+_MAX7219_REG_DIGIT1 = const(0x2)
+_MAX7219_REG_DIGIT2 = const(0x3)
+_MAX7219_REG_DIGIT3 = const(0x4)
+_MAX7219_REG_DIGIT4 = const(0x5)
+_MAX7219_REG_DIGIT5 = const(0x6)
+_MAX7219_REG_DIGIT6 = const(0x7)
+_MAX7219_REG_DIGIT7 = const(0x8)
+_MAX7219_REG_DECODEMODE = const(0x9)
+_MAX7219_REG_INTENSITY = const(0xA)
+_MAX7219_REG_SCANLIMIT = const(0xB)
+_MAX7219_REG_SHUTDOWN = const(0xC)
+_MAX7219_REG_DISPLAYTEST = const(0xF)
 
-SPI_BUS = 1  # hardware SPI
-SPI_BAUDRATE = 100000
-SPI_CS = 0  # D3
+_SPI_BUS = const(1)  # hardware SPI
+_SPI_BAUDRATE = const(100000)
+_SPI_CS = const(0)  # D3
 
 
 class SevenSegment:
-    def __init__(self, digits=8, scan_digits=MAX7219_DIGITS, baudrate=SPI_BAUDRATE, cs=SPI_CS, spi_bus=SPI_BUS, reverse=False):
+    def __init__(self, digits=8, scan_digits=_MAX7219_DIGITS, baudrate=_SPI_BAUDRATE, cs=_SPI_CS, spi_bus=_SPI_BUS, reverse=False):
         """
         Constructor:
         `digits` should be the total number of individual digits being displayed
@@ -46,10 +47,10 @@ class SevenSegment:
         self._spi = SPI(spi_bus, baudrate=baudrate, polarity=0, phase=0)
         self._cs = Pin(cs, Pin.OUT, value=1)
 
-        self.command(MAX7219_REG_SCANLIMIT, scan_digits - 1)  # digits to display on each device  0-7
-        self.command(MAX7219_REG_DECODEMODE, 0)   # use segments (not digits)
-        self.command(MAX7219_REG_DISPLAYTEST, 0)  # no display test
-        self.command(MAX7219_REG_SHUTDOWN, 1)     # not blanking mode
+        self.command(_MAX7219_REG_SCANLIMIT, scan_digits - 1)  # digits to display on each device  0-7
+        self.command(_MAX7219_REG_DECODEMODE, 0)   # use segments (not digits)
+        self.command(_MAX7219_REG_DISPLAYTEST, 0)  # no display test
+        self.command(_MAX7219_REG_SHUTDOWN, 1)     # not blanking mode
         self.brightness(7)                        # intensity: range: 0..15
         self.clear()
 
@@ -82,11 +83,11 @@ class SevenSegment:
                 current_dev = dev
 
             for pos in range(self.scan_digits):
-                self._write([pos + MAX7219_REG_DIGIT0, buffer[pos + (current_dev * self.scan_digits)]] + ([MAX7219_REG_NOOP, 0] * dev))
+                self._write([pos + _MAX7219_REG_DIGIT0, buffer[pos + (current_dev * self.scan_digits)]] + ([_MAX7219_REG_NOOP, 0] * dev))
 
     def brightness(self, intensity):
         """Sets the brightness level of all cascaded devices to the same intensity level, ranging from 0..15."""
-        self.command(MAX7219_REG_INTENSITY, intensity)
+        self.command(_MAX7219_REG_INTENSITY, intensity)
 
     def letter(self, position, char, dot=False, flush=True):
         """Looks up the appropriate character representation for char and updates the buffer, flushes by default."""
