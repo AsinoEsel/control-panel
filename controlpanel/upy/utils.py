@@ -76,7 +76,22 @@ def create_modules():
         print(f"Created the following modules:\n- {"\n- ".join(modules)}")
 
 
+def get_local_ip() -> str:
+    import network
+    sta_if = network.WLAN(network.STA_IF)
+    if sta_if.active():
+        return sta_if.ifconfig()[0]
+    ap_if = network.WLAN(network.AP_IF)
+    if ap_if.active():
+        return ap_if.ifconfig()[0]
+    return "0.0.0.0"
+
+
 def establish_wifi_connection(timeout_ms: int = 10_000):
+    import network
+    import time
+    import sys
+
     data = load_json(CREDENTIALS) or dict()
 
     known_networks = data.get("known_networks", dict())
@@ -88,9 +103,6 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
             "ssid": access_point["ssid"] or get_hostname(),
             "password": access_point["password"] or FALLBACK_AP_PASSWORD,
         }
-    import network
-    import time
-    import sys
 
     try:
         with open('last_connected_wifi.cfg') as file:
