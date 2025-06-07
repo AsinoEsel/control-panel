@@ -1,9 +1,14 @@
 import struct
 try:
+    from typing import TYPE_CHECKING
     from enum import IntEnum
 except ImportError:
+    TYPE_CHECKING = False
     IntEnum = object
 
+if TYPE_CHECKING:
+    from enum import IntEnum as _IntEnum
+    IntEnum = _IntEnum  # For type checkers
 
 # Constants for Art-Net
 ART_NET_HEADER = b"Art-Net\x00"
