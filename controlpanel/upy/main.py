@@ -17,7 +17,7 @@ class ESP:
         self._artnet = ArtNet()
         self._artnet.subscribe(OpCode.ArtDmx, self.artdmx_callback)
         self._artnet.subscribe(OpCode.ArtCommand, self.artcmd_callback)
-        self._artnet.subscribe(OpCode.ArtPoll, self.artdmx_callback)
+        self._artnet.subscribe(OpCode.ArtPoll, self.artpoll_callback)
         self.commands: dict[str: Callable[[], None]] = {
             "RESET": reset,
             "STOP": self.stop_polling,
@@ -85,7 +85,14 @@ class ESP:
         fixture.parse_dmx_data(data)
 
     def artpoll_callback(self, op_code: OpCode, ip: str, port: int, reply):
-        ...
+        print("Received ArtPoll packet, sending ArtPollReply.")
+        self._artnet.send_poll_reply(ip=utils.get_local_ip(),
+                                     port=self._artnet.port,
+                                     address=(ip, port),
+                                     short_name=self._name,
+                                     long_name="Control Panel ESP32 Node: " + self._name,
+                                     mac=utils.get_mac_address(),
+                                     )
 
 
 esp = ESP()
