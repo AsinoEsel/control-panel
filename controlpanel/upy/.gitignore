@@ -1,6 +1,0 @@
-.old/
-.venv/
-.idea/
-credentials.py
-transfer/*.json
-transfer/last_esp.txt
