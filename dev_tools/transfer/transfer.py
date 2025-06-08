@@ -9,7 +9,6 @@ from pathlib import Path
 RELATIVE_PATH_TO_IGNORE = '.webreplignore'
 
 script_dir = Path(__file__).resolve().parent
-last_espname_storage_path = os.path.join(script_dir, "last_esp.txt")
 path_to_ignore = script_dir / RELATIVE_PATH_TO_IGNORE
 
 
