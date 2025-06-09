@@ -20,14 +20,24 @@ except ImportError:
 
 
 try:
-    from time import ticks_ms
+    from time import ticks_ms, ticks_diff, ticks_add
 except ImportError:
     from time import time
-    def ticks_ms() -> int:
-        return int(time() * 1000)
+    ticks_ms = lambda: int(time() * 1000)
+    ticks_diff = lambda x, y: x - y
+    ticks_add = lambda x, y: x + y
 
 
 try:
     from artnet import ArtNet
 except ImportError:
     from controlpanel.upy.artnet import ArtNet
+
+
+try:
+    from typing import Generator, Callable, Literal, Optional
+except ImportError:
+    Generator = object()
+    Callable = object()
+    Literal = object()
+    Optional = object()
