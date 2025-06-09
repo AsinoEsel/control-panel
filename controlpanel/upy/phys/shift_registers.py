@@ -56,7 +56,7 @@ class PisoShiftRegister(BasePisoShiftRegister, ShiftRegister, Sensor):
         if changed_states:
             self.send_trigger(changed_states)
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         self._read_states()
 
 

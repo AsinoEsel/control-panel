@@ -21,7 +21,7 @@ class WaterFlowSensor(BaseWaterFlowSensor, Sensor):
     def water_flow_irq_handler(self, pin: Pin):
         self._flow_counter += 1  # can technically overflow (ha) if the counter hits 2^32 but who cares
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         if not self._flow_counter:
             return
         self.send_trigger(struct.pack("<I", self._flow_counter))

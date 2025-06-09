@@ -6,10 +6,10 @@ from controlpanel.upy.artnet import ArtNet
 class Sensor(BaseSensor):
     def __init__(self, _artnet: ArtNet, name: str, polling_rate_hz: float = 1.0):
         super().__init__(_artnet, name)
-        self.polling_rate_ms: int = int(1000 / polling_rate_hz) if polling_rate_hz > 0.0 else 0
+        self.update_rate_ms: int = int(1000 / polling_rate_hz) if polling_rate_hz > 0.0 else 0
 
     @abstractmethod
-    async def poll(self) -> None:
+    async def update(self) -> None:
         pass
 
     def send_trigger(self: Device, payload: bytes | bytearray) -> None:

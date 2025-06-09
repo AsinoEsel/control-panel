@@ -34,7 +34,7 @@ class BananaPlugs(BaseBananaPlugs, Sensor):
         plug_pin.value(0)
         return connected_socket
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         new_connections: list[tuple[int, int]] = []
 
         # Find new connections

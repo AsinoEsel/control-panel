@@ -35,7 +35,7 @@ class RFIDReader(BaseRFIDReader, Sensor):
         # print("0x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3]))
         return raw_uid
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         uid: bytes | None = self.get_uid()
         if uid != self._current_uid:
             self.send_trigger(uid or b"\x00\x00\x00\x00")

@@ -43,7 +43,7 @@ class RotaryDial(BaseRotaryDial, Sensor):
     def _increment_counter(self) -> None:
         self._count = (self._count + 1) % 255
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         pass
 
 

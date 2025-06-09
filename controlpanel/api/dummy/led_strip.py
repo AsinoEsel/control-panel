@@ -48,11 +48,15 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",
                  use_compression: bool = False
                  ) -> None:
-        super().__init__(_artnet, name, universe=universe)
-        self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_dmx)
-        index_map: dict[Literal["R", "G", "B"]: int] = {'R': 0, 'G': 1, 'B': 2}
-        self.rgb_mapping: tuple[int, int, int] = (index_map[rgb_order[0]], index_map[rgb_order[1]], index_map[rgb_order[2]])
+        BaseLEDStrip.__init__(self, rgb_order)
+        Fixture.__init__(self, _artnet, name, universe=universe)
+        self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_pixel_data)
         self._use_compression: bool = use_compression
+        self._animation_index: int = 0
+
+    def set_animation(self, animation_index: int):
+        self._animation_index = animation_index
+        self._send_dmx_data(self._animation_index.to_bytes())
 
     @staticmethod
     def _compress_rgb(rgb: tuple[int, int, int]) -> int:
@@ -66,17 +70,18 @@ class LEDStrip(BaseLEDStrip, Fixture):
         b = (b >> 6) & 0x03  # Take the top 2 bits of B
         return (r << 5) | (g << 2) | b
 
-    def _send_dmx(self):
-        self._send_dmx_data(self._pack_bytes())
+    def _send_pixel_data(self):
+        self._animation_index = 0
+        self._send_dmx_data(self._pack_pixel_bytes())
 
     def _reorder_rgb(self, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
-        return rgb[self.rgb_mapping[0]], rgb[self.rgb_mapping[1]], rgb[self.rgb_mapping[2]]
+        return rgb[self._rgb_mapping[0]], rgb[self._rgb_mapping[1]], rgb[self._rgb_mapping[2]]
 
-    def _pack_bytes(self) -> bytes:
+    def _pack_pixel_bytes(self) -> bytes:
         if not self._use_compression:
-            return bytes(value for rgb in self._pixel_proxy for value in self._reorder_rgb(rgb))
+            return b"\x00" + bytes(value for rgb in self._pixel_proxy for value in self._reorder_rgb(rgb))
         else:
-            return bytes(self._compress_rgb(self._reorder_rgb(rgb)) for rgb in self._pixel_proxy)
+            return b"\x00" + bytes(self._compress_rgb(self._reorder_rgb(rgb)) for rgb in self._pixel_proxy)
 
     def __len__(self):
         return len(self._pixel_proxy)
@@ -108,7 +113,7 @@ class LEDStrip(BaseLEDStrip, Fixture):
     def set_pixel(self, pixel: SupportsIndex, rgb: tuple[int, int, int]):
         assert isinstance(rgb, tuple) and len(rgb) == 3 and all(0 <= val <= 255 for val in rgb), "Invalid rgb tuple"
         self._pixel_proxy[pixel] = rgb
-        self._send_dmx()
+        self._send_pixel_data()
 
     def set_pixels(self, pixels: list[tuple[int, int, int]]):
         self.pixels = pixels

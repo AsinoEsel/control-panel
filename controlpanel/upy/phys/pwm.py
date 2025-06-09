@@ -11,14 +11,14 @@ class PWM(BasePWM, Fixture):
                  pin: int,
                  *,
                  universe: int | None = None,
-                 start_intensity: float = 0.5,
+                 intensity: float = 0.5,
                  freq: int = 512,
                  ) -> None:
         Fixture.__init__(self, _artnet, name, universe=universe)
         self.pin = machine.Pin(pin)
         self.pwm = machine.PWM(self.pin)
         self.pwm.freq(freq)
-        self.pwm.duty(int(1023 * start_intensity))
+        self.pwm.duty(int(1023 * intensity))
 
     @staticmethod
     def get_duty(intensity: float) -> int:

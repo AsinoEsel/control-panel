@@ -21,7 +21,7 @@ class Button(BaseButton, Sensor):
     def get_pressed(self) -> bool:
         return not self.pin.value() ^ self._invert
 
-    async def poll(self) -> None:
+    async def update(self) -> None:
         current_state: bool = self.get_pressed()
         if current_state != self._previous_state:
             self._previous_state = current_state

@@ -20,7 +20,7 @@ class ESP:
         self._artnet.subscribe(OpCode.ArtPoll, self.artpoll_callback)
         self.commands: dict[str: Callable[[], None]] = {
             "RESET": reset,
-            "STOP": self.stop_polling,
+            "STOP": self._stop_updating_devices,
         }
 
         self.devices: dict[str: Device] = self._instantiate_devices()
@@ -34,7 +34,7 @@ class ESP:
             device.name: device for device in self.devices.values() if isinstance(device, Sensor)
         }
 
-        self._do_polling: bool = False
+        self._update_devices: bool = True
 
     def _instantiate_devices(self) -> dict[str:Device]:
         manifest = utils.load_json('controlpanel/shared/device_manifest.json')
@@ -49,21 +49,20 @@ class ESP:
             devices[device.name] = device
         return devices
 
-    def stop_polling(self):
-        print("Stopping sensor polling...")
-        self._do_polling = False
+    def _stop_updating_devices(self):
+        print("Stopping device updates...")
+        self._update_devices = False
 
-    async def _poll_sensor(self, sensor: Sensor):
-        while self._do_polling:
-            await sensor.poll()
-            await asyncio.sleep_ms(sensor.polling_rate_ms)
+    async def _update_device(self, device: Sensor | Fixture):
+        while self._update_devices:
+            await device.update()
+            await asyncio.sleep_ms(device.update_rate_ms)
 
-    async def poll_all_sensors(self):
-        self._do_polling = True
+    async def update_all_devices(self):
         tasks = [
-            self._poll_sensor(sensor)
-            for sensor in self.sensors.values()
-            if sensor.polling_rate_ms
+            self._update_device(device)
+            for device in self.devices.values()
+            if device.update_rate_ms > 0
         ]
         await asyncio.gather(*tasks)
 
@@ -96,4 +95,4 @@ class ESP:
 
 
 esp = ESP()
-asyncio.run(esp.poll_all_sensors())
+asyncio.run(esp.update_all_devices())
