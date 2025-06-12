@@ -41,7 +41,7 @@ class EventManager:
         self.queue = asyncio.Queue()
         self.subscribers: list[Subscriber] = []
         self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
-        async_thread = Thread(target=self.run_async_loop, args=(), daemon=True)
+        async_thread = Thread(target=self._run_async_loop, args=(), daemon=True)
         async_thread.start()
 
         self.print_incoming_arttrigger_packets: bool = False
@@ -49,15 +49,15 @@ class EventManager:
         self.print_incoming_artcmd_packets: bool = False
         self.print_incoming_artpollreply_packets: bool = False
 
-    def run_async_loop(self):
+    def _run_async_loop(self):
         asyncio.set_event_loop(self.loop)
-        self.loop.create_task(self.dispatch_loop())
+        self.loop.create_task(self._dispatch_loop())
         self.loop.run_forever()
 
-    async def dispatch_loop(self):
+    async def _dispatch_loop(self):
         while True:
             event = await self.queue.get()
-            await self.notify_subscribers(event)
+            await self._notify_subscribers(event)
 
     @staticmethod
     def _get_local_ip() -> str:
@@ -171,7 +171,7 @@ class EventManager:
         pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
         asyncio.run_coroutine_threadsafe(self.queue.put(event), self.loop)
 
-    async def notify_subscribers(self, event: Event) -> None:
+    async def _notify_subscribers(self, event: Event) -> None:
         for key_func in self.POSSIBLE_EVENT_TYPES:
             source, name, value = key_func(event.source, event.action, event.value)
             subscribers: list[Subscriber] = self._callback_register.get(Condition(source, name, value), [])
