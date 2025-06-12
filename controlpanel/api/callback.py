@@ -1,10 +1,11 @@
 from typing import Iterable, Hashable, Callable, Union, TypeVar
-from controlpanel.api import Event
 from itertools import product
 from .api import subscribe
+from .commons import CallbackType
 
 
 T = TypeVar('T', bound=Hashable)
+F = TypeVar("F", bound=CallbackType)
 
 
 def callback(*,
@@ -13,7 +14,7 @@ def callback(*,
     value: Hashable | Iterable[Hashable] | None = None,
     fire_once: bool = False,
     allow_parallelism: bool = False,
-    ) -> Callable[[Callable[[Event], None]], Callable[[Event], None]]:
+    ) -> Callable[[F], F]:
 
     def normalize(x: Union[str, T, Iterable[T], None]) -> list[T] | list[None]:
         if x is None:
@@ -22,7 +23,7 @@ def callback(*,
             return [x]
         return list(x)
 
-    def decorator(func: Callable[[Event], None]) -> Callable[[Event], None]:
+    def decorator(func: F) -> F:
         sources = normalize(source)
         actions = normalize(action)
         values = normalize(value)

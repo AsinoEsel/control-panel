@@ -183,11 +183,17 @@ class EventManager:
                 print(f"{"Event received: ":<16}{subscriber.callback.__module__.rsplit(".")[-1]}.{subscriber.callback.__name__}")
 
                 if inspect.iscoroutinefunction(subscriber.callback):
-                    task = asyncio.create_task(subscriber.callback(event))
+                    if subscriber.requires_event_arg:
+                        task = asyncio.create_task(subscriber.callback(event))
+                    else:
+                        task = asyncio.create_task(subscriber.callback())
                     subscriber.task = task
                 else:
                     # Run sync function in a thread, wrap it in a future
-                    task = asyncio.to_thread(subscriber.callback, event)
+                    if subscriber.requires_event_arg:
+                        task = asyncio.to_thread(subscriber.callback, event)
+                    else:
+                        task = asyncio.to_thread(subscriber.callback)
                     subscriber.task = asyncio.create_task(task)
 
                 if subscriber.fire_once:
@@ -205,7 +211,7 @@ class EventManager:
                   value: EventValueType = None,
                   *,
                   fire_once: bool = False,
-                  allow_parallelism: bool = False):
-        subscriber = Subscriber(callback, fire_once, allow_parallelism)
+                  allow_parallelism: bool = False) -> None:
+        subscriber = Subscriber(callback, fire_once, allow_parallelism, callback.__code__.co_argcount == 1)
         condition = Condition(source, action, value)
         self._callback_register[condition].append(subscriber)

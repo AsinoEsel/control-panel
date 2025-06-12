@@ -36,12 +36,17 @@ class Condition:
     value: EventValueType
 
 
-CallbackType = Callable[[Event], Coroutine[Any, Any, None]]
+CallbackType = (Callable[[Event], Coroutine[Any, Any, None]] |
+                Callable[[Event], None] |
+                Callable[[], Coroutine[Any, Any, None]] |
+                Callable[[], None]
+                )
 
 
 @dataclass
 class Subscriber:
     callback: CallbackType
-    fire_once: bool = False
-    allow_parallelism: bool = False
+    fire_once: bool
+    allow_parallelism: bool
+    requires_event_arg: bool
     task: Optional[asyncio.Task] = None
