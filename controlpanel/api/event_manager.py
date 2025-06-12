@@ -39,6 +39,7 @@ class EventManager:
         self.print_incoming_arttrigger_packets: bool = False
         self.print_incoming_artdmx_packets: bool = False
         self.print_incoming_artcmd_packets: bool = False
+        self.print_incoming_artpollreply_packets: bool = False
 
     @staticmethod
     def _get_local_ip() -> str:
@@ -128,6 +129,17 @@ class EventManager:
             case OpCode.ArtCommand:
                 if self.print_incoming_artcmd_packets:
                     print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
+
+            case OpCode.ArtPollReply:
+                if self.print_incoming_artpollreply_packets:
+                    print(f"Receiving ArtPollReply event from {sender[0]}: {reply}")
+
+            case _:
+                try:
+                    print(f"Received an {OpCode(op_code).name} packet from {sender[0]}")
+                except ValueError:
+                    print(f"Received a packet with invalid op code {hex(op_code)}")
+
 
     def fire_event(self,
                    source: EventSourceType,

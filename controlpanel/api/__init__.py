@@ -12,7 +12,7 @@ from .commons import (
 from typing import Literal, TYPE_CHECKING, Callable, TypeVar
 from .services import Services
 from .load_scripts import load_scripts
-from .api import call_with_frequency, fire_event, subscribe
+from .api import call_with_frequency, fire_event, subscribe, send_dmx
 from .callback import callback
 from .get_device import get_device
 from .event_manager import EventManager
