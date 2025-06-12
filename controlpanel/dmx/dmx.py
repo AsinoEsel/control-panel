@@ -68,7 +68,7 @@ class DMXUniverse:
         # 513 bytes are sent in total
         self.data = bytearray(513 * [0])
         
-        self.devices: dict[str:'DMXDevice'] = {}
+        self.devices: dict[str, 'DMXDevice'] = {}
         if devices is None:
             devices = []
         for device in devices:

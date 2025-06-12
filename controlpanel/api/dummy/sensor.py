@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 
 class Sensor(BaseSensor):
-    EVENT_TYPES: dict[str: Hashable] = dict()
+    EVENT_TYPES: dict[str, Hashable] = dict()
 
     @abstractmethod
     def parse_trigger_payload(self: "Device", payload: bytes) -> tuple[str, Any]:

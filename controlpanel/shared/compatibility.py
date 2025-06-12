@@ -35,9 +35,10 @@ except ImportError:
 
 
 try:
-    from typing import Generator, Callable, Literal, Optional
+    from typing import Generator, Callable, Literal, Optional, Any
 except ImportError:
     Generator = object()
     Callable = object()
     Literal = object()
     Optional = object()
+    Any = object()

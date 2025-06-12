@@ -18,7 +18,7 @@ class BaseGame:
         self._tickrate: float = tickrate * timescale
         self._timescale: float = timescale
         self._working_directory_override: str | None = None
-        self._joysticks: dict[int: pg.joystick.JoystickType] = {}
+        self._joysticks: dict[int, pg.joystick.JoystickType] = {}
         self._dt: float = 1 / tickrate * timescale
         # self.fallback_shaders = Shaders([resolution], [(-1, "To_BGRA", {"_MainTex": 0})])
         # self.shaders = shaders if shaders is not None else self.fallback_shaders

@@ -30,8 +30,8 @@ class EventManager:
     def __init__(self, artnet: ArtNet):
         self._artnet = artnet
         self._artnet.subscribe_all(self._receive)
-        self._callback_register: dict[Condition:list[Subscriber]] = defaultdict(list)
-        self.devices: dict[str: Device] = dict()
+        self._callback_register: dict[Condition, list[Subscriber]] = defaultdict(list)
+        self.devices: dict[str, Device] = dict()
         self._sensor_dict: dict[str, Sensor] = dict()
         self._fixture_dict: dict[str, Fixture] = dict()
         self.ip = self._get_local_ip()
@@ -91,7 +91,7 @@ class EventManager:
         self._sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self._fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
 
-    def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str: Any]) -> None:
+    def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str, Any]) -> None:
         match op_code:
             case OpCode.ArtTrigger:
                 if self.print_incoming_arttrigger_packets:

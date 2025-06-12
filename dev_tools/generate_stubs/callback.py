@@ -31,7 +31,7 @@ def collect_classes_from_libs(libs: list[ModuleType], *, filter_by_base_class: t
     return collected_classes
 
 
-def get_device_names_classnames() -> dict[str: str]:
+def get_device_names_classnames() -> dict[str, str]:
     with open(DEVICE_MANIFEST_PATH, "r") as f:
         data = json.load(f)
     device_names = dict()
@@ -59,19 +59,19 @@ def simple_type_name(obj: GenericAlias | type) -> str:
         return str(obj)
 
 
-def get_device_dict() -> dict[str: dict[str: str]]:
+def get_device_dict() -> dict[str, dict[str, str]]:
     """Create a mapping that looks like
     {"red_button": {"ButtonPressed": "bool"}}
     """
-    result: dict[str: dict[str: str]] = dict()
+    result: dict[str, dict[str, str]] = dict()
 
-    device_names_classnames: dict[str: str] = get_device_names_classnames()
+    device_names_classnames: dict[str, str] = get_device_names_classnames()
 
     from controlpanel.api.dummy import Sensor
     dummy_sensor_classes: list[type] = collect_classes_from_libs(collect_dummy_libs(), filter_by_base_class=Sensor)
-    dummy_sensor_class_mapping: dict[str: type] = {cls.__name__: cls for cls in dummy_sensor_classes}
+    dummy_sensor_class_mapping: dict[str, type] = {cls.__name__: cls for cls in dummy_sensor_classes}
 
-    sensor_names: dict[str: str] = {name: class_name for name, class_name in device_names_classnames.items() if class_name in dummy_sensor_class_mapping.keys()}
+    sensor_names: dict[str, str] = {name: class_name for name, class_name in device_names_classnames.items() if class_name in dummy_sensor_class_mapping.keys()}
 
     for sensor_name, sensor_class_name in sensor_names.items():
         sensor_class = dummy_sensor_class_mapping[sensor_class_name]

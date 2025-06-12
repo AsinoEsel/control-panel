@@ -40,7 +40,7 @@ class _Pixels:
 
 
 class LEDStrip(BaseLEDStrip, Fixture):
-    ANIMATIONS: dict[str: Callable[[float, bytearray, tuple[int, int, int]], Generator[None, None, None]]] = {
+    ANIMATIONS: dict[str, Callable[[float, bytearray, tuple[int, int, int]], Generator[None, None, None]]] = {
         animation.__name__: animation for animation in BaseLEDStrip.ANIMATIONS if animation is not None
     }
 

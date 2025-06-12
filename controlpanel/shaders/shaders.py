@@ -58,7 +58,7 @@ class Shaders:
             self.vaos[i].render(mode=moderngl.TRIANGLE_STRIP)
                 
 
-def get_shader_program(ctx: moderngl.Context, vert_shader_path: str, frag_shader_path: str, shader_parameters: dict[str: int | float]) -> moderngl.Program:
+def get_shader_program(ctx: moderngl.Context, vert_shader_path: str, frag_shader_path: str, shader_parameters: dict[str, int | float]) -> moderngl.Program:
     with importlib.resources.open_text(__package__, vert_shader_path) as v:
         vert_shader = v.read()
     with importlib.resources.open_text(__package__, frag_shader_path) as f:

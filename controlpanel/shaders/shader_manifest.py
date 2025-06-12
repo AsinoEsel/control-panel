@@ -48,7 +48,7 @@ to_bgra_uniforms = {
     '_MainTex': 0,
 }
 
-shader_params: dict[str: tuple[str, str, dict]] = {
+shader_params: dict[str, tuple[str, str, dict]] = {
     "Downscale": ("quad.vert", "downscale.frag", downscale_uniforms),
     "Threshold": ("quad.vert", "threshold.frag", threshold_shader_uniforms),
     "Blur_H": ("quad.vert", "blur_h.frag", blur_shader_uniforms),

@@ -4,12 +4,8 @@ from controlpanel.upy import phys
 from controlpanel.upy.artnet import ArtNet, OpCode
 from controlpanel.shared.base import Device
 from controlpanel.upy.phys import Fixture, Sensor
+from controlpanel.shared.compatibility import Callable, Any
 import uasyncio as asyncio
-try:
-    from typing import Callable
-except ImportError:
-    Callable = object
-
 
 class ESP:
     def __init__(self):
@@ -18,29 +14,29 @@ class ESP:
         self._artnet.subscribe(OpCode.ArtDmx, self.artdmx_callback)
         self._artnet.subscribe(OpCode.ArtCommand, self.artcmd_callback)
         self._artnet.subscribe(OpCode.ArtPoll, self.artpoll_callback)
-        self.commands: dict[str: Callable[[], None]] = {
+        self.commands: dict[str, Callable] = {
             "RESET": reset,
             "STOP": self._stop_updating_devices,
         }
 
-        self.devices: dict[str: Device] = self._instantiate_devices()
-        self.universes: dict[int: Fixture] = {
+        self.devices: dict[str, Device] = self._instantiate_devices()
+        self.universes: dict[int, Fixture] = {
             device.universe: device for device in self.devices.values() if isinstance(device, Fixture)
         }
-        self.fixtures: dict[str: Fixture] = {
+        self.fixtures: dict[str, Fixture] = {
             device.name: device for device in self.devices.values() if isinstance(device, Fixture)
         }
-        self.sensors: dict[str: Sensor] = {
+        self.sensors: dict[str, Sensor] = {
             device.name: device for device in self.devices.values() if isinstance(device, Sensor)
         }
 
         self._update_devices: bool = True
 
-    def _instantiate_devices(self) -> dict[str:Device]:
+    def _instantiate_devices(self) -> dict[str, Device]:
         manifest = utils.load_json('controlpanel/shared/device_manifest.json')
         if not manifest:
             return dict()
-        devices: dict[str: Device] = dict()
+        devices: dict[str, Device] = dict()
         device_list: list = manifest.get(self._name, list())
         for device_data in device_list:
             classname, kwargs, _ = device_data

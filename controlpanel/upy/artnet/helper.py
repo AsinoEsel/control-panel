@@ -1,4 +1,5 @@
 import struct
+from controlpanel.shared.compatibility import Any
 try:
     from typing import TYPE_CHECKING
     from enum import IntEnum
@@ -42,7 +43,7 @@ def parse_header(data: bytearray) -> OpCode | None:
         return None
 
 
-def parse_poll(data: bytes) -> dict[str: any] | None:
+def parse_poll(data: bytes) -> dict[str, Any] | None:
     if len(data) < 22:
         return None
 
@@ -61,7 +62,7 @@ def parse_poll(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_poll_reply(data: bytes) -> dict[str: any] | None:
+def parse_poll_reply(data: bytes) -> dict[str, Any] | None:
     if len(data) < 239:
         return None
 
@@ -103,7 +104,7 @@ def parse_poll_reply(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_artdmx(data: bytes) -> dict[str: any] | None:
+def parse_artdmx(data: bytes) -> dict[str, Any] | None:
     if len(data) < 18:
         return None
 
@@ -119,7 +120,7 @@ def parse_artdmx(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_nzs(data: bytes) -> dict[str: any] | None:
+def parse_nzs(data: bytes) -> dict[str, Any] | None:
     if len(data) < 18:
         return None
 
@@ -135,7 +136,7 @@ def parse_nzs(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_sync(data: bytes) -> dict[str: any] | None:
+def parse_sync(data: bytes) -> dict[str, Any] | None:
     if len(data) < 13:
         return None
 
@@ -148,7 +149,7 @@ def parse_sync(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_trigger(data: bytes) -> dict[str: any] | None:
+def parse_trigger(data: bytes) -> dict[str, Any] | None:
     if len(data) < 18:
         return None
 
@@ -163,7 +164,7 @@ def parse_trigger(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_ip_prog(data: bytes) -> dict[str: any] | None:
+def parse_ip_prog(data: bytes) -> dict[str, Any] | None:
     if len(data) < 32:
         return None
 
@@ -183,7 +184,7 @@ def parse_ip_prog(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_ip_prog_reply(data: bytes) -> dict[str: any] | None:
+def parse_ip_prog_reply(data: bytes) -> dict[str, Any] | None:
     if len(data) < 34:
         return None
 
@@ -206,7 +207,7 @@ def parse_ip_prog_reply(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_address(data: bytes) -> dict[str: any] | None:
+def parse_address(data: bytes) -> dict[str, Any] | None:
     if len(data) < 107:
         return None
 
@@ -226,7 +227,7 @@ def parse_address(data: bytes) -> dict[str: any] | None:
     return reply
 
 
-def parse_command(data: bytes) -> dict[str: any] | None:
+def parse_command(data: bytes) -> dict[str, Any] | None:
     if len(data) < 14:
         return None
 

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     event_manager: EventManager
     game_manager: GameManager
     dmx: DMXUniverse
-    loaded_scripts: dict[str: ModuleType]
+    loaded_scripts: dict[str, ModuleType]
     T = TypeVar("T", bound=BaseGame)
     add_game: Callable[[T, bool], T]
     get_game: Callable[[str | None], BaseGame | None]
