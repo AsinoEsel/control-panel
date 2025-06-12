@@ -1,15 +1,16 @@
 from controlpanel.shared.base.led_strip import BaseLEDStrip
 from .fixture import Fixture
-from typing import SupportsIndex, Literal, Callable
+from typing import SupportsIndex, Literal, Callable, Generator
 from artnet import ArtNet
+import struct
 
 
 class _Pixels:
     """A proxy class for the pixel list.
     Automatically calls the update_callback function when a value in the list is changed."""
     def __init__(self, pixels: list[tuple[int, int, int]], update_callback: Callable[[], None]):
-        self._pixels = pixels
-        self._update_callback = update_callback
+        self._pixels: list[tuple[int, int, int]] = pixels
+        self._update_callback: Callable[[], None] = update_callback
 
     def __getitem__(self, key):
         return self._pixels[key]
@@ -39,12 +40,16 @@ class _Pixels:
 
 
 class LEDStrip(BaseLEDStrip, Fixture):
+    ANIMATIONS: dict[str: Callable[[float, bytearray, tuple[int, int, int]], Generator[None, None, None]]] = {
+        animation.__name__: animation for animation in BaseLEDStrip.ANIMATIONS if animation is not None
+    }
+
     def __init__(self,
                  _artnet: ArtNet,
                  name: str,
                  length: int,
                  *,
-                 universe=None,
+                 universe: int | None =None,
                  rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",
                  use_compression: bool = False
                  ) -> None:
@@ -52,11 +57,40 @@ class LEDStrip(BaseLEDStrip, Fixture):
         Fixture.__init__(self, _artnet, name, universe=universe)
         self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_pixel_data)
         self._use_compression: bool = use_compression
-        self._animation_index: int = 0
+        self._animation_index: int | None = None
 
-    def set_animation(self, animation_index: int):
-        self._animation_index = animation_index
-        self._send_dmx_data(self._animation_index.to_bytes())
+    def _parse_animation_name_or_index(self, animation_name_or_index: str | int | None) -> int | None:
+        if isinstance(animation_name_or_index, str):
+            animation = self.ANIMATIONS.get(animation_name_or_index)
+            if not animation:
+                print("Invalid animation name")
+                return None
+            return BaseLEDStrip.ANIMATIONS.index(animation)
+        elif isinstance(animation_name_or_index, int):
+            if not 0 <= animation_name_or_index <= len(BaseLEDStrip.ANIMATIONS):
+                print("Invalid animation index")
+                return None
+            return animation_name_or_index
+        else:
+            return None
+
+    def set_animation(self,
+                      animation_name_or_index: str | int | None,
+                      update_rate_hz: float,
+                      animation_speed: float,
+                      primary_color: tuple[int, int, int],
+                      secondary_color: tuple[int, int, int],
+                      ) -> None:
+        self._animation_index = self._parse_animation_name_or_index(animation_name_or_index)
+        animation_data: bytes = struct.pack(
+            'BBB' + 'BBB' + 'BBB',  # format: 3 single-byte ints + 2 RGB tuples
+            self._animation_index + 1 if self._animation_index is not None else 0,
+            self.encode_update_rate(update_rate_hz),
+            self.encode_update_rate(animation_speed),
+            *primary_color,
+            *secondary_color
+        )
+        self._send_dmx_data(animation_data)
 
     @staticmethod
     def _compress_rgb(rgb: tuple[int, int, int]) -> int:

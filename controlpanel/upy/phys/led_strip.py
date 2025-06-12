@@ -1,6 +1,6 @@
 import neopixel
 from machine import Pin
-from controlpanel.shared.base.led_strip import BaseLEDStrip, Generator, Literal
+from controlpanel.shared.base.led_strip import BaseLEDStrip, Generator, Literal, Animation
 from .fixture import Fixture
 from controlpanel.shared.compatibility import ArtNet
 from micropython import const
@@ -9,6 +9,19 @@ from micropython import const
 _BITMASK_RED = const(0b11100000)
 _BITMASK_GREEN = const(0b00011100)
 _BITMASK_BLUE = const(0b00000011)
+
+
+_ANIM_INDEX_OFFSET = const(0)
+_ANIM_INDEX_BYTES = const(1)
+_UPDATE_RATE_OFFSET = const(_ANIM_INDEX_OFFSET + _ANIM_INDEX_BYTES)
+_UPDATE_RATE_BYTES = const(1)
+_ANIM_SPEED_OFFSET = const(_UPDATE_RATE_OFFSET + _UPDATE_RATE_BYTES)
+_ANIM_SPEED_BYTES = const(1)
+_PRIMARY_COLOR_OFFSET = const(_ANIM_SPEED_OFFSET + _ANIM_SPEED_BYTES)
+_PRIMARY_COLOR_BYTES = const(3)
+_SECONDARY_COLOR_OFFSET = const(_PRIMARY_COLOR_OFFSET + _PRIMARY_COLOR_BYTES)
+_SECONDARY_COLOR_BYTES = const(3)
+_TOTAL_ANIM_BYTES = const(_SECONDARY_COLOR_OFFSET + _SECONDARY_COLOR_BYTES)
 
 
 class LEDStrip(BaseLEDStrip, Fixture):
@@ -22,12 +35,16 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  use_compression: bool = False,
                  update_rate_hz: float = 1.0,
                  rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",  # used for animations
+                 primary_animation_color: list[int] | None = None,
+                 secondary_animation_color: list[int] | None = None,
                  ) -> None:
         BaseLEDStrip.__init__(self, rgb_order)
         Fixture.__init__(self, _artnet, name, update_rate_hz, universe=universe)
         self._neopixels: neopixel.NeoPixel = neopixel.NeoPixel(Pin(pin, Pin.OUT), length)
         self._use_compression = use_compression
         self._animation: Generator[bytearray, None, None] | None = None
+        self._primary_animation_color: list[int] = primary_animation_color or [100, 0, 0]
+        self._secondary_animation_color: list[int] = secondary_animation_color or [0, 100, 0]
 
     def __len__(self):
         return len(self._neopixels)
@@ -55,25 +72,45 @@ class LEDStrip(BaseLEDStrip, Fixture):
             buffer[3 * i + 2] = b
 
     def parse_dmx_data(self, data: bytes):
-        animation_index = data[0]
-        if animation_index == 0:
+        animation_byte = data[0]
+        if animation_byte == 0:
             self._animation = None
-        elif animation_index > len(self.ANIMATIONS):
-            print("Invalid animation index")
-            return
+            if len(data) == 1:
+                return
+            else:
+                self._parse_pixel_data(memoryview(data)[1:])
         else:
-            self._animation = self.ANIMATIONS[animation_index](self.update_rate_ms, self._neopixels.buf, self._rgb_mapping)
-            return
+            self._parse_animation_data(data)
 
-        if len(data) == 1:
-            return
+    def _parse_animation_data(self, animation_data: bytes | memoryview):
+        assert len(animation_data) == _TOTAL_ANIM_BYTES, f"Total number of bytes must be {_TOTAL_ANIM_BYTES}"
+        animation_index: int = animation_data[_ANIM_INDEX_OFFSET] - 1
+        assert animation_index < len(self.ANIMATIONS), f"Animation index {animation_index} outside range of animations"
+        animation: Animation = self.ANIMATIONS[animation_index]
+        self.update_rate_ms: int = int(1000/self.decode_update_rate(animation_data[_UPDATE_RATE_OFFSET]))
+        animation_speed: float = self.decode_update_rate(animation_data[_ANIM_SPEED_OFFSET])
+        primary_color: tuple[int, int, int] = (animation_data[_PRIMARY_COLOR_OFFSET],
+                                               animation_data[_PRIMARY_COLOR_OFFSET + 1],
+                                               animation_data[_PRIMARY_COLOR_OFFSET + 2])
+        secondary_color: tuple[int, int, int] = (animation_data[_SECONDARY_COLOR_OFFSET],
+                                                 animation_data[_SECONDARY_COLOR_OFFSET + 1],
+                                                 animation_data[_SECONDARY_COLOR_OFFSET + 2])
+        self._animation = animation(self.update_rate_ms,
+                                    self._neopixels.buf,
+                                    animation_speed,
+                                    primary_color,
+                                    secondary_color,
+                                    )
+        # TODO: mutable data structure to store animation speed and colors?
+        # TODO: remove rgb ordering argument from phys class? (dummy can fix rgb order for animations too?)
 
+    def _parse_pixel_data(self, pixel_data: bytes | memoryview):
         if not self._use_compression:
-            assert len(data) == 1 + 3 * len(self._neopixels), "length of data must be 1 plus 3 times the number of pixels"
-            self._neopixels.buf = bytearray(memoryview(data)[1:])
+            assert len(pixel_data) == 3 * len(self._neopixels), "length of pixel data must be 3 times the number of pixels"
+            self._neopixels.buf = bytearray(pixel_data)
         else:
-            assert len(data) == 1 + len(self._neopixels), "length of data must be equal to the number of pixels plus 1"
-            self._uncompress_rgb_into(self._neopixels.buf, memoryview(data)[1:])
+            assert len(pixel_data) == len(self._neopixels), "length of pixel data must be equal to the number of pixels"
+            self._uncompress_rgb_into(self._neopixels.buf, pixel_data)
         self._neopixels.write()
 
     async def update(self):
