@@ -1,11 +1,11 @@
 import struct
-from controlpanel.shared.compatibility import Any
 try:
-    from typing import TYPE_CHECKING
+    from typing import TYPE_CHECKING, Any
     from enum import IntEnum
 except ImportError:
     TYPE_CHECKING = False
     IntEnum = object
+    Any = object()
 
 if TYPE_CHECKING:
     from enum import IntEnum as _IntEnum
@@ -67,7 +67,7 @@ def parse_poll_reply(data: bytes) -> dict[str, Any] | None:
         return None
 
     reply = dict(
-        IpAdress=".".join(map(str, struct.unpack("BBBB", data[10:14]))),
+        IpAddress=".".join(map(str, struct.unpack("BBBB", data[10:14]))),
         PortNumber=struct.unpack("<H", data[14:16])[0],
         VersInfo=struct.unpack("<H", data[16:18])[0],
         NetSwitch=data[18],

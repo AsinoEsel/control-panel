@@ -77,7 +77,7 @@ class ArtNet:
         for op_code in ARTNET_REPLY_PARSER.keys():
             self.register[op_code] = callback
 
-    def unscubscibe(self, op_code: OpCode) -> None:
+    def unsubscibe(self, op_code: OpCode) -> None:
         if op_code in self.register:
             del self.register[op_code]
 
