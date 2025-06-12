@@ -2,6 +2,8 @@ from typing import Any
 from types import ModuleType
 import time
 from threading import Thread
+import asyncio
+import inspect
 from collections import defaultdict
 from controlpanel.shared.base import Device
 from controlpanel.api.dummy import Sensor, Fixture
@@ -36,10 +38,26 @@ class EventManager:
         self._fixture_dict: dict[str, Fixture] = dict()
         self.ip = self._get_local_ip()
 
+        self.queue = asyncio.Queue()
+        self.subscribers: list[Subscriber] = []
+        self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
+        async_thread = Thread(target=self.run_async_loop, args=(), daemon=True)
+        async_thread.start()
+
         self.print_incoming_arttrigger_packets: bool = False
         self.print_incoming_artdmx_packets: bool = False
         self.print_incoming_artcmd_packets: bool = False
         self.print_incoming_artpollreply_packets: bool = False
+
+    def run_async_loop(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.create_task(self.dispatch_loop())
+        self.loop.run_forever()
+
+    async def dispatch_loop(self):
+        while True:
+            event = await self.queue.get()
+            await self.notify_subscribers(event)
 
     @staticmethod
     def _get_local_ip() -> str:
@@ -140,7 +158,6 @@ class EventManager:
                 except ValueError:
                     print(f"Received a packet with invalid op code {hex(op_code)}")
 
-
     def fire_event(self,
                    source: EventSourceType,
                    action: EventActionType,
@@ -152,26 +169,43 @@ class EventManager:
         event = Event(source, action, value, sender, ts)
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
         pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
+        asyncio.run_coroutine_threadsafe(self.queue.put(event), self.loop)
+
+    async def notify_subscribers(self, event: Event) -> None:
         for key_func in self.POSSIBLE_EVENT_TYPES:
             source, name, value = key_func(event.source, event.action, event.value)
-            listeners: list[Subscriber] = self._callback_register.get(Condition(source, name, value), [])
-            for listener in listeners:
-                if not listener.allow_parallelism:
-                    if listener.thread is not None and listener.thread.is_alive():
-                        print("Cannot start thread: old thread is still alive.")
-                        return
-                print(f"{"Event received: ":<16}{listener.callback.__module__.rsplit(".")[-1]}.{listener.callback.__name__}")
-                listener.thread = Thread(target=listener.callback, args=(event,), daemon=True)
-                listener.thread.start()
-                if listener.fire_once:
-                    listeners.remove(listener)
+            subscribers: list[Subscriber] = self._callback_register.get(Condition(source, name, value), [])
+            for subscriber in subscribers:
+                if not subscriber.allow_parallelism:
+                    if subscriber.task is not None and not subscriber.task.done():
+                        print(f"[EventManager] Skipping {subscriber.callback.__name__}: still running.")
+                        continue
+                print(f"{"Event received: ":<16}{subscriber.callback.__module__.rsplit(".")[-1]}.{subscriber.callback.__name__}")
+
+                if inspect.iscoroutinefunction(subscriber.callback):
+                    task = asyncio.create_task(subscriber.callback(event))
+                    subscriber.task = task
+                else:
+                    # Run sync function in a thread, wrap it in a future
+                    task = asyncio.to_thread(subscriber.callback, event)
+                    subscriber.task = asyncio.create_task(task)
+
+                if subscriber.fire_once:
+                    subscribers.remove(subscriber)
 
     def _receive(self, op_code: OpCode, ip: str, port: int, reply: Any) -> None:
         sender = (ip, port)
         ts = time.time()
         self._parse_op(sender, ts, op_code, reply)
 
-    def subscribe(self, callback: CallbackType, source: EventSourceType, action: EventActionType, value: EventValueType = None, *, fire_once=False, allow_parallelism: bool=False):
-        listener = Subscriber(callback, fire_once, allow_parallelism)
+    def subscribe(self,
+                  callback: CallbackType,
+                  source: EventSourceType,
+                  action: EventActionType,
+                  value: EventValueType = None,
+                  *,
+                  fire_once: bool = False,
+                  allow_parallelism: bool = False):
+        subscriber = Subscriber(callback, fire_once, allow_parallelism)
         condition = Condition(source, action, value)
-        self._callback_register[condition].append(listener)
+        self._callback_register[condition].append(subscriber)

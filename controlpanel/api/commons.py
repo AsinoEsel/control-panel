@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Callable
-from threading import Thread
+from typing import Callable, Optional, Coroutine, Any
+import asyncio
 import pygame as pg
 from collections.abc import Hashable
 from typing import Generic, TypeVar
@@ -36,7 +36,7 @@ class Condition:
     value: EventValueType
 
 
-CallbackType = Callable[[Event], None]
+CallbackType = Callable[[Event], Coroutine[Any, Any, None]]
 
 
 @dataclass
@@ -44,4 +44,4 @@ class Subscriber:
     callback: CallbackType
     fire_once: bool = False
     allow_parallelism: bool = False
-    thread: Thread | None = None
+    task: Optional[asyncio.Task] = None
