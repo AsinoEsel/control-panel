@@ -4,8 +4,10 @@ from controlpanel.upy import phys
 from controlpanel.upy.artnet import ArtNet, OpCode
 from controlpanel.shared.base import Device
 from controlpanel.upy.phys import Fixture, Sensor
-from controlpanel.shared.compatibility import Callable, Any
+from controlpanel.shared.compatibility import Callable
 import uasyncio as asyncio
+import time
+
 
 class ESP:
     def __init__(self):
@@ -80,7 +82,12 @@ class ESP:
         fixture.parse_dmx_data(data)
 
     def artpoll_callback(self, op_code: OpCode, ip: str, port: int, reply):
-        print("Received ArtPoll packet, sending ArtPollReply.")
+        print(f"Received ArtPoll packet, sending ArtPollReply @ {time.ticks_ms()}.")
+        asyncio.create_task(self.delayed_reply_to_artpoll(ip, port))
+
+    async def delayed_reply_to_artpoll(self, ip: str, port: int):
+        from random import randint
+        await asyncio.sleep_ms(randint(0, 1000))  # ArtNet 4 standard specifies a random delay of up to 1s
         self._artnet.send_poll_reply(ip=utils.get_local_ip(),
                                      port=self._artnet.port,
                                      address=(ip, port),

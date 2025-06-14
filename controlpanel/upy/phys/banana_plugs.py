@@ -45,4 +45,4 @@ class BananaPlugs(BaseBananaPlugs, Sensor):
                 new_connections.append((plug_idx, connected_socket_idx))
 
         for plug_idx, socket_idx in new_connections:
-            self.send_trigger(struct.pack('BB', plug_idx, socket_idx))
+            self._send_trigger_packet(struct.pack('BB', plug_idx, socket_idx))

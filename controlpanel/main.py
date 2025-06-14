@@ -56,8 +56,6 @@ def main():
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
 
-    Thread(target=artnet.listen, args=(None,), daemon=True).start()
-
     if args.load_scripts is not None:
         api.load_scripts(args.load_scripts)
 

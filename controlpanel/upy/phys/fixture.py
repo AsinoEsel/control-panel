@@ -3,6 +3,10 @@ from controlpanel.shared.compatibility import abstractmethod
 
 
 class Fixture(BaseFixture):
+    def __init__(self, _artnet, name: str, update_rate_hz, *, universe: int | None) -> None:
+        super().__init__(_artnet, name, universe=universe)
+        self.update_rate_ms: int = int(1000 / update_rate_hz) if update_rate_hz > 0.0 else 0
+
     @abstractmethod
     async def update(self) -> None:
         pass

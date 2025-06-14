@@ -24,5 +24,5 @@ class WaterFlowSensor(BaseWaterFlowSensor, Sensor):
     async def update(self) -> None:
         if not self._flow_counter:
             return
-        self.send_trigger(struct.pack("<I", self._flow_counter))
+        self._send_trigger_packet(struct.pack("<I", self._flow_counter))
         self._flow_counter = 0

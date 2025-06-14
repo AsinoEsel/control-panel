@@ -78,7 +78,7 @@ class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
         self._states: _States = _States([False for _ in range(count * 8)], self._send_dmx)
 
     def _send_dmx(self):
-        self._send_dmx_data(bytearray(self._states))
+        self._send_dmx_packet(bytearray(self._states))
 
     def __len__(self):
         return len(self._states)

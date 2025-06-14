@@ -28,7 +28,7 @@ class PWM(BasePWM, Fixture):
     def set_intensity(self, intensity: float) -> None:
         intensity = min(max(intensity, 0.0), 1.0)
         self._intensity = intensity
-        self._send_dmx_data(int(intensity * 255).to_bytes())
+        self._send_dmx_packet(int(intensity * 255).to_bytes())
 
     def blackout(self) -> None:
         self.set_intensity(0.0)

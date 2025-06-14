@@ -12,6 +12,6 @@ class Sensor(BaseSensor):
     async def update(self) -> None:
         pass
 
-    def send_trigger(self: Device, payload: bytes | bytearray) -> None:
+    def _send_trigger_packet(self: Device, payload: bytes | bytearray) -> None:
         data = self.name.encode('ascii') + b'\x00' + payload
         self._artnet.send_trigger(key=76, subkey=0, data=data)

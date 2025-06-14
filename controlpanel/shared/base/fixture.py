@@ -3,10 +3,16 @@ from controlpanel.shared.compatibility import abstractmethod
 
 
 class BaseFixture(Device):
-    def __init__(self, _artnet, name: str, update_rate_hz: float = 1.0, *, universe: int | None) -> None:
+    def __init__(self, _artnet, name: str, *, universe: int | None) -> None:
         super().__init__(_artnet, name)
-        self.update_rate_ms: int = int(1000 / update_rate_hz) if update_rate_hz > 0.0 else 0
         self._universe = self._universe_from_string(name) if universe is None else universe
+        self._seq: int = 1
+
+    def _increment_seq(self) -> None:
+        self._seq = self._seq % 255 + 1
+
+    def _decrement_seq(self) -> None:
+        self._seq = (self._seq - 2) % 255 + 1
 
     @property
     def universe(self) -> int:

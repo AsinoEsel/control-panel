@@ -37,7 +37,7 @@ class RotaryDial(BaseRotaryDial, Sensor):
         if self._count == 0:
             return
         self._count %= 10
-        self.send_trigger(self._count.to_bytes(1, "big"))
+        self._send_trigger_packet(self._count.to_bytes(1, "big"))
         self._count = 0
 
     def _increment_counter(self) -> None:

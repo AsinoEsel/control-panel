@@ -51,13 +51,26 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  *,
                  universe: int | None =None,
                  rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",
-                 use_compression: bool = False
+                 use_compression: bool = False,
+                 refresh_rate_hz: float = 30.0,
+                 correction_rate_hz: float | None = None,
                  ) -> None:
         BaseLEDStrip.__init__(self, rgb_order)
-        Fixture.__init__(self, _artnet, name, universe=universe)
+        Fixture.__init__(self, _artnet, name, universe=universe, correction_rate_hz=correction_rate_hz)
         self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_pixel_data)
         self._use_compression: bool = use_compression
+
         self._animation_index: int | None = None
+        self._animation_speed: float = 1.0
+        self._primary_animation_color: tuple[int, int, int] = (50, 0, 0)
+        self._secondary_animation_color: tuple[int, int, int] = (0, 50, 0)
+        self._refresh_rate_hz: float = refresh_rate_hz
+
+    def send_dmx(self) -> None:
+        if self._animation_index is None:
+            self._send_pixel_data()
+        else:
+            self._send_animation_data()
 
     def _parse_animation_name_or_index(self, animation_name_or_index: str | int | None) -> int | None:
         if isinstance(animation_name_or_index, str):
@@ -74,23 +87,29 @@ class LEDStrip(BaseLEDStrip, Fixture):
         else:
             return None
 
+    def _pack_animation_bytes(self) -> bytes:
+        return struct.pack(
+            'BBB' + 'BBB' + 'BBB',  # format: 3 single-byte ints + 2 RGB tuples
+            self._animation_index + 1 if self._animation_index is not None else 0,
+            self.encode_update_rate(self._refresh_rate_hz),
+            self.encode_update_rate(self._animation_speed),
+            *self._primary_animation_color,
+            *self._secondary_animation_color
+        )
+
     def set_animation(self,
                       animation_name_or_index: str | int | None,
-                      update_rate_hz: float,
+                      refresh_rate_hz: float,
                       animation_speed: float,
                       primary_color: tuple[int, int, int],
                       secondary_color: tuple[int, int, int],
                       ) -> None:
         self._animation_index = self._parse_animation_name_or_index(animation_name_or_index)
-        animation_data: bytes = struct.pack(
-            'BBB' + 'BBB' + 'BBB',  # format: 3 single-byte ints + 2 RGB tuples
-            self._animation_index + 1 if self._animation_index is not None else 0,
-            self.encode_update_rate(update_rate_hz),
-            self.encode_update_rate(animation_speed),
-            *primary_color,
-            *secondary_color
-        )
-        self._send_dmx_data(animation_data)
+        self._refresh_rate_hz = refresh_rate_hz
+        self._animation_speed = animation_speed
+        self._primary_animation_color = primary_color
+        self._secondary_animation_color = secondary_color
+        self._send_dmx_packet(self._pack_animation_bytes())
 
     @staticmethod
     def _compress_rgb(rgb: tuple[int, int, int]) -> int:
@@ -105,8 +124,11 @@ class LEDStrip(BaseLEDStrip, Fixture):
         return (r << 5) | (g << 2) | b
 
     def _send_pixel_data(self):
-        self._animation_index = 0
-        self._send_dmx_data(self._pack_pixel_bytes())
+        self._animation_index = None
+        self._send_dmx_packet(self._pack_pixel_bytes())
+
+    def _send_animation_data(self):
+        self._send_dmx_packet(self._pack_animation_bytes())
 
     def _reorder_rgb(self, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
         return rgb[self._rgb_mapping[0]], rgb[self._rgb_mapping[1]], rgb[self._rgb_mapping[2]]

@@ -38,4 +38,4 @@ class RFIDReader(BaseRFIDReader, Sensor):
     async def update(self) -> None:
         uid: bytes | None = self.get_uid()
         if uid != self._current_uid:
-            self.send_trigger(uid or b"\x00\x00\x00\x00")
+            self._send_trigger_packet(uid or b"\x00\x00\x00\x00")
