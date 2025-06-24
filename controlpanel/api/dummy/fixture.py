@@ -24,7 +24,6 @@ class Fixture(BaseFixture):
 
     async def _send_packets(self, seq: int, data: bytes | bytearray) -> None:
         for _ in range(3):
-            print(f"Sending packet with seq {seq}")
             self._artnet.send_dmx(self.universe, seq, data)
             await asyncio.sleep(0.5)
 
