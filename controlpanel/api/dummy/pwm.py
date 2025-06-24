@@ -1,3 +1,4 @@
+import asyncio
 from controlpanel.shared.base.pwm import BasePWM
 from .fixture import Fixture
 from artnet import ArtNet
@@ -7,11 +8,12 @@ class PWM(BasePWM, Fixture):
     def __init__(self,
                  _artnet: ArtNet,
                  name: str,
+                 _loop: asyncio.AbstractEventLoop,
                  *,
                  intensity: float = 1.0,
                  universe: int | None = None,
                  ) -> None:
-        Fixture.__init__(self, _artnet, name, universe=universe)
+        Fixture.__init__(self, _artnet, _loop, name, universe=universe)
         self._intensity: float = intensity
 
     @property

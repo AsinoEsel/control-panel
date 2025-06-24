@@ -73,11 +73,13 @@ class ESP:
             print("Received unknown command: {}".format(command))
 
     def artdmx_callback(self, op_code: OpCode, ip: str, port: int, reply):
-        universe = reply.get("Universe")
-        data = reply.get("Data")
-        fixture: Fixture = self.universes.get(universe)
-        if fixture is None:
+        universe: int = reply.get("Universe")
+        seq: int = reply.get("Sequence")
+        data: bytearray = reply.get("Data")
+        fixture: Fixture | None = self.universes.get(universe)
+        if fixture is None or fixture.should_ignore_seq(seq):
             return
+        fixture._seq = seq
         print(f"Parsing dmx data {data} for fixture {fixture.name}")
         fixture.parse_dmx_data(data)
 

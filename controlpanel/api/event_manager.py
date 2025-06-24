@@ -50,13 +50,12 @@ class EventManager:
         self._ip: str = self._get_local_ip()
 
         self._callback_register: dict[Condition, list[Subscriber]] = defaultdict(list)
-        self.queue = asyncio.Queue()
+        self._event_queue = asyncio.Queue()
+        self._reply_queue = asyncio.Queue()
         self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
-        async_thread = Thread(target=self._run_async_loop, args=(), daemon=True)
-        async_thread.start()
+        Thread(target=self._run_async_loop, args=(), daemon=True).start()
 
         self._artpoll_response_future: asyncio.Future | None = None
-        self._reply_queue = asyncio.Queue()
         self._esp_manifest: dict[str, ESP32] = dict()
 
         self.print_incoming_arttrigger_packets: bool = False
@@ -76,7 +75,7 @@ class EventManager:
 
     async def _dispatch_loop(self):
         while True:
-            event = await self.queue.get()
+            event = await self._event_queue.get()
             await self._notify_subscribers(event)
 
     async def _poll_and_collect(self, timeout=3.0) -> list[dict[str, Any]]:
@@ -167,7 +166,9 @@ class EventManager:
                 filtered_kwargs = {key: value for key, value in kwargs.items()
                                    if key in cls.__init__.__code__.co_varnames}
                 try:
-                    device = cls(_artnet=self._artnet, **filtered_kwargs)
+                    device = (
+                        cls(_artnet=self._artnet, _loop=self.loop, **filtered_kwargs) if issubclass(cls, Fixture) else cls(_artnet=self._artnet, **filtered_kwargs)
+                    )
                 except TypeError:
                     print(f"Type Error raised when instantiating {filtered_kwargs.get("name")}.")
                     raise
@@ -175,9 +176,6 @@ class EventManager:
 
         self._sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self._fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
-
-        for fixture in self._fixture_dict.values():
-            self.loop.create_task(fixture.send_dmx_loop())
 
     def _parse_trigger(self, reply: dict[str, Any], sender: tuple[str, int], ts: float):
         if self.print_incoming_arttrigger_packets:
@@ -196,11 +194,16 @@ class EventManager:
         sensor_data: bytes = data_fields[1]
 
         sensor: Sensor | None = self._sensor_dict.get(sensor_name)
-        if sensor is not None:
-            event_action, event_value = sensor.parse_trigger_payload(sensor_data)
-            self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)
-        else:
-            self.fire_event(sensor_name, "UnknownAction", sensor_data, sender=sender, ts=ts)
+        if sensor is None:
+            return
+
+        seq = reply.get("SubKey")
+        if sensor.should_ignore_seq(seq):
+            return
+        sensor._seq = seq
+
+        event_action, event_value = sensor.parse_trigger_payload(sensor_data)
+        self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)
 
     def _parse_dmx(self, reply: dict[str, Any], sender: tuple[str, int], ts: float) -> None:
         if not self.print_incoming_artdmx_packets:
@@ -249,7 +252,7 @@ class EventManager:
         event = Event(source, action, value, sender, ts)
         print(f"{"Firing event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
         pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
-        asyncio.run_coroutine_threadsafe(self.queue.put(event), self.loop)
+        asyncio.run_coroutine_threadsafe(self._event_queue.put(event), self.loop)
 
     async def _notify_subscribers(self, event: Event) -> None:
         for key_func in self.POSSIBLE_EVENT_TYPES:

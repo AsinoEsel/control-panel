@@ -1,3 +1,4 @@
+import asyncio
 from controlpanel.shared.base.shift_registers import BasePisoShiftRegister, BaseSipoShiftRegister
 from .sensor import Sensor
 from .fixture import Fixture
@@ -73,8 +74,14 @@ class PisoShiftRegister(BasePisoShiftRegister, Sensor):
 
 
 class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
-    def __init__(self, _artnet: ArtNet, name: str, count: int, *, universe: int | None = None):
-        Fixture.__init__(self, _artnet, name, universe=universe)
+    def __init__(self,
+                 _artnet: ArtNet,
+                 _loop: asyncio.AbstractEventLoop,
+                 name: str,
+                 count: int,
+                 *,
+                 universe: int | None = None):
+        Fixture.__init__(self, _artnet, _loop, name, universe=universe)
         self._states: _States = _States([False for _ in range(count * 8)], self._send_dmx)
 
     def _send_dmx(self):

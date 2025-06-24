@@ -1,3 +1,4 @@
+import asyncio
 from controlpanel.shared.base.led_strip import BaseLEDStrip
 from .fixture import Fixture
 from typing import SupportsIndex, Literal, Callable, Generator
@@ -46,6 +47,7 @@ class LEDStrip(BaseLEDStrip, Fixture):
 
     def __init__(self,
                  _artnet: ArtNet,
+                 _loop: asyncio.AbstractEventLoop,
                  name: str,
                  length: int,
                  *,
@@ -53,10 +55,9 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB",
                  use_compression: bool = False,
                  refresh_rate_hz: float = 30.0,
-                 correction_rate_hz: float | None = None,
                  ) -> None:
         BaseLEDStrip.__init__(self, rgb_order)
-        Fixture.__init__(self, _artnet, name, universe=universe, correction_rate_hz=correction_rate_hz)
+        Fixture.__init__(self, _artnet, _loop, name, universe=universe)
         self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_pixel_data)
         self._use_compression: bool = use_compression
 

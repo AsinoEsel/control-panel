@@ -4,19 +4,29 @@ from controlpanel.shared.base import BaseFixture
 
 
 class Fixture(BaseFixture):
-    def __init__(self, _artnet, name: str, *, universe: int | None, correction_rate_hz: float | None) -> None:
+    def __init__(self, _artnet, _loop, name: str, *, universe: int | None) -> None:
         super().__init__(_artnet, name, universe=universe)
-        self._correction_rate_hz: float = correction_rate_hz if correction_rate_hz is not None else 1.0
-        self._seq: int = 1
+        self._loop: asyncio.AbstractEventLoop = _loop
+        self._current_task: asyncio.Future | None = None
 
     def _send_dmx_packet(self, data: bytes | bytearray) -> None:
-        self._artnet.send_dmx(self.universe, self._seq, data)
         self._increment_seq()
 
-    async def send_dmx_loop(self) -> None:
-        while True:
-            self.send_dmx()
-            await asyncio.sleep(1 / self._correction_rate_hz)
+        # Cancel any ongoing packet send task
+        if self._current_task and not self._current_task.done():
+            self._current_task.cancel()
+
+        # Start a new packet send task
+        self._current_task = asyncio.run_coroutine_threadsafe(
+            self._send_packets(self._seq, data),
+            self._loop
+        )
+
+    async def _send_packets(self, seq: int, data: bytes | bytearray) -> None:
+        for _ in range(3):
+            print(f"Sending packet with seq {seq}")
+            self._artnet.send_dmx(self.universe, seq, data)
+            await asyncio.sleep(0.5)
 
     @abstractmethod
     def send_dmx(self) -> None:
