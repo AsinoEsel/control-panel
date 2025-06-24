@@ -592,7 +592,8 @@ def pack_poll_reply(ip: str,
     status1 = b"\xC0"
     esta_man = struct.pack("<H", 0x0000)
     short_name = short_name[:18].encode("ascii") + b"\x00" * (18 - len(short_name))
-    long_name = long_name[:64].encode("ascii") + b"\x00" * (64 - len(long_name))
+    long_name_encoded = long_name.encode("ascii")[:63]
+    long_name = long_name_encoded + b"\x00" * (64 - len(long_name_encoded))
     node_report = node_report[:64].encode("ascii") + b"\x00" * (64 - len(node_report))
     num_ports = struct.pack(">H", 1)
     port_types = b"\x80\x00\x00\x00"
