@@ -5,7 +5,7 @@ from controlpanel.shared.compatibility import const
 from time import ticks_ms, ticks_diff
 
 
-_DEBOUNCE_MS = const(50)
+_DEBOUNCE_MS = const(5)
 
 
 class Button(BaseButton, Sensor):
