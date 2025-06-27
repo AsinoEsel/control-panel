@@ -1,13 +1,15 @@
 import asyncio
 from abc import abstractmethod
+from controlpanel.api.dummy.esp32 import ESP32
 from controlpanel.shared.base import BaseFixture
 
 
 class Fixture(BaseFixture):
-    def __init__(self, _artnet, _loop, name: str, *, universe: int | None) -> None:
+    def __init__(self, _artnet, _loop, _esp, name: str, *, universe: int | None) -> None:
         super().__init__(_artnet, name, universe=universe)
         self._loop: asyncio.AbstractEventLoop = _loop
         self._current_task: asyncio.Future | None = None
+        self._esp: ESP32 = _esp
 
     def _send_dmx_packet(self, data: bytes | bytearray) -> None:
         self._increment_seq()
@@ -24,7 +26,7 @@ class Fixture(BaseFixture):
 
     async def _send_packets(self, seq: int, data: bytes | bytearray) -> None:
         for _ in range(3):
-            self._artnet.send_dmx(self.universe, seq, data)
+            self._artnet.send_dmx(self.universe, seq, data, ip_override=self._esp.ip)
             await asyncio.sleep(0.5)
 
     @abstractmethod

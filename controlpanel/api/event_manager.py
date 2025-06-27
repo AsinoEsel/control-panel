@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 from types import ModuleType
 import time
 from threading import Thread
@@ -56,7 +56,7 @@ class EventManager:
         Thread(target=self._run_async_loop, args=(), daemon=True).start()
 
         self._artpoll_response_future: asyncio.Future | None = None
-        self._esp_manifest: dict[str, ESP32] = dict()
+        self._nodes: list[ESP32] = list()
 
         self.print_incoming_arttrigger_packets: bool = False
         self.print_incoming_artdmx_packets: bool = False
@@ -95,24 +95,36 @@ class EventManager:
     def _handle_artpoll_replies(self, replies: list[dict[str, Any]]) -> None:
         collected_mac_addresses: set[str] = set()  # a set of all MAC addresses from nodes that replied to our poll
         for reply in replies:
-            name = reply['ShortName']
-            mac = reply['Mac']
+            name: str = reply['ShortName']
+            mac: str = reply['Mac']
             collected_mac_addresses.add(mac)
-            esp: ESP32 | None = self._esp_manifest.get(mac)
-            if esp is None:
-                print(f"New ESP '{name}' with mac {mac} has been registered")
-                self._esp_manifest[mac] = ESP32(name, mac, reply['NodeReport'])
+            if mac not in (esp.mac for esp in self._nodes):
+                if name not in (esp.name for esp in self._nodes):
+                    print(f"Unknown ESP '{name}' with mac {mac} has been registered")
+                    esp = ESP32(name)
+                    esp.mac = mac
+                    esp.ip = reply["IpAddress"]
+                    esp.status = reply['NodeReport']
+                    self._nodes.append(esp)
+                else:
+                    esp = next((esp for esp in self._nodes if esp.name == name))
+                    esp.mac = mac
+                    esp.ip = reply["IpAddress"]
+                    esp.status = reply['NodeReport']
+                    esp.subsequent_missed_replies = 0
+                    print(f"ESP '{name}' with mac {mac} connected for the first time")
             else:
+                esp = next((esp for esp in self._nodes if esp.mac == mac), None)
                 if esp.subsequent_missed_replies > 0:
                     print(f"ESP '{esp.name}' has regained the connection!")
                 esp.name = name
                 esp.ip = reply['IpAddress']
                 esp.status = reply['NodeReport']
                 esp.subsequent_missed_replies = 0
-        for mac, esp in self._esp_manifest.items():
-            if esp.status == "Lost connection!":
+        for esp in self._nodes:
+            if esp.status == "Lost connection!" or esp.status == "Never connected":
                 continue
-            if mac not in collected_mac_addresses:
+            if esp.mac not in collected_mac_addresses:
                 esp.subsequent_missed_replies += 1
                 print(f"ESP '{esp.name}' failed to reply! ({esp.subsequent_missed_replies} missed repl{"ies" if esp.subsequent_missed_replies > 1 else "y"})")
                 if esp.subsequent_missed_replies >= 3:
@@ -137,11 +149,11 @@ class EventManager:
         finally:
             s.close()
 
-    def instantiate_devices(self, libs: list[ModuleType], *, assign_sequential_universes: bool = False, start_universe: int = 5000) -> None:
+    def instantiate_devices(self, libs: Iterable[ModuleType], *, assign_sequential_universes: bool = False, start_universe: int = 5000) -> None:
         """Read the device_manifest.json and instantiate the devices into a dictionary.
         NOTE: assign_sequential_universes is not yet implemented in the upy package, rendering the feature effectively broken.
         """
-        def find_class_in_modules(modules: list[ModuleType], name: str) -> type | None:
+        def find_class_in_modules(modules: Iterable[ModuleType], name: str) -> type | None:
             for module in modules:
                 cls = getattr(module, name, None)
                 if cls and isinstance(cls, type):
@@ -153,6 +165,9 @@ class EventManager:
 
         universe = start_universe
         for esp_name, devices_data in manifest.items():
+            if not esp_name in (esp.name for esp in self._nodes):
+                self._nodes.append(ESP32(esp_name))
+            esp = next((esp for esp in self._nodes if esp.name == esp_name), None)
             for (cls_name, phys_kwargs, dummy_kwargs) in devices_data:
                 kwargs: dict = phys_kwargs | dummy_kwargs
                 cls = find_class_in_modules(libs, cls_name)
@@ -167,13 +182,16 @@ class EventManager:
                                    if key in cls.__init__.__code__.co_varnames}
                 try:
                     device = (
-                        cls(_artnet=self._artnet, _loop=self.loop, **filtered_kwargs) if issubclass(cls, Fixture) else cls(_artnet=self._artnet, **filtered_kwargs)
+                        cls(_artnet=self._artnet, _loop=self.loop, _esp=esp, **filtered_kwargs) if issubclass(cls, Fixture) else
+                        cls(_artnet=self._artnet, **filtered_kwargs)
                     )
                 except TypeError:
                     print(f"Type Error raised when instantiating {filtered_kwargs.get("name")}.")
                     raise
-                self.devices[device.name] = device
 
+                esp.devices[device.name] = device
+
+        self.devices = {name: device for esp in self._nodes for name, device in esp.devices.items()}
         self._sensor_dict = {name: device for name, device in self.devices.items() if isinstance(device, Sensor)}
         self._fixture_dict = {device.universe: device for device in self.devices.values() if isinstance(device, Fixture)}
 

@@ -5,6 +5,7 @@ from .fixture import Fixture
 from artnet import ArtNet
 from typing import Callable, SupportsIndex
 import random
+from .esp32 import ESP32
 
 
 class _States:
@@ -77,14 +78,15 @@ class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
     def __init__(self,
                  _artnet: ArtNet,
                  _loop: asyncio.AbstractEventLoop,
+                 _esp: ESP32,
                  name: str,
                  count: int,
                  *,
                  universe: int | None = None):
-        Fixture.__init__(self, _artnet, _loop, name, universe=universe)
-        self._states: _States = _States([False for _ in range(count * 8)], self._send_dmx)
+        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
+        self._states: _States = _States([False for _ in range(count * 8)], self.send_dmx)
 
-    def _send_dmx(self):
+    def send_dmx(self):
         self._send_dmx_packet(bytearray(self._states))
 
     def __len__(self):
@@ -113,7 +115,7 @@ class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
 
     def set_state(self, index: SupportsIndex, value: bool):
         self._states[index] = bool(value)
-        self._send_dmx()
+        self.send_dmx()
 
     def set_states(self, states: list[bool]):
         self.states = states
@@ -131,14 +133,14 @@ class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
         weight = min(1.0, max(0.0, weight))
         for i in range(len(self._states)):
             self._states[i] = random.random() < weight
-        self._send_dmx()
+        self.send_dmx()
 
     def whiteout(self) -> None:
         for i in range(len(self._states)):
             self._states[i] = True
-        self._send_dmx()
+        self.send_dmx()
 
     def blackout(self) -> None:
         for i in range(len(self._states)):
             self._states[i] = False
-        self._send_dmx()
+        self.send_dmx()

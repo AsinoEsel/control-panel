@@ -2,6 +2,7 @@ import asyncio
 from controlpanel.shared.base.pwm import BasePWM
 from .fixture import Fixture
 from artnet import ArtNet
+from .esp32 import ESP32
 
 
 class PWM(BasePWM, Fixture):
@@ -9,12 +10,16 @@ class PWM(BasePWM, Fixture):
                  _artnet: ArtNet,
                  name: str,
                  _loop: asyncio.AbstractEventLoop,
+                 _esp: ESP32,
                  *,
                  intensity: float = 1.0,
                  universe: int | None = None,
                  ) -> None:
-        Fixture.__init__(self, _artnet, _loop, name, universe=universe)
+        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
         self._intensity: float = intensity
+
+    def send_dmx(self) -> None:
+        self._send_dmx_packet(int(self._intensity * 255).to_bytes())
 
     @property
     def intensity(self) -> float:
@@ -30,7 +35,7 @@ class PWM(BasePWM, Fixture):
     def set_intensity(self, intensity: float) -> None:
         intensity = min(max(intensity, 0.0), 1.0)
         self._intensity = intensity
-        self._send_dmx_packet(int(intensity * 255).to_bytes())
+        self.send_dmx()
 
     def blackout(self) -> None:
         self.set_intensity(0.0)
