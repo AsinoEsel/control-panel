@@ -84,6 +84,7 @@ class ESP:
         fixture.parse_dmx_data(data)
 
     def artpoll_callback(self, op_code: OpCode, ip: str, port: int, reply):
+        self._artnet.address = (ip, port)
         print(f"Received ArtPoll packet, sending ArtPollReply @ {time.ticks_ms()}.")
         asyncio.create_task(self.delayed_reply_to_artpoll(ip, port))
 
