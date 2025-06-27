@@ -1,14 +1,23 @@
+import network
+import machine
+
+
 FALLBACK_AP_PASSWORD = "micropython"
 CREDENTIALS = "credentials.json"
 HOSTNAME_MANIFEST = "hostname_manifest.json"
+MAC_ADDRESS: str | None = None
 
 
 def get_mac_address() -> str:
+    if not MAC_ADDRESS:
+        raise Exception("MAC_ADDRESS has not yet been determined")
+    return MAC_ADDRESS
+
+
+def _set_mac_address(raw_mac_address: bytes) -> None:
     from binascii import hexlify
-    import network
-    sta_if = network.WLAN(network.STA_IF)
-    mac_raw = sta_if.config('mac')
-    return hexlify(mac_raw, ':').decode().upper()
+    global MAC_ADDRESS
+    MAC_ADDRESS = hexlify(raw_mac_address, ':').decode().upper()
 
 
 def set_hostname(hostname: str) -> None:
@@ -24,12 +33,22 @@ def get_hostname() -> str:
     return hostname or "ESP-" + mac_address.replace(":", "")[-4:]
 
 
-def create_ap(ssid, password, authmode):
-    import network
+def create_ap(config: dict[str, str | int] | None = None) -> network.WLAN:
+    print("Attempting to create AP...")
+    data = load_json(CREDENTIALS) or dict()
+    access_point_config = config or data.get("access_point", {})
+    ssid, password, authmode = (
+            access_point_config.get("ssid") or get_hostname(),
+            access_point_config.get("password") or FALLBACK_AP_PASSWORD,
+            access_point_config.get("authmode") or 3,
+    )
+
     ap_if = network.WLAN(network.AP_IF)
     ap_if.active(True)
     ap_if.config(essid=ssid, password=password, authmode=authmode)
-    print('Created an AP with SSID:', ssid)
+    _set_mac_address(ap_if.config("mac"))
+    print('Successfully created an AP with SSID:', ssid)
+    return ap_if
 
 
 def create_modules():
@@ -77,7 +96,6 @@ def create_modules():
 
 
 def get_local_ip() -> str:
-    import network
     sta_if = network.WLAN(network.STA_IF)
     if sta_if.active():
         return sta_if.ifconfig()[0]
@@ -87,33 +105,24 @@ def get_local_ip() -> str:
     return "0.0.0.0"
 
 
-def establish_wifi_connection(timeout_ms: int = 10_000):
-    import network
+def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
     import time
     import sys
 
-    data = load_json(CREDENTIALS) or dict()
+    sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(True)
+    _set_mac_address(sta_if.config("mac"))
+    dhcp_hostname = get_hostname()
+    sta_if.config(dhcp_hostname=dhcp_hostname)
 
+    data = load_json(CREDENTIALS) or dict()
     known_networks = data.get("known_networks", dict())
-    access_point = data.get("access_point")
-    if not access_point:
-        access_point = {"ssid": get_hostname(), "password": FALLBACK_AP_PASSWORD}
-    else:
-        access_point = {
-            "ssid": access_point["ssid"] or get_hostname(),
-            "password": access_point["password"] or FALLBACK_AP_PASSWORD,
-        }
 
     try:
         with open('last_connected_wifi.cfg') as file:
             last_connected_ssid = file.read()
     except OSError:
         last_connected_ssid = None
-
-    sta_if = network.WLAN(network.STA_IF)
-    sta_if.active(True)
-    dhcp_hostname = get_hostname()
-    sta_if.config(dhcp_hostname=dhcp_hostname)
 
     import select
     p = select.poll()
@@ -145,18 +154,38 @@ def establish_wifi_connection(timeout_ms: int = 10_000):
                 file.write(ssid)
             break
 
-    if not sta_if.isconnected():
-        create_ap(access_point["ssid"], access_point["password"], authmode=3)
+    if sta_if.isconnected():
+        return sta_if
+    else:
+        print("Failed to establish a WiFi connection.")
+        return None
 
 
-def establish_lan_connection():
-    import network
-    import machine
+def establish_lan_connection() -> network.LAN | None:
+    import time
+    print(f"Attempting to establish a LAN connection...")
+    try:
+        lan = network.LAN(mdc=machine.Pin(23),
+                          mdio=machine.Pin(18),
+                          phy_type=network.PHY_LAN8720,
+                          phy_addr=1,
+                          power=machine.Pin(16),
+                          id=0)
+    except OSError:
+        print("Failed to establish LAN connection: No Ethernet port present")
+        return None
 
-    lan = network.LAN(mdc=machine.Pin(23), mdio=machine.Pin(18), phy_type=network.PHY_LAN8720, phy_addr=1,
-                      power=machine.Pin(16), id=0)
+    _set_mac_address(lan.config("mac"))
     lan.active(True)
-    lan.ifconfig()
+    lan.config(dhcp_hostname=get_hostname())
+    start_connection_time = time.ticks_ms()
+    while not lan.isconnected() and time.ticks_diff(time.ticks_ms(), start_connection_time) <= 10000:
+        pass
+    if not lan.isconnected():
+        print("Failed to establish LAN connection: Connection timed out. (not plugged in?)")
+        return None
+    print(f"Successfully connected to the LAN network as {get_hostname()} with IP {lan.ifconfig()[0]}")
+    return lan
 
 
 # Print iterations progress
