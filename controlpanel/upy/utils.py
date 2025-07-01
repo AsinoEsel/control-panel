@@ -6,6 +6,7 @@ FALLBACK_AP_PASSWORD = "micropython"
 CREDENTIALS = "credentials.json"
 HOSTNAME_MANIFEST = "hostname_manifest.json"
 MAC_ADDRESS: str | None = None
+LOCAL_IP: str | None = None
 
 
 def get_mac_address() -> str:
@@ -47,6 +48,7 @@ def create_ap(config: dict[str, str | int] | None = None) -> network.WLAN:
     ap_if.active(True)
     ap_if.config(essid=ssid, password=password, authmode=authmode)
     _set_mac_address(ap_if.config("mac"))
+    _set_local_ip(ap_if.ifconfig()[0])
     print('Successfully created an AP with SSID:', ssid)
     return ap_if
 
@@ -95,14 +97,13 @@ def create_modules():
         print(f"Created the following modules:\n- {"\n- ".join(modules)}")
 
 
+def _set_local_ip(ip: str) -> None:
+    global LOCAL_IP
+    LOCAL_IP = ip
+
+
 def get_local_ip() -> str:
-    sta_if = network.WLAN(network.STA_IF)
-    if sta_if.active():
-        return sta_if.ifconfig()[0]
-    ap_if = network.WLAN(network.AP_IF)
-    if ap_if.active():
-        return ap_if.ifconfig()[0]
-    return "0.0.0.0"
+    return LOCAL_IP
 
 
 def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
@@ -155,6 +156,7 @@ def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
             break
 
     if sta_if.isconnected():
+        _set_local_ip(sta_if.ifconfig()[0])
         return sta_if
     else:
         print("Failed to establish a WiFi connection.")
@@ -184,6 +186,7 @@ def establish_lan_connection() -> network.LAN | None:
     if not lan.isconnected():
         print("Failed to establish LAN connection: Connection timed out. (not plugged in?)")
         return None
+    _set_local_ip(lan.ifconfig()[0])
     print(f"Successfully connected to the LAN network as {get_hostname()} with IP {lan.ifconfig()[0]}")
     return lan
 
