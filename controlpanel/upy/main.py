@@ -19,6 +19,7 @@ class ESP:
         self.commands: dict[str, Callable] = {
             "RESET": reset,
             "STOP": self._stop_updating_devices,
+            "PING": lambda: self._artnet.send_command(b"RETURN_PING"),
         }
 
         self.devices: dict[str, Device] = self._instantiate_devices()
@@ -68,6 +69,7 @@ class ESP:
         command = reply.get("Command")
         func = self.commands.get(command)
         if func:
+            print(f"Received command {command}")
             func()
         else:
             print("Received unknown command: {}".format(command))

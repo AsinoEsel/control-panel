@@ -13,6 +13,7 @@ import importlib.resources
 import json
 import io
 from controlpanel.api.dummy.esp32 import ESP32
+from anaconsole import console_command
 from .commons import (
     Event,
     Condition,
@@ -38,6 +39,7 @@ class EventManager:
         lambda source, name, value: (None, None, None),
     ]
     DEVICE_MANIFEST_FILENAME = 'device_manifest.json'
+    ARTPOLL_INTERVAL: int = 10
 
     def __init__(self, artnet: ArtNet):
         self._artnet: ArtNet = artnet
@@ -52,6 +54,7 @@ class EventManager:
         self._callback_register: dict[Condition, list[Subscriber]] = defaultdict(list)
         self._event_queue = asyncio.Queue()
         self._reply_queue = asyncio.Queue()
+        self._ping_queue = asyncio.Queue()
         self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
         Thread(target=self._run_async_loop, args=(), daemon=True).start()
 
@@ -63,14 +66,58 @@ class EventManager:
         self.print_incoming_artcmd_packets: bool = False
         self.print_incoming_artpollreply_packets: bool = False
 
+    @console_command
+    def ping(self, name_or_ip: str, pings: int = 4, timeout: float = 1.0) -> None:
+        ip = self._get_ip_from_name_or_ip(name_or_ip)
+        if not ip:
+            return
+        self.loop.create_task(self._ping(ip, pings, timeout))
+
+    @staticmethod
+    def median(values: Iterable[float]) -> float:
+        nums = sorted(values)
+        n = len(nums)
+        if n == 0:
+            raise ValueError("Empty input")
+        mid = n // 2
+        return nums[mid] if n % 2 else (nums[mid - 1] + nums[mid]) / 2
+
+    async def _ping(self, ip: str, pings: int, timeout: float) -> None:
+        print(f"Sending {pings} pings to {ip}...")
+        reply_times: list[float] = []
+        timeouts: int = 0
+        for _ in range(pings):
+            start = time.perf_counter()
+            self._artnet.send_command(b"PING", ip_override=ip)
+            try:
+                while True:
+                    cmd = await asyncio.wait_for(self._ping_queue.get(), timeout=timeout)
+                    # print(f"Got reply from {reply.get("IpAddress")}")
+                    stop = time.perf_counter()
+                    reply_times.append(stop - start)
+                    # print(f"Ping round trip time: {1000*(stop-start):.1f}ms")
+                    break
+            except asyncio.TimeoutError:
+                reply_times.append(float("inf"))
+                timeouts += 1
+                if timeouts > len(reply_times) // 2 and len(reply_times) > 5:
+                    print(f"Timed out {timeouts} / {len(reply_times)} times. Aborting.")
+                    return
+            await asyncio.sleep(0.01)
+        print(f"Received {len(list(r for r in reply_times if r != float("inf")))}/{len(reply_times)} pings. "
+              f"Average/Median/Min/Max response times: "
+              f"{1000 * sum(reply_times) / len(reply_times):.0f}/"
+              f"{1000 * self.median(reply_times):.0f}/"
+              f"{1000 * min(reply_times):.0f}/"
+              f"{1000 * max(reply_times):.0f}ms".replace("inf", "∞"))
+
     @property
     def ip(self) -> str:
         return self._ip
 
     def _run_async_loop(self):
-        asyncio.set_event_loop(self.loop)
         self.loop.create_task(self._dispatch_loop())
-        self.loop.create_task(self._poll_loop())
+        self.loop.create_task(self._poll_loop(self.ARTPOLL_INTERVAL))
         self.loop.run_forever()
 
     async def _dispatch_loop(self):
@@ -79,17 +126,18 @@ class EventManager:
             await self._notify_subscribers(event)
 
     async def _poll_and_collect(self, timeout=3.0) -> list[dict[str, Any]]:
-        # print("Sending poll...")
         replies: list[dict[str, Any]] = []
+        end_time = asyncio.get_running_loop().time() + timeout
         self._artnet.send_poll()
-        try:
-            while True:
-                reply: dict[str, Any] = await asyncio.wait_for(self._reply_queue.get(), timeout=timeout)
-                # print(f"Got reply from {reply.get("IpAddress")}")
+        while True:
+            remaining = end_time - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                break
+            try:
+                reply: dict[str, Any] = await asyncio.wait_for(self._reply_queue.get(), timeout=min(remaining, 0.1))
                 replies.append(reply)
-        except asyncio.TimeoutError:
-            # print("Timed out.")
-            pass
+            except asyncio.TimeoutError:
+                pass
         return replies
 
     def _handle_artpoll_replies(self, replies: list[dict[str, Any]]) -> None:
@@ -131,11 +179,15 @@ class EventManager:
                     print(f"ESP '{esp.name}' lost the connection!")
                     esp.status = 'Lost connection!'
 
-    async def _poll_loop(self):
+    async def _poll_loop(self, poll_interval_seconds: int = 10):
         while True:
-            replies = await self._poll_and_collect()
+            self._artnet.send_poll()
+            replies = []
+            while not self._reply_queue.empty():
+                replies.append(self._reply_queue.get_nowait())
             self._handle_artpoll_replies(replies)
-            await asyncio.sleep(10.0)
+            for _ in range(poll_interval_seconds):
+                await asyncio.sleep(1)
 
     @staticmethod
     def _get_local_ip() -> str:
@@ -144,7 +196,7 @@ class EventManager:
         try:
             s.connect(('10.255.255.255', 1))
             return s.getsockname()[0]
-        except Exception:
+        except Exception:  # TODO: what exception can be thrown here?
             return '127.0.0.1'
         finally:
             s.close()
@@ -242,6 +294,8 @@ class EventManager:
     def _parse_artcmd(self, reply: dict[str, Any], sender: tuple[str, int], ts: float) -> None:
         if self.print_incoming_artcmd_packets:
             print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
+        if reply.get("Command") == "RETURN_PING":
+            self.loop.call_soon_threadsafe(self._ping_queue.put_nowait, reply.get("Command"))
 
     def _parse_op(self, sender: tuple[str, int], ts: float, op_code: OpCode, reply: dict[str, Any]) -> None:
         match op_code:
@@ -258,6 +312,32 @@ class EventManager:
                     print(f"Received an {OpCode(op_code).name} packet from {sender[0]}")
                 except ValueError:
                     print(f"Received a packet with invalid op code {hex(op_code)}")
+
+    def _get_ip_from_name_or_ip(self, name_or_ip: str) -> str | None:
+        from ipaddress import IPv4Address
+        try:
+            IPv4Address(name_or_ip)
+            return name_or_ip
+        except ValueError:
+            try:
+                ip: str | None = next((esp for esp in self._nodes if esp.name == name_or_ip)).ip
+                if not ip:
+                    print(f"Node '{name_or_ip}' has no registered IP address.")
+                    return None
+                return ip
+            except StopIteration:
+                print(f"{name_or_ip} is neither a valid IPv4 address nor the name of a registered ArtNet node")
+                return None
+
+    @console_command(is_cheat_protected=True)
+    def send_artcmd(self, cmd: str, name_or_ip: str | None = None) -> None:
+        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
+        ip = self._get_ip_from_name_or_ip(name_or_ip) if name_or_ip else "255.255.255.255"
+        self._artnet.send_command(cmd.encode("ascii"), ip_override=ip)
+        if name_or_ip:
+            print(f"Sent command '{cmd}' to '{name_or_ip}'.")
+        else:
+            print(f"Broadcast command '{cmd}' to all nodes in network.")
 
     def fire_event(self,
                    source: EventSourceType,
