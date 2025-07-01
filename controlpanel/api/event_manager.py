@@ -40,7 +40,7 @@ class EventManager:
         lambda source, name, value: (None, None, None),
     ]
     DEVICE_MANIFEST_FILENAME = 'device_manifest.json'
-    ARTPOLL_INTERVAL: int = 10
+    ARTPOLL_INTERVAL: int = 60
 
     def __init__(self, artnet: ArtNet):
         self._artnet: ArtNet = artnet
@@ -93,11 +93,9 @@ class EventManager:
             self._artnet.send_command(b"PING", ip_override=ip)
             try:
                 while True:
-                    cmd = await asyncio.wait_for(self._ping_queue.get(), timeout=timeout)
-                    # print(f"Got reply from {reply.get("IpAddress")}")
+                    await asyncio.wait_for(self._ping_queue.get(), timeout=timeout)
                     stop = time.perf_counter()
                     reply_times.append(stop - start)
-                    # print(f"Ping round trip time: {1000*(stop-start):.1f}ms")
                     break
             except asyncio.TimeoutError:
                 reply_times.append(float("inf"))
@@ -183,13 +181,16 @@ class EventManager:
 
     async def _poll_loop(self, poll_interval_seconds: int = 10):
         while True:
-            self._artnet.send_poll()
-            replies = []
-            while not self._reply_queue.empty():
-                replies.append(self._reply_queue.get_nowait())
-            self._handle_artpoll_replies(replies)
+            await self._poll()
             for _ in range(poll_interval_seconds):
                 await asyncio.sleep(1)
+
+    async def _poll(self):
+        self._artnet.send_poll()
+        replies: list[dict[str, Any]] = []
+        while not self._reply_queue.empty():
+            replies.append(self._reply_queue.get_nowait())
+        self._handle_artpoll_replies(replies)
 
     @staticmethod
     def _get_local_ip() -> str:
@@ -357,8 +358,13 @@ class EventManager:
         self._artnet.send_trigger(key, subkey, bytearray(data.encode("ASCII")))
 
     @console_command(is_cheat_protected=True)
-    def send_artpoll(self):
-        self._artnet.send_poll()
+    def send_artpoll(self, name_or_ip: str | None = None) -> None:
+        ip = self._get_ip_from_name_or_ip(name_or_ip) if name_or_ip else "255.255.255.255"
+        self._artnet.send_poll(ip_override=ip)
+
+    @console_command(is_cheat_protected=True)
+    def poll(self):
+        self.loop.create_task(self._poll())
 
     @console_command(is_cheat_protected=True)
     def set_dmx_attr(self, device_name: str, attribute: str, value):
