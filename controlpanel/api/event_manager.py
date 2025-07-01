@@ -14,6 +14,7 @@ import json
 import io
 from controlpanel.api.dummy.esp32 import ESP32
 from anaconsole import console_command
+from controlpanel import api
 from .commons import (
     Event,
     Condition,
@@ -65,6 +66,7 @@ class EventManager:
         self.print_incoming_artdmx_packets: bool = False
         self.print_incoming_artcmd_packets: bool = False
         self.print_incoming_artpollreply_packets: bool = False
+        self._accept_own_broadcast: bool = False
 
     @console_command
     def ping(self, name_or_ip: str, pings: int = 4, timeout: float = 1.0) -> None:
@@ -309,7 +311,8 @@ class EventManager:
                 self._parse_artpollreply(reply, sender, ts)
             case _:
                 try:
-                    print(f"Received an {OpCode(op_code).name} packet from {sender[0]}")
+                    print(f"Received an {OpCode(op_code).name} packet from "
+                          f"{sender[0] if sender[0] != self._ip else "this device"}")
                 except ValueError:
                     print(f"Received a packet with invalid op code {hex(op_code)}")
 
@@ -339,6 +342,50 @@ class EventManager:
         else:
             print(f"Broadcast command '{cmd}' to all nodes in network.")
 
+    @console_command(is_cheat_protected=True)
+    def send_artdmx(self, device_name_or_universe: str | int, *values: int) -> None:
+        """Sends any number of integer values (0-255) to the universe of the given device"""
+        data = bytes(values)
+        if type(device_name_or_universe) is str:
+            api.send_dmx(device_name_or_universe, data)
+        elif type(device_name_or_universe) is int and 0 <= device_name_or_universe < 2**15:
+            self._artnet.send_dmx(device_name_or_universe, 0, bytearray(data))
+
+    @console_command(is_cheat_protected=True)
+    def send_arttrigger(self, key: int, subkey: int, data: str):
+        """Sends the given ASCII string as an ArtCommand packet via Artnet"""
+        self._artnet.send_trigger(key, subkey, bytearray(data.encode("ASCII")))
+
+    @console_command(is_cheat_protected=True)
+    def send_artpoll(self):
+        self._artnet.send_poll()
+
+    @console_command(is_cheat_protected=True)
+    def set_dmx_attr(self, device_name: str, attribute: str, value):
+        """Sets any attribute of any DMX device to any value"""
+        setattr(api.dmx.devices.get(device_name), attribute, value)
+
+    @console_command("arttrigger_debug")
+    def set_enable_print_arttrigger_packets(self, enable: int):
+        self.print_incoming_arttrigger_packets = bool(enable)
+
+    @console_command("artdmx_debug")
+    def set_enable_print_artdmx_packets(self, enable: int):
+        self.print_incoming_artdmx_packets = bool(enable)
+
+    @console_command("artcmd_debug")
+    def set_enable_print_artcmd_packets(self, enable: int):
+        self.print_incoming_artcmd_packets = bool(enable)
+
+    @console_command("artpollreply_debug")
+    def set_enable_print_artpollreply_packets(self, enable: int):
+        self.print_incoming_artpollreply_packets = bool(enable)
+
+    @console_command("accept_own_broadcast")
+    def set_enable_accept_own_broadcast(self, enable: int):
+        self._accept_own_broadcast = bool(enable)
+
+    @console_command(is_cheat_protected=True)
     def fire_event(self,
                    source: EventSourceType,
                    action: EventActionType,
@@ -381,7 +428,7 @@ class EventManager:
                     subscribers.remove(subscriber)
 
     def _receive(self, op_code: OpCode, ip: str, port: int, reply: Any) -> None:
-        if ip == self._ip:
+        if ip == self._ip and not self._accept_own_broadcast:
             return  # ignore packet if it's ours
         sender = (ip, port)
         ts = time.time()
