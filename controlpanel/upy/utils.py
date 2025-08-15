@@ -106,6 +106,14 @@ def get_local_ip() -> str:
     return LOCAL_IP
 
 
+def establish_connection() -> network.LAN | network.WLAN:
+    if lan := establish_lan_connection():
+        return lan
+    if sta_if := establish_wifi_connection():
+        return sta_if
+    return create_ap()
+
+
 def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
     import time
     import sys
@@ -163,7 +171,7 @@ def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
         return None
 
 
-def establish_lan_connection() -> network.LAN | None:
+def establish_lan_connection(timeout_seconds: float = 5.0) -> network.LAN | None:
     import time
     print(f"Attempting to establish a LAN connection...")
     try:
@@ -181,7 +189,7 @@ def establish_lan_connection() -> network.LAN | None:
     lan.active(True)
     lan.config(dhcp_hostname=get_hostname())
     start_connection_time = time.ticks_ms()
-    while not lan.isconnected() and time.ticks_diff(time.ticks_ms(), start_connection_time) <= 10000:
+    while not lan.isconnected() and time.ticks_diff(time.ticks_ms(), start_connection_time) <= int(timeout_seconds*1000):
         pass
     if not lan.isconnected():
         print("Failed to establish LAN connection: Connection timed out. (not plugged in?)")
