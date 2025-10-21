@@ -41,7 +41,7 @@ def main():
     # needs to be called after Services.event_manager has been set
     event_manager.instantiate_devices([api.dummy,])
 
-    game_manager = GameManager(resolution=(args.width, args.height),
+    game_manager = GameManager(resolution=(args.width, args.height) if not args.no_gui else None,
                                dev_args=unknown_args,
                                is_fullscreen=args.fullscreen,
                                use_shaders=args.shaders,
