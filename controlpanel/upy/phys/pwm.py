@@ -5,16 +5,18 @@ from .fixture import Fixture
 
 
 class PWM(BasePWM, Fixture):
-    def __init__(self,
-                 _artnet: ArtNet,
-                 name: str,
-                 pin: int,
-                 *,
-                 universe: int | None = None,
-                 intensity: float = 0.5,
-                 freq: int = 512,
-                 ) -> None:
-        Fixture.__init__(self, _artnet, name, universe=universe)
+    def __init__(
+            self,
+            _artnet: ArtNet,
+            name: str,
+            pin: int,
+            *,
+            update_rate_hz: int = BasePWM.DEFAULT_UPDATE_RATE_HZ,
+            universe: int | None = None,
+            intensity: float = 0.5,
+            freq: int = 512,
+        ) -> None:
+        Fixture.__init__(self, _artnet, name, update_rate_hz, universe=universe)
         self.pin = machine.Pin(pin)
         self.pwm = machine.PWM(self.pin)
         self.pwm.freq(freq)
