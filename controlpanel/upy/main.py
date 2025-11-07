@@ -40,11 +40,13 @@ class ESP:
         if not manifest:
             return dict()
         devices: dict[str, Device] = dict()
-        device_list: list = manifest.get(self._name, list())
-        for device_data in device_list:
-            classname, kwargs, _ = device_data
-            cls: type = getattr(phys, classname)
-            device: Device = cls(self._artnet, **kwargs)
+        node_config: dict[str, dict] = manifest.get(self._name)
+        if not node_config or not node_config.get("devices"):
+            return dict()
+        print(node_config["devices"])
+        for device_name, (class_name, kwargs, _) in node_config["devices"].items():
+            cls: type = getattr(phys, class_name)
+            device: Device = cls(self._artnet, device_name, **kwargs)
             devices[device.name] = device
         return devices
 

@@ -1,4 +1,4 @@
-from typing import Any, Iterable
+from typing import Any, Iterable, TypedDict, Required, NotRequired
 from types import ModuleType
 import time
 from threading import Thread
@@ -26,6 +26,23 @@ from .commons import (
     KEY_CONTROL_PANEL_PROTOCOL,
     CONTROL_PANEL_EVENT,
 )
+
+
+class SPIConfig(TypedDict):
+    clock: Required[int]
+    miso: NotRequired[int]
+    mosi: NotRequired[int]
+
+
+class I2CConfig(TypedDict, total=True):
+    scl: int
+    sda: int
+
+
+class NodeConfig(TypedDict):
+    SPI: SPIConfig
+    I2C: I2CConfig
+    devices: dict[str, tuple[str, dict[str, float | int | str], dict[str, float | int | str]]]
 
 
 class EventManager:
@@ -216,18 +233,18 @@ class EventManager:
             return None
 
         with importlib.resources.open_binary("controlpanel.shared", self.DEVICE_MANIFEST_FILENAME) as file:
-            manifest = json.load(io.BytesIO(file.read()))
+            manifest: dict[str, NodeConfig] = json.load(io.BytesIO(file.read()))
 
         universe = start_universe
-        for esp_name, devices_data in manifest.items():
-            if not esp_name in (esp.name for esp in self._nodes):
-                self._nodes.append(ESP32(esp_name))
-            esp = next((esp for esp in self._nodes if esp.name == esp_name), None)
-            for (cls_name, phys_kwargs, dummy_kwargs) in devices_data:
-                kwargs: dict = phys_kwargs | dummy_kwargs
-                cls = find_class_in_modules(libs, cls_name)
+        for node_name, node_config in manifest.items():
+            if not node_name in (node.name for node in self._nodes):
+                self._nodes.append(ESP32(node_name))
+            esp = next((esp for esp in self._nodes if esp.name == node_name), None)
+            for device_name, (class_name, phys_kwargs, dummy_kwargs) in node_config["devices"].items():
+                kwargs = phys_kwargs | dummy_kwargs
+                cls = find_class_in_modules(libs, class_name)
                 if cls is None:
-                    print(f"Failed to find {cls_name} in any of these modules: {[lib.__name__ for lib in libs]}")
+                    print(f"Failed to find {class_name} in any of these modules: {[lib.__name__ for lib in libs]}")
                     continue
                 if issubclass(cls, Fixture) and assign_sequential_universes and kwargs.get("universe") is None:
                     kwargs["universe"] = universe
@@ -237,8 +254,8 @@ class EventManager:
                                    if key in cls.__init__.__code__.co_varnames}
                 try:
                     device = (
-                        cls(_artnet=self._artnet, _loop=self.loop, _esp=esp, **filtered_kwargs) if issubclass(cls, Fixture) else
-                        cls(_artnet=self._artnet, **filtered_kwargs)
+                        cls(_artnet=self._artnet, _loop=self.loop, _esp=esp, name=device_name, **filtered_kwargs) if issubclass(cls, Fixture) else
+                        cls(_artnet=self._artnet, name=device_name, **filtered_kwargs)
                     )
                 except TypeError:
                     print(f"Type Error raised when instantiating {filtered_kwargs.get("name")}.")

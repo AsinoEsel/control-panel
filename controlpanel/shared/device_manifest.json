@@ -1,55 +1,104 @@
 {
-  "bvgpanel": [
-    ["SipoShiftRegister", {"name": "BVGPanel", "count": 8, "pin_clock": 19, "pin_latch": 21, "pin_serialout": 4}, {}],
-    ["LEDStrip", {"name": "BatterySlotBVG-LEDStrip", "pin": 22, "length": 30}, {}],
-    ["Button", {"name": "BatteryButton", "pin": 14}, {}],
-    ["Button", {"name": "AuthorizationKeyBVG", "pin": 12}, {}]
-  ],
-  "chronometer": [
-    ["PWM", {"name": "Chronometer", "pin": 4}, {}],
-    ["LEDStrip", {"name": "ChronometerLampen", "pin": 5, "length": 3}, {}],
-    ["Button", {"name": "BigRedButton", "pin": 32}, {}]
-  ],
-  "kommunikation": [
-    ["Button", {"name": "ButtonRed", "pin": 14, "invert": true}, {}],
-    ["Button", {"name": "ButtonGreen", "pin": 13}, {}],
-    ["Button", {"name": "ButtonBlue", "pin": 12}, {}],
-    ["Button", {"name": "ButtonPower", "pin": 4}, {}]
-  ],
-  "kuehlwasser": [
-    ["LEDStrip", {"name": "StatusLEDs", "pin": 14, "length": 3}, {}],
-    ["PWM", {"name": "WarnLED", "pin": 2}, {}],
-    ["PWM", {"name": "WaterPressure", "pin": 13}, {}],
-    ["PWM", {"name": "Temperature", "pin": 12}, {}],
-    ["WaterFlowSensor", {"name": "WaterFlowSensor", "pin": 4}, {}]
-  ],
-  "ladestation": [
-    ["PWM", {"name": "Voltmeter1", "pin": 2}, {}],
-    ["PWM", {"name": "Voltmeter2", "pin": 4}, {}],
-    ["PWM", {"name": "Voltmeter3", "pin": 16}, {}],
-    ["PWM", {"name": "Voltmeter4", "pin": 17}, {}],
-    ["PWM", {"name": "Batterie", "pin": 19}, {}],
-    ["LEDStrip", {"name": "BatterySlotLadestation-LEDStrip", "pin": 13, "length": 30}, {}],
-    ["Button", {"name": "AuthorizationKeyCharge", "pin": 15}, {}],
-    ["Button", {"name": "BatteryButtonLadestation", "pin": 21, "invert": true}, {}],
-    ["Button", {"name": "PhiSwitch", "pin": 5, "invert": true}, {}]
-  ],
-  "mainframe": [
-    ["PisoShiftRegister", {"name": "MainframeKeys", "count": 30, "pin_clock": 15, "pin_latch": 4, "pin_serialin": 17}, {}],
-    ["LEDStrip", {"name": "MainframeLEDs", "pin": 16, "length": 240, "use_compression": true, "rgb_order": "GRB"}, {}]
-  ],
-  "pilz": [
-    ["PWM", {"name": "UVStrobe", "pin": 21, "intensity": 1.0}, {}],
-    ["LEDStrip", {"name": "PilzLEDs", "pin": 16, "length": 5, "update_rate_hz": 10, "rgb_order": "GRB"}, {}],
-    ["BananaPlugs", {"name": "BananaPlugs", "plug_pins": [33, 2, 32, 4], "socket_pins": [15, 13, 12, 14, 27, 26]}, {}]
-  ],
-  "waehlscheibe": [
-    ["SipoShiftRegister", {"name": "RedYellowLEDs", "count": 1, "pin_clock": 22, "pin_latch": 21, "pin_serialout": 4}, {}],
-    ["SevenSegmentDisplay", {"name": "SevenSegmentDisplay", "hardware_spi": 1, "digit_count": 16, "pin_chip_select": 19}, {}],
-    ["RotaryDial", {"name": "RotaryDial", "pin_counter": 12, "pin_reset": 23}, {}],
-    ["Button", {"name": "PowerSwitch", "pin": 32}, {}],
-    ["Button", {"name": "DialReset", "pin": 5}, {}],
-    ["Button", {"name": "TestHebel", "pin": 16}, {}],
-    ["LEDStrip", {"name": "StatusLED", "pin": 33, "length": 1}, {}]
-  ]
+  "bvgpanel": {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "DischargePort_LEDStrip": ["LEDStrip", {"pin": 22, "length": 30}, {}],
+      "BatteryButton": ["Button", {"pin": 14}, {}],
+      "AuthorizationKeyBVG": ["Button", {"pin": 12}, {}]
+    }
+  },
+  "chronometer":
+  {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "Chronometer": ["PWM", {"pin": 4}, {}],
+      "ChronometerLampen": ["LEDStrip", {"pin": 5, "length": 3}, {}],
+      "BigRedButton": ["Button", {"pin": 32}, {}]
+    }
+  },
+  "kommunikation": {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "ButtonRed": ["Button", {"pin": 14}, {}],
+      "ButtonGreen": ["Button", {"pin": 13}, {}],
+      "ButtonBlue": ["Button", {"pin": 12}, {}],
+      "ButtonPower": ["Button", {"pin": 4}, {}]
+    }
+  },
+  "kuehlwasser": {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "StatusLEDs": ["LEDStrip", {"pin": 14, "length": 3}, {}],
+      "WarnLED": ["PWM", {"pin": 2, "update_rate_hz": 1}, {}],
+      "WaterPressure": ["PWM", {"pin": 13}, {}],
+      "Temperature": ["PWM", {"pin": 12}, {}],
+      "WaterFlowSensor": ["WaterFlowSensor", {"pin": 4}, {}]
+    }
+  },
+  "ladestation":
+  {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "Voltmeter1": ["PWM", {"pin": 2}, {}],
+      "Voltmeter2": ["PWM", {"pin": 4}, {}],
+      "Voltmeter3": ["PWM", {"pin": 16}, {}],
+      "Voltmeter4": ["PWM", {"pin": 17}, {}],
+      "Batterie": ["PWM", {"pin": 19}, {}],
+      "ChargingPort_LEDStrip": ["LEDStrip", {"pin": 13, "length": 30}, {}],
+      "AuthorizationKeyCharge": ["Button", {"pin": 15}, {}],
+      "BatteryButtonLadestation": ["Button", {"pin": 21, "invert": true}, {}],
+      "PhiSwitch": ["Button", {"pin": 5, "invert": true}, {}]
+    }
+  },
+  "mainframe": {
+    "SPI": {
+      "mosi": null,
+      "miso": 17,
+      "clock": 15
+    },
+    "I2C": null,
+    "devices": {
+      "MainframeLEDs": ["LEDStrip", {"pin": 16, "length": 240, "use_compression": true, "rgb_order": "GRB"}, {}]
+    }
+  },
+  "pilz": {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "Batterie": ["PWM", {"pin": 19}, {}],
+      "PilzLEDs": ["LEDStrip", {"pin": 16, "length": 5, "update_rate_hz": 5, "rgb_order": "GRB"}, {}],
+      "BananaPlugs": ["BananaPlugs", {"plug_pins": [33, 2, 32, 4], "socket_pins": [15, 13, 12, 14, 27, 26]}, {}]
+    }
+  },
+  "waehlscheibe":
+  {
+    "SPI": {
+      "mosi": 4,
+      "miso": null,
+      "clock": 22
+    },
+    "I2C": null,
+    "devices": {
+      "RotaryDial": ["RotaryDial", {"pin_counter": 12, "pin_reset": 23}, {}],
+      "PowerSwitch": ["Button", {"pin": 32}, {}],
+      "DialReset": ["Button", {"pin": 5}, {}],
+      "TestHebel": ["Button", {"pin": 16}, {}],
+      "StatusLED": ["LEDStrip", {"pin": 33, "length": 1}, {}]
+    }
+  },
+  "broken_stuff": {
+    "SPI": null,
+    "I2C": null,
+    "devices": {
+      "RedYellowLEDs": ["SipoShiftRegister", {"count": 1, "latch": 21}, {}],
+      "SevenSegmentDisplay": ["SevenSegmentDisplay", {"pin": 19, "digit_count": 16}, {}],
+      "MainframeKeys": ["PisoShiftRegister", {"latch": 4, "count": 30}, {}],
+      "BVGPanel": ["SipoShiftRegister", {"count": 8, "pin_clock": 19, "pin_latch": 21, "pin_serialout": 4}, {}]
+    }
+  }
 }
