@@ -1,2 +1,2 @@
 class BaseSevenSegmentDisplay:
-    pass
+    DEFAULT_UPDATE_RATE_HZ: float = 4.0

@@ -1,7 +1,6 @@
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 import time
 from micropython import const
-
 from .seven_segment_ascii import get_char2
 
 
@@ -28,7 +27,7 @@ _SPI_CS = const(0)  # D3
 
 
 class SevenSegment:
-    def __init__(self, digits=8, scan_digits=_MAX7219_DIGITS, baudrate=_SPI_BAUDRATE, cs=_SPI_CS, spi_bus=_SPI_BUS, reverse=False):
+    def __init__(self, spi: SoftSPI, digits=8, scan_digits=_MAX7219_DIGITS, cs=_SPI_CS, reverse=False):
         """
         Constructor:
         `digits` should be the total number of individual digits being displayed
@@ -44,7 +43,7 @@ class SevenSegment:
         self.scan_digits = scan_digits
         self.reverse = reverse
         self._buffer = [0] * digits
-        self._spi = SPI(spi_bus, baudrate=baudrate, polarity=0, phase=0)
+        self._spi = spi
         self._cs = Pin(cs, Pin.OUT, value=1)
 
         self.command(_MAX7219_REG_SCANLIMIT, scan_digits - 1)  # digits to display on each device  0-7

@@ -3,7 +3,7 @@ from typing import Callable, Optional, Coroutine, Any
 import asyncio
 import pygame as pg
 from collections.abc import Hashable
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, TypedDict, Required, NotRequired
 
 # Atomic numbers: iron = 26, oxygen = 8
 # Iron(II) oxide (FeO): 32 protons
@@ -50,3 +50,20 @@ class Subscriber:
     allow_parallelism: bool
     requires_event_arg: bool
     task: Optional[asyncio.Task] = None
+
+
+class SPIConfig(TypedDict):
+    clock: Required[int]
+    miso: NotRequired[int]
+    mosi: NotRequired[int]
+
+
+class I2CConfig(TypedDict, total=True):
+    scl: int
+    sda: int
+
+
+class NodeConfig(TypedDict):
+    SPI: SPIConfig
+    I2C: I2CConfig
+    devices: dict[str, tuple[str, dict[str, float | int | str], dict[str, float | int | str]]]

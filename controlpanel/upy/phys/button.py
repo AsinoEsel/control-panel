@@ -1,8 +1,9 @@
-from machine import Pin
+from machine import Pin, SoftSPI, I2C
 from controlpanel.shared.base.button import BaseButton
 from .sensor import Sensor
 from controlpanel.shared.compatibility import const
 from time import ticks_ms, ticks_diff
+from controlpanel.upy.artnet import ArtNet
 
 
 _DEBOUNCE_MS = const(5)
@@ -10,14 +11,14 @@ _DEBOUNCE_MS = const(5)
 
 class Button(BaseButton, Sensor):
     def __init__(self,
-                 _artnet,
-                 name: str,
+                 _context: tuple[ArtNet, SoftSPI, I2C],
+                 _name: str,
                  pin: int,
                  *,
                  update_rate_hz: float = 1.0,
                  invert: bool = False
                  ) -> None:
-        Sensor.__init__(self, _artnet, name, update_rate_hz)
+        Sensor.__init__(self, _context[0], _name, update_rate_hz)
         self.pin = Pin(pin, Pin.IN, Pin.PULL_UP)
         self.pin.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._handle_interrupt)
         self._invert = invert

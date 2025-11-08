@@ -3,7 +3,7 @@ try:
     from typing import Literal
 except ImportError:
     Literal = object()
-from machine import SPI
+from machine import SoftSPI, I2C
 from controlpanel.shared.base.rfid_reader import BaseRFIDReader
 from .sensor import Sensor
 from controlpanel.upy.artnet import ArtNet
@@ -11,16 +11,15 @@ from controlpanel.upy.artnet import ArtNet
 
 class RFIDReader(BaseRFIDReader, Sensor):
     def __init__(self,
-                 _artnet: ArtNet,
-                 name: str,
+                 _context: tuple[ArtNet, SoftSPI, I2C],
+                 _name: str,
                  pin_reset: int,
                  pin_chip_select: int,
-                 hardware_spi: Literal[1, 2],
                  *,
                  polling_rate_hz: float = 1.0
                  ) -> None:
-        Sensor.__init__(self, _artnet, name, polling_rate_hz)
-        self._mfrc522 = MFRC522(SPI(hardware_spi, baudrate=1000000), pin_reset, pin_chip_select)
+        Sensor.__init__(self, _context[0], _name, polling_rate_hz)
+        self._mfrc522 = MFRC522(_context[1], pin_reset, pin_chip_select)
         self._current_uid: bytes | None = None
 
     def get_uid(self) -> None | bytes:

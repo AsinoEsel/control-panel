@@ -1,13 +1,13 @@
 import machine
 from controlpanel.shared.base.pwm import BasePWM
-from controlpanel.shared.compatibility import ArtNet
 from .fixture import Fixture
+from controlpanel.upy.artnet import ArtNet
 
 
 class PWM(BasePWM, Fixture):
     def __init__(
             self,
-            _artnet: ArtNet,
+            _context: tuple[ArtNet, machine.SoftSPI, machine.I2C],
             name: str,
             pin: int,
             *,
@@ -16,7 +16,7 @@ class PWM(BasePWM, Fixture):
             intensity: float = 0.5,
             freq: int = 512,
         ) -> None:
-        Fixture.__init__(self, _artnet, name, update_rate_hz, universe=universe)
+        Fixture.__init__(self, _context[0], name, update_rate_hz, universe=universe)
         self.pin = machine.Pin(pin)
         self.pwm = machine.PWM(self.pin)
         self.pwm.freq(freq)

@@ -1,21 +1,21 @@
 import struct
 from controlpanel.shared.base.banana_plugs import BaseBananaPlugs
 from controlpanel.upy.phys import Sensor
-from machine import Pin
+from machine import Pin, SoftSPI, I2C
 from controlpanel.upy.artnet import ArtNet
 
 
 class BananaPlugs(BaseBananaPlugs, Sensor):
     def __init__(self,
-                 _artnet: ArtNet,
-                 name: str,
+                 _context: tuple[ArtNet, SoftSPI, I2C],
+                 _name: str,
                  plug_pins: list[int],
                  socket_pins: list[int],
                  *,
-                 polling_rate_hz: float = 1.0
+                 polling_rate_hz: float = BaseBananaPlugs.DEFAULT_POLLING_RATE_HZ,
                  ) -> None:
         super().__init__(len(plug_pins))
-        Sensor.__init__(self, _artnet, name, polling_rate_hz)
+        Sensor.__init__(self, _context[0], _name, polling_rate_hz)
         self.plug_pins = [Pin(plug_pin, Pin.OUT) for plug_pin in plug_pins]
         self.socket_pins = [Pin(socket_pin, Pin.IN, Pin.PULL_DOWN) for socket_pin in socket_pins]
         for plug_pin in self.plug_pins:

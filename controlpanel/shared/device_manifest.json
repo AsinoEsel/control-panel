@@ -1,7 +1,7 @@
 {
   "bvgpanel": {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "DischargePort_LEDStrip": ["LEDStrip", {"pin": 22, "length": 30}, {}],
       "BatteryButton": ["Button", {"pin": 14}, {}],
@@ -10,8 +10,8 @@
   },
   "chronometer":
   {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "Chronometer": ["PWM", {"pin": 4}, {}],
       "ChronometerLampen": ["LEDStrip", {"pin": 5, "length": 3}, {}],
@@ -19,8 +19,8 @@
     }
   },
   "kommunikation": {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "ButtonRed": ["Button", {"pin": 14}, {}],
       "ButtonGreen": ["Button", {"pin": 13}, {}],
@@ -29,8 +29,8 @@
     }
   },
   "kuehlwasser": {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "StatusLEDs": ["LEDStrip", {"pin": 14, "length": 3}, {}],
       "WarnLED": ["PWM", {"pin": 2, "update_rate_hz": 1}, {}],
@@ -41,8 +41,8 @@
   },
   "ladestation":
   {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "Voltmeter1": ["PWM", {"pin": 2}, {}],
       "Voltmeter2": ["PWM", {"pin": 4}, {}],
@@ -56,33 +56,34 @@
     }
   },
   "mainframe": {
-    "SPI": {
+    "spi": {
       "mosi": null,
       "miso": 17,
       "clock": 15
     },
-    "I2C": null,
+    "i2c": null,
     "devices": {
-      "MainframeLEDs": ["LEDStrip", {"pin": 16, "length": 240, "use_compression": true, "rgb_order": "GRB"}, {}]
+      "MainframeLEDs": ["LEDStrip", {"pin": 16, "length": 240, "use_compression": true, "rgb_order": "GRB"}, {}],
+      "MainframeKeys": ["PisoShiftRegister", {"latch": 4, "count": 30}, {}]
     }
   },
   "pilz": {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
-      "Batterie": ["PWM", {"pin": 19}, {}],
+      "UVStrobe": ["PWM", {"pin": 19}, {}],
       "PilzLEDs": ["LEDStrip", {"pin": 16, "length": 5, "update_rate_hz": 5, "rgb_order": "GRB"}, {}],
       "BananaPlugs": ["BananaPlugs", {"plug_pins": [33, 2, 32, 4], "socket_pins": [15, 13, 12, 14, 27, 26]}, {}]
     }
   },
   "waehlscheibe":
   {
-    "SPI": {
+    "spi": {
       "mosi": 4,
       "miso": null,
       "clock": 22
     },
-    "I2C": null,
+    "i2c": null,
     "devices": {
       "RotaryDial": ["RotaryDial", {"pin_counter": 12, "pin_reset": 23}, {}],
       "PowerSwitch": ["Button", {"pin": 32}, {}],
@@ -92,12 +93,11 @@
     }
   },
   "broken_stuff": {
-    "SPI": null,
-    "I2C": null,
+    "spi": null,
+    "i2c": null,
     "devices": {
       "RedYellowLEDs": ["SipoShiftRegister", {"count": 1, "latch": 21}, {}],
       "SevenSegmentDisplay": ["SevenSegmentDisplay", {"pin": 19, "digit_count": 16}, {}],
-      "MainframeKeys": ["PisoShiftRegister", {"latch": 4, "count": 30}, {}],
       "BVGPanel": ["SipoShiftRegister", {"count": 8, "pin_clock": 19, "pin_latch": 21, "pin_serialout": 4}, {}]
     }
   }

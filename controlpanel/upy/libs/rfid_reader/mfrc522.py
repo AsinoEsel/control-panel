@@ -1,4 +1,4 @@
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 
 
 class MFRC522:
@@ -12,7 +12,7 @@ class MFRC522:
 	AUTHENT1A = 0x60
 	AUTHENT1B = 0x61
 
-	def __init__(self, spi: SPI, rst, cs):
+	def __init__(self, spi: SoftSPI, rst, cs):
 
 		self.rst = Pin(rst, Pin.OUT)
 		self.cs = Pin(cs, Pin.OUT)

@@ -5,6 +5,7 @@ from types import ModuleType, GenericAlias
 from . import DEVICE_MANIFEST_PATH
 import inspect
 from typing import Dict, Set, Tuple, FrozenSet
+from controlpanel.api.commons import NodeConfig
 
 
 STUB_PATH = Path(importlib.util.find_spec("controlpanel.api").origin).parent / "callback.pyi"
@@ -33,17 +34,13 @@ def collect_classes_from_libs(libs: list[ModuleType], *, filter_by_base_class: t
 
 def get_device_names_classnames() -> dict[str, str]:
     with open(DEVICE_MANIFEST_PATH, "r") as f:
-        data = json.load(f)
-    device_names = dict()
-    for devices in data.values():
-        for class_name, phys_kwargs, dummy_kwargs in devices:
-            kwargs = phys_kwargs | dummy_kwargs
-            name = kwargs.get("name")
-            if not name:
-                continue
-            if name in device_names.keys():
-                raise ValueError(f"Duplicate device name found: {name}")
-            device_names[name] = class_name
+        data: dict[str, NodeConfig] = json.load(f)
+    device_names: dict[str, str] = dict()
+    for node_config in data.values():
+        for device_name, (class_name, phys_kwargs, dummy_kwargs) in node_config["devices"].items():
+            if device_name in device_names.keys():
+                raise ValueError(f"Duplicate device name found: {device_name}")
+            device_names[device_name] = class_name
     return device_names
 
 

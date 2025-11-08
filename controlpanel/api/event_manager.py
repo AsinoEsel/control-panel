@@ -1,4 +1,4 @@
-from typing import Any, Iterable, TypedDict, Required, NotRequired
+from typing import Any, Iterable
 from types import ModuleType
 import time
 from threading import Thread
@@ -25,24 +25,8 @@ from .commons import (
     EventValueType,
     KEY_CONTROL_PANEL_PROTOCOL,
     CONTROL_PANEL_EVENT,
+    NodeConfig,
 )
-
-
-class SPIConfig(TypedDict):
-    clock: Required[int]
-    miso: NotRequired[int]
-    mosi: NotRequired[int]
-
-
-class I2CConfig(TypedDict, total=True):
-    scl: int
-    sda: int
-
-
-class NodeConfig(TypedDict):
-    SPI: SPIConfig
-    I2C: I2CConfig
-    devices: dict[str, tuple[str, dict[str, float | int | str], dict[str, float | int | str]]]
 
 
 class EventManager:
@@ -121,7 +105,7 @@ class EventManager:
                     print(f"Timed out {timeouts} / {len(reply_times)} times. Aborting.")
                     return
             await asyncio.sleep(0.01)
-        print(f"Received {len(list(r for r in reply_times if r != float("inf")))}/{len(reply_times)} pings. "
+        print(f"Received {len(list(r for r in reply_times if r != float('inf')))}/{len(reply_times)} pings. "
               f"Average/Median/Min/Max response times: "
               f"{1000 * sum(reply_times) / len(reply_times):.0f}/"
               f"{1000 * self.median(reply_times):.0f}/"
@@ -191,7 +175,7 @@ class EventManager:
                 continue
             if esp.mac not in collected_mac_addresses:
                 esp.subsequent_missed_replies += 1
-                print(f"ESP '{esp.name}' failed to reply! ({esp.subsequent_missed_replies} missed repl{"ies" if esp.subsequent_missed_replies > 1 else "y"})")
+                print(f"ESP '{esp.name}' failed to reply! ({esp.subsequent_missed_replies} missed repl{'ies' if esp.subsequent_missed_replies > 1 else 'y'})")
                 if esp.subsequent_missed_replies >= 3:
                     print(f"ESP '{esp.name}' lost the connection!")
                     esp.status = 'Lost connection!'
@@ -248,7 +232,7 @@ class EventManager:
                     continue
                 if issubclass(cls, Fixture) and assign_sequential_universes and kwargs.get("universe") is None:
                     kwargs["universe"] = universe
-                    print(f"Assigned universe {universe} to {kwargs.get("name", "<UNKNOWN>")}.")
+                    print(f"Assigned universe {universe} to {kwargs.get('name', '<UNKNOWN>')}.")
                     universe += 1
                 filtered_kwargs = {key: value for key, value in kwargs.items()
                                    if key in cls.__init__.__code__.co_varnames}
@@ -258,7 +242,7 @@ class EventManager:
                         cls(_artnet=self._artnet, name=device_name, **filtered_kwargs)
                     )
                 except TypeError:
-                    print(f"Type Error raised when instantiating {filtered_kwargs.get("name")}.")
+                    print(f"Type Error raised when instantiating {filtered_kwargs.get('name')}.")
                     raise
 
                 esp.devices[device.name] = device
@@ -304,7 +288,7 @@ class EventManager:
         if fixture:
             print(f"Receiving ArtDMX event from {sender[0]} to fixture {fixture.name}: {values}")
         else:
-            print(f"Receiving ArtDMX event from {sender[0]} to universe {reply.get("Universe")}: {reply.get("Data")}")
+            print(f"Receiving ArtDMX event from {sender[0]} to universe {reply.get('Universe')}: {reply.get('Data')}")
 
     def _parse_artpollreply(self, reply: dict[str, Any], sender: tuple[str, int], ts: float) -> None:
         if self.print_incoming_artpollreply_packets:
@@ -313,7 +297,7 @@ class EventManager:
 
     def _parse_artcmd(self, reply: dict[str, Any], sender: tuple[str, int], ts: float) -> None:
         if self.print_incoming_artcmd_packets:
-            print(f"Receiving ArtCommand event from {sender[0]}: {reply.get("Command")}")
+            print(f"Receiving ArtCommand event from {sender[0]}: {reply.get('Command')}")
         if reply.get("Command") == "RETURN_PING":
             self.loop.call_soon_threadsafe(self._ping_queue.put_nowait, reply.get("Command"))
 
@@ -330,7 +314,7 @@ class EventManager:
             case _:
                 try:
                     print(f"Received an {OpCode(op_code).name} packet from "
-                          f"{sender[0] if sender[0] != self._ip else "this device"}")
+                          f"{sender[0] if sender[0] != self._ip else 'this device'}")
                 except ValueError:
                     print(f"Received a packet with invalid op code {hex(op_code)}")
 
@@ -418,7 +402,7 @@ class EventManager:
         sender = sender if sender is not None else (self._ip, ART_NET_PORT)
         ts = ts if ts is not None else time.time()
         event = Event(source, action, value, sender, ts)
-        print(f"{"Firing event:":<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
+        print(f"{'Firing event:':<16}{event.source:<20} -> {event.action:<20} -> {str(event.value):<20} from {event.sender}")
         pg.event.post(pg.event.Event(CONTROL_PANEL_EVENT, source=event.source, name=event.action, value=event.value, sender=event.sender))
         asyncio.run_coroutine_threadsafe(self._event_queue.put(event), self.loop)
 
@@ -431,7 +415,7 @@ class EventManager:
                     if subscriber.task is not None and not subscriber.task.done():
                         print(f"[EventManager] Skipping {subscriber.callback.__name__}: still running.")
                         continue
-                print(f"{"Event received: ":<16}{subscriber.callback.__module__.rsplit(".")[-1]}.{subscriber.callback.__name__}")
+                print(f"{'Event received: ':<16}{subscriber.callback.__module__.rsplit('.')[-1]}.{subscriber.callback.__name__}")
 
                 if inspect.iscoroutinefunction(subscriber.callback):
                     if subscriber.requires_event_arg:

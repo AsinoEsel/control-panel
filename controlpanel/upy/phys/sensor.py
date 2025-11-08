@@ -5,8 +5,8 @@ from controlpanel.upy.artnet import ArtNet
 
 
 class Sensor(BaseSensor):
-    def __init__(self, _artnet: ArtNet, name: str, polling_rate_hz: float = 1.0):
-        super().__init__(_artnet, name)
+    def __init__(self, _artnet: ArtNet, _name: str, polling_rate_hz: float = 1.0):
+        super().__init__(_artnet, _name)
         self.update_rate_ms: int = int(1000 / polling_rate_hz) if polling_rate_hz > 0.0 else 0
         self._current_task: asyncio.Task | None = None
 

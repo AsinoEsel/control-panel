@@ -44,6 +44,10 @@ class _States:
 
 
 class PisoShiftRegister(BasePisoShiftRegister, Sensor):
+    EVENT_TYPES = {
+        "ButtonsChanged": tuple[tuple[int, bool], ...],
+    }
+
     def __init__(self, _artnet: ArtNet, name: str, count: int):
         Sensor.__init__(self, _artnet, name)
         self._states: list[bool] = [False for _ in range(count * 8)]

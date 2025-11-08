@@ -1,9 +1,9 @@
-from machine import Pin
+from machine import Pin, SoftSPI, I2C
 import time
 from controlpanel.shared.base.rotary_dial import BaseRotaryDial
 from .sensor import Sensor
-from controlpanel.upy.artnet import ArtNet
 from micropython import const
+from controlpanel.upy.artnet import ArtNet
 try:
     from typing import Callable
 except ImportError:
@@ -15,14 +15,14 @@ _DEFAULT_DEBOUNCE: int = const(50)
 
 class RotaryDial(BaseRotaryDial, Sensor):
     def __init__(self,
-                 _artnet: ArtNet,
+                 _context: tuple[ArtNet, SoftSPI, I2C],
                  name: str,
                  pin_counter: int,
                  pin_reset: int,
                  *,
                  software_debounce_ms: int | None = _DEFAULT_DEBOUNCE,
                  ) -> None:
-        super().__init__(_artnet, name)
+        super().__init__(_context[0], name)
         self._count: int = 0
         self._counter_switch = _Switch(pin_counter,
                                        trigger=self._increment_counter,
