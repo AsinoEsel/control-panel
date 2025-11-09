@@ -19,41 +19,29 @@ class PisoShiftRegister(BasePisoShiftRegister, Sensor):
         self._spi: SoftSPI = _context[1]
         self._latch_pin: Pin = Pin(latch, Pin.OUT)
         self._count = count
-        self._input_states = bytearray(0 for _ in range(self._count))
+        self._buffers = [bytearray(self._count), bytearray(self._count)]  # Two alternating buffers
+        self._active_index = 0
 
     def _read_states(self):
-        changed_states = bytearray()
+        buf = self._buffers[self._active_index]
+        prev_buf = self._buffers[1 - self._active_index]
 
-        # Latch current inputs from the shift registers
-        self._latch_pin.value(0)
-        sleep_us(5)
-        self._latch_pin.value(1)
+        # Latch inputs
+        self._latch_pin.off()
+        sleep_us(2)
+        self._latch_pin.on()
 
-        # Read new states from SPI
-        new_states = self._spi.read(self._count, 0x42)
+        # Read new states into current buffer
+        self._spi.readinto(buf, 0x42)
 
-        # Compare new states with previous ones
-        for byte_index in range(self._count):
-            old_byte = self._input_states[byte_index]
-            new_byte = new_states[byte_index]
+        # Compare with previous
+        if buf != prev_buf:
+            self._send_trigger_packet(buf)
 
-            if old_byte != new_byte:
-                # Compare each bit to detect which inputs changed
-                for bit_index in range(8):
-                    old_bit = (old_byte >> bit_index) & 1
-                    new_bit = (new_byte >> bit_index) & 1
-                    if old_bit != new_bit:
-                        button_id = byte_index * 8 + bit_index
-                        changed_states.append(button_id)
-                        changed_states.append(new_bit)
+        # Swap buffers (no copy, no new alloc)
+        self._active_index = 1 - self._active_index
 
-        # Update stored states
-        self._input_states[:] = new_states
 
-        # Send packet if there are changes
-        if changed_states:
-            print(changed_states)
-            self._send_trigger_packet(changed_states)
 
     async def update(self) -> None:
         self._read_states()

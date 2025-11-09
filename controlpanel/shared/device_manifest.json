@@ -57,14 +57,16 @@
   },
   "mainframe": {
     "spi": {
-      "mosi": null,
+      "mosi": 19,
       "miso": 17,
-      "clock": 15
+      "sck": 15,
+      "phase": 1,
+      "polarity": 1
     },
     "i2c": null,
     "devices": {
       "MainframeLEDs": ["LEDStrip", {"pin": 16, "length": 240, "use_compression": true, "rgb_order": "GRB"}, {}],
-      "MainframeKeys": ["PisoShiftRegister", {"latch": 4, "count": 30}, {}]
+      "MainframeKeys": ["PisoShiftRegister", {"latch": 4, "count": 30, "polling_rate_hz": 10}, {}]
     }
   },
   "pilz": {
@@ -81,7 +83,7 @@
     "spi": {
       "mosi": 4,
       "miso": null,
-      "clock": 22
+      "sck": 22
     },
     "i2c": null,
     "devices": {

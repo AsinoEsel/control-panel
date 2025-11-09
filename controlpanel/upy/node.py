@@ -1,5 +1,5 @@
 import utils
-from machine import reset, SoftSPI, I2C
+from machine import reset, SPI, I2C
 from controlpanel.upy import phys
 from controlpanel.upy.artnet import ArtNet, OpCode
 from controlpanel.shared.base import Device
@@ -22,7 +22,7 @@ class Node:
             "PING": lambda: self._artnet.send_command(b"RETURN_PING"),
         }
         manifest = self._parse_manifest()
-        self._spi: SoftSPI | None = self._instantiate_spi(manifest)
+        self._spi: SPI | None = self._instantiate_spi(manifest)
         self._i2c: I2C | None = self._instantiate_i2c(manifest)
         self.devices: dict[str, Device] = self._instantiate_devices(manifest)
         self.universes: dict[int, Fixture] = {
@@ -44,14 +44,17 @@ class Node:
         return manifest.get(self._name)
 
     @staticmethod
-    def _instantiate_spi(config: dict[str, dict]) -> SoftSPI | None:
+    def _instantiate_spi(config: dict[str, dict]) -> SPI | None:
         spi_config = config.get("spi")
         if not spi_config:
             return None
-        mosi = spi_config.get("mosi") or 0
-        miso = spi_config.get("miso") or 0
-        clock = spi_config["clock"]
-        return SoftSPI(sck=clock, mosi=mosi, miso=miso)
+        return SPI(
+            sck=spi_config["sck"],
+            mosi=spi_config["mosi"],
+            miso=spi_config["miso"],
+            phase=spi_config.get("phase") or 0,
+            polarity=spi_config.get("polarity") or 0,
+        )
 
     @staticmethod
     def _instantiate_i2c(config: dict[str, dict]) -> I2C | None:
@@ -107,7 +110,6 @@ class Node:
         if fixture is None or fixture.should_ignore_seq(seq):
             return
         fixture._seq = seq
-        print(f"Parsing dmx data {data} for fixture {fixture.name}")
         fixture.parse_dmx_data(data)
 
     def artpoll_callback(self, op_code: OpCode, ip: str, port: int, reply):

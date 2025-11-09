@@ -66,14 +66,22 @@ class PisoShiftRegister(BasePisoShiftRegister, Sensor):
         return tuple(self._states)
 
     def parse_trigger_payload(self, data: bytes) -> tuple[str, tuple[tuple[int, bool], ...]]:
-        assert len(data) % 2 == 0, "data must be of even length"
-        assert len(data) <= 2 * len(self._states), "length of data is too long"
-        updates: list[tuple[int, bool]] = []
-        for i in range(0, len(data), 2):
-            index: int = data[i]
-            value: bool = not bool(data[i + 1])
-            updates.append((index, value))
-            self._states[index] = value
+        num_bits = len(data) * 8
+        assert num_bits <= len(self._states), "Received more bits than expected"
+
+        updates = []
+        for byte_index, byte in enumerate(data):
+            base = byte_index * 8
+            # Extract bits directly
+            for bit_index in range(8):
+                index = base + bit_index
+                if index >= len(self._states):
+                    break
+                value = not bool((byte >> bit_index) & 1)
+                if self._states[index] != value:
+                    print(f"setting {index} to {value}")
+                    self._states[index] = value
+                    updates.append((index, value))
 
         return "ButtonsChanged", tuple(updates)
 
