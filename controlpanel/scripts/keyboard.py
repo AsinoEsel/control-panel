@@ -1,63 +1,39 @@
-from controlpanel.scripts import ControlAPI, Event
-from controlpanel.event_manager.dummy import DummyLEDStrip
-
-MODS_PER_ROW = 5
-MODS_PER_COLUMN = 3
-TOTAL_KEYS = MODS_PER_COLUMN * MODS_PER_ROW * 16
-
-
-def col(a):
-    a %= 16 * MODS_PER_ROW
-    return 3 - (a % 4) + ((a // 16) * 4)
+_MODS_PER_ROW = 5
+_MODS_PER_COLUMN = 3
+_MOD_SIZE = 4
+WIDTH = _MODS_PER_ROW * _MOD_SIZE
+HEIGHT = _MODS_PER_COLUMN * _MOD_SIZE
+TOTAL_KEYS = _MODS_PER_COLUMN * _MODS_PER_ROW * _MOD_SIZE * _MOD_SIZE
 
 
-def row(a):
-    tmp = 3 - (a % 16) // 4
-    return tmp + (a // (16 * MODS_PER_ROW)) * 4
+def button_pos(idx: int) -> tuple[int, int]:
+    rel = idx % 16
+    rel_x = rel % 4
+    rel_y = (rel // 4 + 2) % 4
+
+    pcb = idx // 16
+    pcb_x = pcb % _MODS_PER_ROW
+    pcb_y = pcb // _MODS_PER_ROW
+
+    return rel_x + pcb_x * 4, rel_y + pcb_y * 4
 
 
+def button_idx(x: int, y: int) -> int:
+    rel_x = x % 4
+    rel_y = (y % 4 - 2) % 4
 
-# for i in range(16 * MODS_PER_ROW * MODS_PER_COLUMN):
-#     print(i, f"row: {row(i)}, col: {col(i)}")
+    pcb_x = x // 4
+    pcb_y = y // 4
+    pcb = pcb_y * _MODS_PER_ROW + pcb_x
 
-
-# old_states: list[int] = [0 for _ in range(TOTAL_KEYS)]
-# old_states: bytes = b""
-
-@ControlAPI.callback("MainframeKeys", "ButtonsChanged", None)
-def keyboard_callback(event: Event):
-    keyboard_leds: DummyLEDStrip = ControlAPI.get_device("MainframeLEDs")
-
-    global old_states
-    # states = [byte for byte in event.value]
+    return pcb * 16 + rel_y * 4 + rel_x
 
 
-
-
-    # new_states: list[int] = [b << 7 for b in event.value]
-    # state_diff = [old_states[i] ^ new_states[i] for i in range(len(old_states))]
-
-    # changes = [i for i, e in enumerate(state_diff) if e != 0]
-
-    # print(changes)
-
-    print(event.value)
-
-    dmx_data = bytearray(1 + TOTAL_KEYS)
-    # for button_id in changes:
-    for (button_id, button_state) in event.value:
-        led_coord = 15 - (button_id % 16) + (button_id // 16) * 16
-        if button_state is True:
-            dmx_data[1 + led_coord] = keyboard_leds.compress_rgb((0, 128, 0))
-        else:
-            dmx_data[1 + led_coord] = keyboard_leds.compress_rgb((0, 0, 0))
-
-    keyboard_leds.send_dmx_data(dmx_data)
-
-    # old_states = new_states
-
-
-    # new_states = list[int] = [0 for _ in range(MODS_PER_COLUMN * MODS_PER_COLUMN * 16)]
-    # new_states = [0 for i in range(len(states)) if states[i] == old_states[i]]
-    #
-    # print(states)
+def led_idx(x: int, y: int) -> int:
+    pcb_x = x // 4
+    pcb_y = y // 4
+    rel_x = x % 4
+    rel_y = y % 4
+    rel_a = rel_y * 4 + rel_x
+    a = rel_a + 16 * pcb_y * _MODS_PER_ROW + pcb_x * 16
+    return a
