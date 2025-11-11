@@ -122,7 +122,7 @@ def establish_wifi_connection(timeout_ms: int = 10_000) -> network.WLAN | None:
     sta_if.active(True)
     _set_mac_address(sta_if.config("mac"))
     dhcp_hostname = get_hostname()
-    sta_if.config(dhcp_hostname=dhcp_hostname)
+    sta_if.config(dhcp_hostname=dhcp_hostname, pm=network.WLAN.PM_NONE)
 
     data = load_json(CREDENTIALS) or dict()
     known_networks = data.get("known_networks", dict())
