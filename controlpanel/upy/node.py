@@ -41,7 +41,7 @@ class Node:
         manifest = utils.load_json('controlpanel/shared/device_manifest.json')
         if not manifest:
             return {}
-        return manifest.get(self._name)
+        return manifest.get(self._name, {})
 
     @staticmethod
     def _instantiate_spi(config: dict[str, dict]) -> SPI | None:
