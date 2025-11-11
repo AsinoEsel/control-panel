@@ -1,0 +1,11 @@
+api/
+dmx/
+game_manager/
+scripts/
+server/
+shaders/
+controlpanel/__init__.py
+controlpanel/__main__.py
+__pycache__/
+.webreplignore
+*.pyi

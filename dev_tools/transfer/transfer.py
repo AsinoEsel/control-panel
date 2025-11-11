@@ -1,167 +1,157 @@
-import subprocess
 import argparse
-from .checksumtest import file_has_changed, update_checksum
-from artnet import ArtNet
-import fnmatch
-import os
+import ipaddress
+import socket
 from pathlib import Path
-
-RELATIVE_PATH_TO_IGNORE = '.webreplignore'
-
-script_dir = Path(__file__).resolve().parent
-path_to_ignore = script_dir / RELATIVE_PATH_TO_IGNORE
-
-
-def read_ignore_patterns(filename: Path) -> list[str]:
-    """Read ignore patterns from the ignore file."""
-    if not filename.exists():
-        return []
-    with open(filename, 'r') as f:
-        patterns = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-    return patterns
+import pathspec
+from .checksumtest import file_has_changed, update_checksum
+from . import webrepl
+from collections import defaultdict
+from typing import TypeAlias
 
 
-def should_ignore(rel_path: str, patterns: list[str]) -> bool:
-    """Return True if the given path matches any ignore pattern."""
-    return any(fnmatch.fnmatch(rel_path, pattern) for pattern in patterns)
+NestedList: TypeAlias = list[str | "NestedList"]
 
 
-# Load patterns
-IGNORE_PATTERNS = read_ignore_patterns(path_to_ignore)
-ALWAYS_IGNORE = [str(path_to_ignore), f"{Path(__file__).name}"]
-IGNORE_PATTERNS.extend(ALWAYS_IGNORE)
+def load_ignore_file(ignore_path: Path) -> list[str]:
+    if ignore_path.exists():
+        return ignore_path.read_text().splitlines()
+    return []
 
 
-def send_all_files(esp_name: str, ip: str, password: str, directory: Path, *,
-                   give_up_on_failed_attempt: bool = False,
-                   ignore_checksums: bool = False):
-    print(f'Sending ALL files in {directory} to ESP "{esp_name}" @ {ip}')
-    successful_transfers = []
-    failed_transfers = []
+def get_included_files(base_path: Path) -> list[Path]:
+    included_files = []
 
-    directory = Path(directory).resolve()
-    for root, dirs, files in os.walk(directory):
-        root_path = Path(root)
-        rel_root = root_path.relative_to(directory)
+    def walk_dir(current_path: Path, inherited_patterns: list[str]):
+        local_patterns = load_ignore_file(current_path / ".webreplignore")
+        patterns = inherited_patterns + local_patterns
+        spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns)
 
-        # Skip unwanted root folders
-        if ("venv" in root_path.parts) or (not {"upy", "shared"} & set(root_path.parts)):
-            continue
+        for entry in sorted(current_path.iterdir()):
+            rel = entry.relative_to(base_path)
+            ignored = spec.match_file(str(rel))
 
-        # Filter subdirs
-        dirs[:] = [d for d in dirs if not should_ignore(str(rel_root / d), IGNORE_PATTERNS)]
+            if entry.is_dir():
+                # --- Key fix:
+                # Only skip this directory if ignored AND
+                # there are no negation patterns that might un-ignore something within.
+                # i.e. if there's a "!entry/**" somewhere, we must still walk it.
+                has_negation_for_sub = any(
+                    p.startswith(f"!{rel}/") or p.startswith(f"!{rel}/**") for p in patterns
+                )
+                if ignored and not has_negation_for_sub:
+                    continue
+                walk_dir(entry, patterns)
 
-        for file in files:
-            rel_path = rel_root / file
-            rel_path_str = str(rel_path)
+            elif entry.is_file():
+                if not ignored:
+                    included_files.append(entry)
 
-            if should_ignore(rel_path_str, IGNORE_PATTERNS):
-                continue
-
-            if not ignore_checksums and not file_has_changed(str(rel_path), esp_name):
-                continue
-
-            new_file_path = None
-            if file.startswith("main_") and file != f"main_{esp_name}.py":
-                continue
-            elif file == f"main_{esp_name}.py":
-                new_file_path = "main.py"
-
-            if file in ("boot.py", "main.py", "credentials.json", "utils.py", "hostname_manifest.json"):
-                new_file_path = file
-
-            result = send_file(esp_name, ip, password, str(rel_path), new_file_path)
-
-            if not result.stderr:
-                print(f"Successfully sent {rel_path} to {esp_name}")
-                successful_transfers.append(str(rel_path))
-                update_checksum(str(rel_path), esp_name)
-            else:
-                print(result.stderr)
-                failed_transfers.append(str(rel_path))
-                if give_up_on_failed_attempt:
-                    return successful_transfers, failed_transfers
-
-    return successful_transfers, failed_transfers
+    walk_dir(base_path, [])
+    return included_files
 
 
-def get_wifi_ssid():
+def resolve_ip(hostname: str) -> str | None:
     try:
-        result = subprocess.run(["netsh", "wlan", "show", "interfaces"], capture_output=True, text=True, encoding='cp850', check=True)
-        for line in result.stdout.split("\n"):
-            if "SSID" in line:
-                ssid = line.split(":")[1].strip()
-                encoded = ssid.encode('ISO-8859-1')
-                decoded = encoded.decode('UTF-8')
-                return decoded
-        return None
-    except FileNotFoundError:
+        return socket.gethostbyname(hostname)
+    except socket.gaierror:
         return None
 
 
-ACCESS_POINT_IP = "192.168.4.1"
-PASSWORD = "incubator"  # password used in webrepl setup
-PATH_TO_WEBREPL = Path(__file__).resolve().parent / "webrepl_cli.py"
+def validate_ip(ip: str) -> bool:
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
 
 
-def send_file(esp_name: str, ip: str, password: str, file_path: str, new_file_path: str|None = None) -> subprocess.CompletedProcess:
-    if new_file_path is None:
-        new_file_path = file_path.replace("/", "\\")
+def build_structure_from_files(files: list[Path], base_path: Path) -> NestedList:
+    structure = lambda: defaultdict(structure)
+    root = structure()
 
-    # assert "/" not in file_path, "Make sure to replace '/' with '\\' to make webrepl happy."
+    for file_path in files:
+        parts = file_path.relative_to(base_path).parts[:-1]  # drop filename
+        node = root
+        for part in parts:
+            node = node[part]
 
-    print(f'Sending file {file_path} to {esp_name} at {ip}{f" as {new_file_path}" if new_file_path else ""}...')
-    executable = (
-        [
-            "python",
-            PATH_TO_WEBREPL,
-            "-p",
-            password,
-            file_path,
-            f"{ip}:/{new_file_path if new_file_path else ""}",
-        ]
-    )
-    return subprocess.run(executable, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    def to_list(d: defaultdict) -> NestedList:
+        return [[k, to_list(v)] for k, v in sorted(d.items())]
+
+    return to_list(root)
 
 
-def flash_esp(esp_name: str, ip: str, password: str, ignore_checksums: bool, give_up_on_failed_attempt: bool):
-    successful_transfers, failed_transfers = send_all_files(esp_name, ip, password, Path.cwd(), give_up_on_failed_attempt=give_up_on_failed_attempt, ignore_checksums=ignore_checksums)
-    if not successful_transfers and not failed_transfers:
-        print(f"{esp_name} appears to be up to date.")
-    elif not failed_transfers:
-        print(f"Sucessfully transferred all files to {esp_name}")
-    elif not successful_transfers:
-        print(f"Failed to transfer any files to {esp_name} (Aborted)")
-    else:
-        print(f"Failed to transfer some files to {esp_name}")
-    artnet = ArtNet(ip)
-    artnet.send_command(b"RESET")
+def create_structure(ws: webrepl.WebSocket, structure: NestedList) -> None:
+    webrepl.run_webrepl_cmd(ws, f'import os')
+    for folder_name, subfolders in structure:
+        webrepl.run_webrepl_cmd(ws, f'os.mkdir("{folder_name}")')
+        webrepl.run_webrepl_cmd(ws, f'os.chdir("{folder_name}")')
+        create_structure(ws, subfolders)
+        webrepl.run_webrepl_cmd(ws, 'os.chdir("..")')
 
 
-def transfer():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Control Panel File Transfer Tool')
-    parser.add_argument("hostname", help="The IP or hostname of the device to send the files to.")
+    parser.add_argument("hostname", help="The name of the device to send the files to.")
+    parser.add_argument("path", help="Optional: the files to transfer. Default is all in CWD.")
     parser.add_argument("--IP", help="IP override")
-    parser.add_argument("paths", nargs="*", help="Optional: the files to transfer. Default is all in CWD.")
     parser.add_argument('-f', '--force', action='store_true', help='Ignore the checksums.')
-    parser.add_argument('-p', '--password', default=PASSWORD, help='The webrepl password.')
+    parser.add_argument('-p', '--password', help='The webrepl password.')
     parser.add_argument("--give-up-on-failed-attempt", action='store_true', help="Stop transferring files if a single file failed to transfer.")
     args = parser.parse_args()
 
-    if args.IP is not None:
+    hostname: str = args.hostname
+    path = Path(args.path)
+
+    all_files = get_included_files(path)
+    changed_files: list[Path] = list(filter(lambda f: file_has_changed(str(f), hostname), all_files)) if not args.force else all_files
+
+    if not changed_files:
+        print(f"Device '{hostname}' is up to date!")
+        return
+
+    if args.IP:
+        if not validate_ip(args.IP):
+            print("Invalid IP address!")
+            return
         ip = args.IP
     else:
-        print("Getting ip... ", end="", flush=True)
-        import socket
-        try:
-            ip = socket.gethostbyname(args.hostname)
-            print(f"IP is {ip}")
-        except socket.gaierror:
-            print(f"Hostname {args.hostname} could not be resolved.")
+        ip = resolve_ip(hostname)
+        if not ip:
+            print("Failed to resolve IP address!")
             return
 
-    flash_esp(args.hostname, ip, args.password, args.force, args.give_up_on_failed_attempt)
+    print("Connecting to device... ", end="")
+    try:
+        ws = webrepl.webrepl_connect(ip, args.password)
+    except TimeoutError as e:
+        print(e)
+        return
+    except ConnectionRefusedError as e:
+        print(e)
+        return
+    print("Connected!")
+
+    print("Creating folder structure... ", end="")
+    structure = build_structure_from_files(changed_files, path)
+    create_structure(ws, structure)
+    print("Done!")
+
+    print("Transferring files... ")
+    for file in changed_files:
+        local_file = str(file)
+        remote_file = str(file).replace("\\", "/") if file.name not in {"main.py", "boot.py", "credentials.json", "utils.py", "hostname_manifest.json"} else file.name
+        webrepl.webrepl_put(ws, local_file, remote_file)
+        update_checksum(local_file, hostname)
+    print("Files transferred!")
+
+    try:
+        webrepl.run_webrepl_cmd(ws, 'import machine; machine.reset()')
+    except TimeoutError:
+        pass
+
+    ws.close()
 
 
 if __name__ == "__main__":
-    transfer()
+    main()

@@ -53,50 +53,6 @@ def create_ap(config: dict[str, str | int] | None = None) -> network.WLAN:
     return ap_if
 
 
-def create_modules():
-    import os
-    print("Attempting to create modules...")
-
-    modules: list[str] = []
-    overwritten_files: int = 0
-
-    for filepath in os.listdir():  # TODO "entry" better name than "filepath"?
-        if "\\" not in filepath:
-            continue
-
-        *folders, filename = filepath.split("\\")
-
-        with open(filepath, 'r') as source_file:
-            data = source_file.read()
-
-        os.remove(filepath)
-
-        for i, folder in enumerate(folders):
-            try:
-                os.mkdir(folder)
-                module = "/".join(folders[:i + 1])
-                print(f"Creating {"sub" * i}module {module}...")
-                modules.append(module)
-            except OSError:
-                pass
-            os.chdir(folder)
-
-        with open(filename, 'w+') as destination_file:
-            print(f"Writing to {filename}... ", end="")
-            destination_file.write(data)
-            overwritten_files += 1
-            print("Done.")
-
-        for _ in range(len(folders)):
-            os.chdir('../..')
-
-    if overwritten_files:
-        print(f"\nOverwrote {overwritten_files} files.")
-
-    if modules:
-        print(f"Created the following modules:\n- {"\n- ".join(modules)}")
-
-
 def _set_local_ip(ip: str) -> None:
     global LOCAL_IP
     LOCAL_IP = ip
@@ -242,7 +198,7 @@ def rm_all(whitelist: list[str]|None = None):
     import os
     if whitelist is None:
         whitelist = []
-    whitelist += [f"{__name__}.py", "boot.py", "credentials.py", "webrepl_cfg.py"]
+    whitelist += [f"{__name__}.py", "boot.py", "credentials.py", "webrepl_cfg.py", "hostname_manifest.json"]
     for d in os.listdir():
         if d in whitelist:
             continue
