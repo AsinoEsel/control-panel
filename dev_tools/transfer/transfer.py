@@ -6,10 +6,10 @@ import pathspec
 from .checksumtest import file_has_changed, update_checksum
 from . import webrepl
 from collections import defaultdict
-from typing import TypeAlias
+from typing import TypeAlias, Union
 
 
-NestedList: TypeAlias = list[str | "NestedList"]
+NestedList: TypeAlias = list[Union[str, "NestedList"]]
 
 
 def load_ignore_file(ignore_path: Path) -> list[str]:
