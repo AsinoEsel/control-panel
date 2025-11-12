@@ -12,24 +12,25 @@ from types import ModuleType, FrameType
 T = TypeVar("T", bound="BaseGame")
 
 
+def _get_caller_name_and_module() -> str:
+    frame = inspect.currentframe()
+    caller_frame: FrameType = frame.f_back.f_back
+    module: ModuleType | None = inspect.getmodule(caller_frame)
+    module_name: str | None = module.__name__.rsplit(".", maxsplit=1)[-1] if module else None
+    function_name: str = caller_frame.f_code.co_name
+    if function_name == "<module>":
+        function_name = "DeveloperConsole"
+    return module_name + "." + function_name if module_name else function_name
+
+
 def fire_event(source: EventSourceType | None = None,
                action: EventActionType | None = None,
                value: EventValueType | None = None,
                *,
                sender: tuple[str, int] | None = None,
                ts: float | None = None) -> None:
-    def get_caller_name_and_module() -> str:
-        frame = inspect.currentframe()
-        caller_frame: FrameType = frame.f_back.f_back
-        module: ModuleType | None = inspect.getmodule(caller_frame)
-        module_name: str | None = module.__name__.rsplit(".", maxsplit=1)[-1] if module else None
-        function_name: str = caller_frame.f_code.co_name
-        if function_name == "<module>":
-            function_name = "DeveloperConsole"
-        return module_name + "." + function_name if module_name else function_name
-
     if not source:
-        source = get_caller_name_and_module()
+        source = _get_caller_name_and_module()
     Services.event_manager.fire_event(source, action, value, sender=sender, ts=ts)
 
 
