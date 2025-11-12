@@ -1,5 +1,5 @@
 import asyncio
-from controlpanel.shared.base import Device, BaseSensor
+from controlpanel.shared.base import BaseSensor
 from controlpanel.shared.compatibility import abstractmethod
 from controlpanel.upy.artnet import ArtNet
 
@@ -14,12 +14,12 @@ class Sensor(BaseSensor):
     async def update(self) -> None:
         pass
 
-    def _send_trigger_packet(self: Device, payload: bytes | bytearray) -> None:
+    def _send_trigger_packet(self, payload: bytes | bytearray) -> None:
         data: bytes = self.name.encode('ascii') + b'\x00' + payload
 
         self._increment_seq()
 
-        self._artnet.send_trigger(key=76, subkey=self._seq, data=data)
+        self._artnet.send_trigger(76, self._seq, data)
 
         # Cancel any ongoing packet send task
         current_task = asyncio.current_task()

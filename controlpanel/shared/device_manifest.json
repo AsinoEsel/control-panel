@@ -22,10 +22,10 @@
     "spi": null,
     "i2c": null,
     "devices": {
-      "ButtonRed": ["Button", {"pin": 14}, {}],
-      "ButtonGreen": ["Button", {"pin": 13}, {}],
-      "ButtonBlue": ["Button", {"pin": 12}, {}],
-      "ButtonPower": ["Button", {"pin": 4}, {}]
+      "ButtonRed": ["Button", {"pin": 14, "invert": false}, {}],
+      "ButtonGreen": ["Button", {"pin": 13, "invert": true}, {}],
+      "ButtonBlue": ["Button", {"pin": 12, "invert": true}, {}],
+      "ButtonPower": ["Button", {"pin": 4, "invert": true}, {}]
     }
   },
   "kuehlwasser": {
@@ -36,7 +36,7 @@
       "WarnLED": ["PWM", {"pin": 2, "update_rate_hz": 1}, {}],
       "WaterPressure": ["PWM", {"pin": 13}, {}],
       "Temperature": ["PWM", {"pin": 12}, {}],
-      "WaterFlowSensor": ["WaterFlowSensor", {"pin": 4}, {}]
+      "WaterFlowSensor": ["WaterFlowSensor", {"pin": 4, "polling_rate_hz": 1.0}, {}]
     }
   },
   "ladestation":

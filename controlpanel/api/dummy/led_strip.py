@@ -50,7 +50,8 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  _artnet: ArtNet,
                  _loop: asyncio.AbstractEventLoop,
                  _esp: ESP32,
-                 name: str,
+                 _name: str,
+                 /,
                  length: int,
                  *,
                  universe: int | None =None,
@@ -59,7 +60,7 @@ class LEDStrip(BaseLEDStrip, Fixture):
                  refresh_rate_hz: float = 30.0,
                  ) -> None:
         BaseLEDStrip.__init__(self, rgb_order)
-        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
+        Fixture.__init__(self, _artnet, _loop, _esp, _name, universe=universe)
         self._pixel_proxy: _Pixels = _Pixels([(0, 0, 0) for _ in range(length)], self._send_pixel_data)
         self._use_compression: bool = use_compression
 

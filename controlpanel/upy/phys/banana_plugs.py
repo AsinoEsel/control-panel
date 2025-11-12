@@ -1,21 +1,26 @@
 import struct
-from controlpanel.shared.base.banana_plugs import BaseBananaPlugs
 from controlpanel.upy.phys import Sensor
 from machine import Pin, SoftSPI, I2C
 from controlpanel.upy.artnet import ArtNet
+from micropython import const
 
 
-class BananaPlugs(BaseBananaPlugs, Sensor):
-    def __init__(self,
-                 _context: tuple[ArtNet, SoftSPI, I2C],
-                 _name: str,
-                 plug_pins: list[int],
-                 socket_pins: list[int],
-                 *,
-                 polling_rate_hz: float = BaseBananaPlugs.DEFAULT_POLLING_RATE_HZ,
-                 ) -> None:
-        super().__init__(len(plug_pins))
-        Sensor.__init__(self, _context[0], _name, polling_rate_hz)
+_NO_CONNECTION = const(255)
+_DEFAULT_POLLING_RATE_HZ = const(1.0)
+
+
+class BananaPlugs(Sensor):
+    def __init__(
+            self,
+            _context: tuple[ArtNet, SoftSPI, I2C],
+            _name: str,
+            plug_pins: list[int],
+            socket_pins: list[int],
+            *,
+            polling_rate_hz: float = _DEFAULT_POLLING_RATE_HZ,
+    ) -> None:
+        super().__init__(_context[0], _name, polling_rate_hz)
+        self._connections: list[int] = [_NO_CONNECTION for _ in plug_pins]
         self.plug_pins = [Pin(plug_pin, Pin.OUT) for plug_pin in plug_pins]
         self.socket_pins = [Pin(socket_pin, Pin.IN, Pin.PULL_DOWN) for socket_pin in socket_pins]
         for plug_pin in self.plug_pins:
@@ -26,7 +31,7 @@ class BananaPlugs(BaseBananaPlugs, Sensor):
         for socket_idx, socket_pin in enumerate(self.socket_pins):
             if socket_pin.value() == 1:
                 return socket_idx
-        return self.NO_CONNECTION
+        return _NO_CONNECTION
 
     def find_connected_socket_idx(self, plug_pin: Pin) -> int:
         plug_pin.value(1)

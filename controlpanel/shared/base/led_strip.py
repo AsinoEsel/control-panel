@@ -1,4 +1,4 @@
-from controlpanel.shared.compatibility import Generator, Callable, Optional, Literal, const
+from controlpanel.shared.compatibility import Generator, Callable, Literal, const
 try:
     Animation = Callable[[int, bytearray, float, tuple[int, int, int], tuple[int, int, int]], Generator[None, None, None]]
 except TypeError:
@@ -65,7 +65,7 @@ class BaseLEDStrip:
     ]
 
     def __init__(self, rgb_order: Literal["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"] = "RGB"):
-        index_map: dict[Literal["R", "G", "B"]: int] = {'R': 0, 'G': 1, 'B': 2}
+        index_map: dict[Literal["R", "G", "B"], int] = {'R': 0, 'G': 1, 'B': 2}
         self._rgb_mapping: tuple[int, int, int] = (index_map[rgb_order[0]],
                                                    index_map[rgb_order[1]],
                                                    index_map[rgb_order[2]])

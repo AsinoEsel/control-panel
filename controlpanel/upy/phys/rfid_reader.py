@@ -1,24 +1,23 @@
 from controlpanel.upy.libs.rfid_reader.mfrc522 import MFRC522
-try:
-    from typing import Literal
-except ImportError:
-    Literal = object()
 from machine import SoftSPI, I2C
-from controlpanel.shared.base.rfid_reader import BaseRFIDReader
 from .sensor import Sensor
 from controlpanel.upy.artnet import ArtNet
+from micropython import const
 
 
-class RFIDReader(BaseRFIDReader, Sensor):
+_DEFAULT_POLLING_RATE_HZ = const(1.0)
+
+
+class RFIDReader(Sensor):
     def __init__(self,
                  _context: tuple[ArtNet, SoftSPI, I2C],
                  _name: str,
                  pin_reset: int,
                  pin_chip_select: int,
                  *,
-                 polling_rate_hz: float = 1.0
+                 polling_rate_hz: float = _DEFAULT_POLLING_RATE_HZ,
                  ) -> None:
-        Sensor.__init__(self, _context[0], _name, polling_rate_hz)
+        super().__init__(_context[0], _name, polling_rate_hz)
         self._mfrc522 = MFRC522(_context[1], pin_reset, pin_chip_select)
         self._current_uid: bytes | None = None
 

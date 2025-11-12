@@ -238,8 +238,8 @@ class EventManager:
                                    if key in cls.__init__.__code__.co_varnames}
                 try:
                     device = (
-                        cls(_artnet=self._artnet, _loop=self.loop, _esp=esp, name=device_name, **filtered_kwargs) if issubclass(cls, Fixture) else
-                        cls(_artnet=self._artnet, name=device_name, **filtered_kwargs)
+                        cls(self._artnet, self.loop, esp, device_name, **filtered_kwargs) if issubclass(cls, Fixture) else
+                        cls(self._artnet, device_name, **filtered_kwargs)
                     )
                 except TypeError:
                     print(f"Type Error raised when instantiating {filtered_kwargs.get('name')}.")
@@ -276,8 +276,7 @@ class EventManager:
             return
         sensor._seq = seq
 
-        event_action, event_value = sensor.parse_trigger_payload(sensor_data)
-        self.fire_event(sensor_name, event_action, event_value, sender=sender, ts=ts)
+        sensor.parse_trigger_payload(sensor_data, ts)
 
     def _parse_dmx(self, reply: dict[str, Any], sender: tuple[str, int], ts: float) -> None:
         if not self.print_incoming_artdmx_packets:

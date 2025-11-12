@@ -1,18 +1,21 @@
-from controlpanel.shared.base.seven_segment import BaseSevenSegmentDisplay
 from .fixture import Fixture
 from controlpanel.upy.libs.seven_segment import SevenSegment
 from controlpanel.upy.artnet import ArtNet
 from machine import SoftSPI, I2C
+from micropython import const
 
 
-class SevenSegmentDisplay(BaseSevenSegmentDisplay, Fixture):
+_DEFAULT_UPDATE_RATE_HZ = const(1.0)
+
+
+class SevenSegmentDisplay(Fixture):
     def __init__(self,
                  _context: tuple[ArtNet, SoftSPI, I2C],
                  _name: str,
                  digit_count: int,
                  pin_chip_select: int,
                  *,
-                 update_rate_hz: float = BaseSevenSegmentDisplay.DEFAULT_UPDATE_RATE_HZ,
+                 update_rate_hz: float = _DEFAULT_UPDATE_RATE_HZ,
                  universe: int | None = None
                  ) -> None:
         Fixture.__init__(self, _context[0], _name, update_rate_hz, universe=universe)

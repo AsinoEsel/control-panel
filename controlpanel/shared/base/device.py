@@ -19,7 +19,9 @@ class Device:
 
     def should_ignore_seq(self, seq: int) -> bool:
         """Returns whether the given sequence integer should be considered as outdated. Seq 0 is never ignored."""
-        return seq != 0 and (seq <= self._seq and not (seq < 16 and self._seq > 255-16))
+        if seq == 0 or self._seq == 0:
+            return False  # never ignore seq=0
+        return seq <= self._seq and not (seq < 16 and self._seq > 255-16)
 
     @property
     def name(self) -> str:

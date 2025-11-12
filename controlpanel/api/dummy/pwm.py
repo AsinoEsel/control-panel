@@ -1,21 +1,21 @@
 import asyncio
-from controlpanel.shared.base.pwm import BasePWM
 from .fixture import Fixture
 from artnet import ArtNet
 from .esp32 import ESP32
 
 
-class PWM(BasePWM, Fixture):
+class PWM(Fixture):
     def __init__(self,
                  _artnet: ArtNet,
-                 name: str,
                  _loop: asyncio.AbstractEventLoop,
                  _esp: ESP32,
+                 _name: str,
+                 /,
                  *,
                  intensity: float = 1.0,
                  universe: int | None = None,
                  ) -> None:
-        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
+        Fixture.__init__(self, _artnet, _loop, _esp, _name, universe=universe)
         self._intensity: float = intensity
 
     def send_dmx(self) -> None:

@@ -1,20 +1,20 @@
 import asyncio
-from controlpanel.shared.base.seven_segment import BaseSevenSegmentDisplay
 from .fixture import Fixture
 from artnet import ArtNet
 from .esp32 import ESP32
 
 
-class SevenSegmentDisplay(BaseSevenSegmentDisplay, Fixture):
+class SevenSegmentDisplay(Fixture):
     def __init__(self,
                  _artnet: ArtNet,
                  _loop: asyncio.AbstractEventLoop,
                  _esp: ESP32,
-                 name: str,
+                 _name: str,
+                 /,
                  digit_count: int,
                  *,
                  universe: int | None = None):
-        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
+        super().__init__(_artnet, _loop, _esp, _name, universe=universe)
         self._text: str = ""
         self._digit_count = digit_count
         self._brightness: int = 7

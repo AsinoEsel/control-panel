@@ -5,8 +5,8 @@ from controlpanel.shared.base import BaseFixture
 
 
 class Fixture(BaseFixture):
-    def __init__(self, _artnet, _loop, _esp, name: str, *, universe: int | None) -> None:
-        super().__init__(_artnet, name, universe=universe)
+    def __init__(self, _artnet, _loop, _esp, _name: str, /, universe: int | None) -> None:
+        super().__init__(_artnet, _name, universe=universe)
         self._loop: asyncio.AbstractEventLoop = _loop
         self._current_task: asyncio.Future | None = None
         self._esp: ESP32 = _esp

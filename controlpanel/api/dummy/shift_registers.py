@@ -1,5 +1,4 @@
 import asyncio
-from controlpanel.shared.base.shift_registers import BasePisoShiftRegister, BaseSipoShiftRegister
 from .sensor import Sensor
 from .fixture import Fixture
 from artnet import ArtNet
@@ -43,14 +42,19 @@ class _States:
 
 
 
-class PisoShiftRegister(BasePisoShiftRegister, Sensor):
+class PisoShiftRegister(Sensor):
     EVENT_TYPES = {
         "ButtonsChanged": tuple[tuple[int, bool], ...],
     }
 
-    def __init__(self, _artnet: ArtNet, name: str, count: int):
-        Sensor.__init__(self, _artnet, name)
+    def __init__(self, _artnet: ArtNet, _name: str, /, count: int):
+        super().__init__(_artnet, _name)
         self._states: list[bool] = [False for _ in range(count * 8)]
+        self._real_states: list[bool | None] = [None for _ in range(count * 8)]
+
+    @property
+    def desynced(self):
+        return self._states == self._real_states
 
     def __getitem__(self, key):
         return self._states[key]
@@ -65,11 +69,20 @@ class PisoShiftRegister(BasePisoShiftRegister, Sensor):
     def states(self):
         return tuple(self._states)
 
-    def parse_trigger_payload(self, data: bytes) -> tuple[str, tuple[tuple[int, bool], ...]]:
+    def set_state(self, index: int, value: bool):
+        if self._states[index] == value:
+            return
+        self._states[index] = value
+        self._fire_event("ButtonsChanged", ((index, value),) )
+
+    def toggle_state(self, index: int):
+        self.set_state(index, not self._states[index])
+
+    def parse_trigger_payload(self, data: bytes, timestamp: float) -> None:
         num_bits = len(data) * 8
         assert num_bits <= len(self._states), "Received more bits than expected"
 
-        updates = []
+        updates: list[tuple[int, bool]] = []
         for byte_index, byte in enumerate(data):
             base = byte_index * 8
             # Extract bits directly
@@ -78,15 +91,15 @@ class PisoShiftRegister(BasePisoShiftRegister, Sensor):
                 if index >= len(self._states):
                     break
                 value = not bool((byte >> bit_index) & 1)
+                self._real_states[index] = value
                 if self._states[index] != value:
-                    print(f"setting {index} to {value}")
                     self._states[index] = value
                     updates.append((index, value))
+        if updates:
+            self._fire_event("ButtonsChanged", tuple(updates))
 
-        return "ButtonsChanged", tuple(updates)
 
-
-class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
+class SipoShiftRegister(Fixture):
     def __init__(self,
                  _artnet: ArtNet,
                  _loop: asyncio.AbstractEventLoop,
@@ -95,7 +108,7 @@ class SipoShiftRegister(BaseSipoShiftRegister, Fixture):
                  count: int,
                  *,
                  universe: int | None = None):
-        Fixture.__init__(self, _artnet, _loop, _esp, name, universe=universe)
+        super().__init__(_artnet, _loop, _esp, name, universe=universe)
         self._states: _States = _States([False for _ in range(count * 8)], self.send_dmx)
 
     def send_dmx(self):

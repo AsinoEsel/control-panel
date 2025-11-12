@@ -4,6 +4,8 @@ from controlpanel.shared.base.led_strip import BaseLEDStrip, Generator, Literal,
 from .fixture import Fixture
 from micropython import const
 from controlpanel.upy.artnet import ArtNet
+from controlpanel.upy import rgb_decompression
+
 
 _BITMASK_RED = const(0b11100000)
 _BITMASK_GREEN = const(0b00011100)
@@ -109,7 +111,7 @@ class LEDStrip(BaseLEDStrip, Fixture):
             self._neopixels.buf = bytearray(pixel_data)
         else:
             assert len(pixel_data) == len(self._neopixels), "length of pixel data must be equal to the number of pixels"
-            self._uncompress_rgb_into(self._neopixels.buf, pixel_data)
+            rgb_decompression.uncompress_rgb_into(self._neopixels.buf, pixel_data)
         self._neopixels.write()
 
     async def update(self):

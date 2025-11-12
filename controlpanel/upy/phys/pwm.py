@@ -1,22 +1,25 @@
 import machine
-from controlpanel.shared.base.pwm import BasePWM
 from .fixture import Fixture
 from controlpanel.upy.artnet import ArtNet
+from micropython import const
 
 
-class PWM(BasePWM, Fixture):
+_DEFAULT_UPDATE_RATE_HZ = const(2.0)
+
+
+class PWM(Fixture):
     def __init__(
             self,
             _context: tuple[ArtNet, machine.SoftSPI, machine.I2C],
-            name: str,
+            _name: str,
             pin: int,
             *,
-            update_rate_hz: int = BasePWM.DEFAULT_UPDATE_RATE_HZ,
+            update_rate_hz: int = _DEFAULT_UPDATE_RATE_HZ,
             universe: int | None = None,
             intensity: float = 0.5,
             freq: int = 512,
         ) -> None:
-        Fixture.__init__(self, _context[0], name, update_rate_hz, universe=universe)
+        super().__init__(_context[0], _name, update_rate_hz, universe=universe)
         self.pin = machine.Pin(pin)
         self.pwm = machine.PWM(self.pin)
         self.pwm.freq(freq)

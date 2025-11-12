@@ -1,35 +1,41 @@
 import struct
-from controlpanel.shared.base.water_flow_sensor import BaseWaterFlowSensor
 from .sensor import Sensor
 from artnet import ArtNet
 
 
-class WaterFlowSensor(BaseWaterFlowSensor, Sensor):
+class WaterFlowSensor(Sensor):
     EVENT_TYPES = {
         "WaterFlow": int,
+        "WaterFlowPerSecond": float,
     }
 
-    def __init__(self,
-                 _artnet: ArtNet,
-                 name: str,
-                 *,
-                 polling_rate_hz: float = BaseWaterFlowSensor.DEFAULT_POLLING_RATE_HZ,
-                 ) -> None:
-        super().__init__(polling_rate_hz)
-        Sensor.__init__(self, _artnet, name)
+    def __init__(
+            self,
+            _artnet: ArtNet,
+            _name: str,
+            /,
+            polling_rate_hz: float,
+        ) -> None:
+        super().__init__(_artnet, _name)
+        self._polling_rate_hz = polling_rate_hz
         self._lifetime_water_flow: int = 0
-        self._water_flow_rate: float = 0.0
+        self._last_flow_time: float = 0.0
 
     @property
-    def lifetime_water_flow(self):
+    def desynced(self) -> False:
+        return False
+
+    def flow(self, amount: int) -> None:
+        self._fire_event("WaterFlow", amount)
+        self._lifetime_water_flow += amount
+
+    @property
+    def lifetime_water_flow(self) -> int:
         return self._lifetime_water_flow
 
-    @property
-    def water_flow_rate(self):
-        return self._water_flow_rate
-
-    def parse_trigger_payload(self, data: bytes) -> tuple[str, int]:
+    def parse_trigger_payload(self, data: bytes, timestamp: float) -> None:
         water_flow: int = struct.unpack("<I", data)[0]
         self._lifetime_water_flow += water_flow
-        self._water_flow_rate = water_flow / self._polling_time_seconds
-        return "WaterFlow", water_flow
+        self._fire_event("WaterFlow", water_flow)
+        self._fire_event("WaterFlowPerSecond", water_flow / (timestamp - self._last_flow_time))
+        self._last_flow_time = timestamp
