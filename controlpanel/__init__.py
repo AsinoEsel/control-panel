@@ -1,9 +1,4 @@
-import contextlib
-import importlib
-
-# This gets rid of the pygame "support prompt" on import by redirecting it into the void
-with contextlib.redirect_stdout(None):
-    importlib.import_module("pygame")
-
+from os import environ
+environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 from controlpanel.game_manager.games import BaseGame
 from anaconsole import console_command, Autocomplete
