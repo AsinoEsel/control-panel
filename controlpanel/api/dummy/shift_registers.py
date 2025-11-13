@@ -54,7 +54,7 @@ class PisoShiftRegister(Sensor):
 
     @property
     def desynced(self):
-        return self._states == self._real_states
+        return self._states != self._real_states
 
     def __getitem__(self, key):
         return self._states[key]
