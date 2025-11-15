@@ -1,4 +1,4 @@
-from typing import Iterable, Hashable, Callable, Union, TypeVar
+from typing import Hashable, Callable, Union, TypeVar
 from itertools import product
 from .api import subscribe
 from .commons import CallbackType
@@ -9,19 +9,19 @@ F = TypeVar("F", bound=CallbackType)
 
 
 def callback(*,
-    source: str | Iterable[str] | None = None,
-    action: str | Iterable[str] | None = None,
-    value: Hashable | Iterable[Hashable] | None = None,
+    source: str | list[str] | None = None,
+    action: str | list[str] | None = None,
+    value: Hashable | list[Hashable] | None = None,
     fire_once: bool = False,
     allow_parallelism: bool = False,
     ) -> Callable[[F], F]:
 
-    def normalize(x: Union[str, T, Iterable[T], None]) -> list[T] | list[None]:
+    def normalize(x: Union[str, T, list[T], None]) -> list[T] | list[None]:
         if x is None:
             return [None]
-        if isinstance(x, str) or not isinstance(x, Iterable):
+        if not isinstance(x, list):
             return [x]
-        return list(x)
+        return x
 
     def decorator(func: F) -> F:
         sources = normalize(source)
