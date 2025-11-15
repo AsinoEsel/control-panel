@@ -1,4 +1,4 @@
-from .keyboard import WIDTH, HEIGHT, button_pos, led_idx
+from keyboard import WIDTH, HEIGHT, button_pos, led_idx
 from controlpanel import api
 from enum import Enum, auto
 
@@ -21,7 +21,6 @@ def toggle_cells(event: api.Event[tuple[tuple[int, bool], ...]]):
         if pressed:
             x, y = button_pos(button_id)
             BOARD[x][y] = CellState.ALIVE if BOARD[x][y] is CellState.DEAD else CellState.DEAD
-
 
 
 def count_alive_neighbors(x: int, y: int) -> int:
@@ -51,7 +50,7 @@ def render_board():
     api.get_device("MainframeLEDs").set_pixels(leds)
 
 
-@api.call_with_frequency(3)
+@api.call_with_frequency(10)
 def conway():
     new_board = [[BOARD[x][y] for y in range(HEIGHT)] for x in range(WIDTH)]
 
