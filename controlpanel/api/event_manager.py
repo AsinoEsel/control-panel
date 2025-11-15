@@ -448,6 +448,9 @@ class EventManager:
                   *,
                   fire_once: bool = False,
                   allow_parallelism: bool = False) -> None:
-        subscriber = Subscriber(callback, fire_once, allow_parallelism, callback.__code__.co_argcount == 1)
+        arg_count = callback.__code__.co_argcount
+        is_method = inspect.ismethod(callback)
+        requires_event_arg = arg_count == 1 if not is_method else arg_count == 2
+        subscriber = Subscriber(callback, fire_once, allow_parallelism, requires_event_arg)
         condition = Condition(source, action, value)
         self._callback_register[condition].append(subscriber)
