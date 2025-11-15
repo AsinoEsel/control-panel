@@ -1,3 +1,4 @@
+import sys
 from threading import Thread
 from artnet import ArtNet
 from controlpanel.game_manager import GameManager
@@ -21,7 +22,9 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
                         help='Enable shaders (shaders are disabled by default)')
     group.add_argument('--stretch-to-fit', action='store_true',
                        help='Stretch game to fit screen (black bars by default)')
-    parser.add_argument('--load-scripts', nargs='*',
+    parser.add_argument('--pythonpath', nargs='*', default=[],
+                        help='Directories to add to PYTHONPATH (to import scripts (modules/packages) from')
+    parser.add_argument('--load-scripts', nargs='*', default=[],
                         help='Load script files (in controlpanel/scripts), all by default. '
                              'Alternatively, supply the filenames of the script files (or presets) to load.'
                              'A preset is a .txt file containing newline-separated script file names')
@@ -56,8 +59,10 @@ def main():
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)
 
-    if args.load_scripts is not None:
-        api.load_scripts(args.load_scripts)
+    for path in args.pythonpath:
+        sys.path.append(path)
+
+    api.load_scripts(args.load_scripts)
 
     game_manager_thread = Thread(target=game_manager.run, daemon=False)
     game_manager_thread.run()

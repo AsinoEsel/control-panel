@@ -2,6 +2,10 @@ import sys
 import os
 import importlib
 from .services import Services
+import pathlib
+
+
+sys.path.append(str(pathlib.Path(__file__).parent.parent.resolve() / "scripts"))
 
 
 def load_scripts(args: list[str]) -> None:
@@ -29,18 +33,15 @@ def load_scripts(args: list[str]) -> None:
             arg = arg.removesuffix(".py")
         try:
             original_modules = set(sys.modules.keys())
-            imported_module = importlib.import_module(f"controlpanel.scripts.{arg}", package=__name__)
+            imported_module = importlib.import_module(arg, package=__name__)
             Services.loaded_scripts[arg] = imported_module
             new_modules = set(sys.modules.keys()) - original_modules
             if not new_modules:
                 continue  # Skip this module because it has apparently already been imported before as a dependency
             dependencies = set()
             for new_module in new_modules:
-                if not new_module.startswith("controlpanel.scripts."):  # are only interested in our scripts
-                    continue
-                new_module_name = new_module.removeprefix("controlpanel.scripts.")
-                script_name, *submodules = new_module_name.split(".", maxsplit=1)
-                if arg == script_name:  # Don't count imported module as dependency of itServices
+                script_name, *submodules = new_module.split(".", maxsplit=1)
+                if arg == script_name:  # Don't count imported module as dependency of itself
                     continue
                 dependencies.add(script_name)
                 if not submodules:
