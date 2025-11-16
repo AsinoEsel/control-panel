@@ -15,7 +15,7 @@ class PWM(Fixture):
                  intensity: float = 1.0,
                  universe: int | None = None,
                  ) -> None:
-        Fixture.__init__(self, _artnet, _loop, _esp, _name, universe=universe)
+        super().__init__(_artnet, _loop, _esp, _name, universe=universe)
         self._intensity: float = intensity
 
     def send_dmx(self) -> None:
