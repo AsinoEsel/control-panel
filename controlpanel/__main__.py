@@ -37,11 +37,11 @@ def main():
     args, unknown_args = parse_args()
 
     artnet = ArtNet()  # This is where we initialise our one and ONLY ArtNet instance for the entire program.
-    api.Services.artnet = artnet
+    api.services.artnet = artnet
 
     event_manager = api.EventManager(artnet)
-    api.Services.event_manager = event_manager
-    # needs to be called after Services.event_manager has been set
+    api.services.event_manager = event_manager
+    # needs to be called after services.event_manager has been set
     event_manager.instantiate_devices([api.dummy,])
 
     game_manager = GameManager(resolution=(args.width, args.height) if not args.no_gui else None,
@@ -51,10 +51,10 @@ def main():
                                stretch_to_fit=args.stretch_to_fit,
                                enable_cheats=args.cheats,
                                )
-    api.Services.game_manager = game_manager
+    api.services.game_manager = game_manager
 
     try:
-        api.Services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
+        api.services.dmx = DMXUniverse(None, devices=device_list, target_frequency=10)
     except ValueError as err:
         print('Unable to initiate DMX Universe because of value error.')  # occurred on macOS
         print(err)

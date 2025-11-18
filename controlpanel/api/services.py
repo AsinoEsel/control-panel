@@ -8,9 +8,12 @@ if TYPE_CHECKING:
 
 
 class Services:
-    """This acts as a simple namespace"""
-    artnet: Optional[ArtNet] = None
-    event_manager: Optional[EventManager] = None
-    game_manager: Optional["GameManager"] = None
-    dmx: Optional[DMXUniverse] = None
-    loaded_scripts: dict[str, types.ModuleType] = {}
+    def __init__(self):
+        self.artnet: Optional[ArtNet] = None
+        self.event_manager: Optional[EventManager] = None
+        self.game_manager: Optional["GameManager"] = None
+        self.dmx: Optional[DMXUniverse] = None
+        self.loaded_scripts: dict[str, types.ModuleType] = {}
+
+
+services = Services()
