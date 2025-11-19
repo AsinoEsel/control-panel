@@ -1,5 +1,6 @@
 import ast
 from pathlib import Path
+from controlpanel.api.load_scripts_helper import ALLOWED_MODULES
 
 class RestrictedPythonChecker:
     name = "restrictedpython-checker"
@@ -93,6 +94,29 @@ class RestrictedPythonChecker:
                         node.lineno,
                         node.col_offset,
                         f"RSP007 Class name '{node.name}' may not start with '_' in RestrictedPython.",
+                        type(self),
+                    )
+
+            # -----------------------------------------------------------
+            # RSP008 – Import checking
+            # -----------------------------------------------------------
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".")[0] not in ALLOWED_MODULES:
+                        yield (
+                            node.lineno,
+                            node.col_offset,
+                            f"RSP008 Import of '{alias.name}' is not allowed.",
+                            type(self),
+                        )
+
+            if isinstance(node, ast.ImportFrom):
+                module_name = node.module.split(".")[0] if node.module else ""
+                if module_name not in ALLOWED_MODULES:
+                    yield (
+                        node.lineno,
+                        node.col_offset,
+                        f"RSP008 Import from '{module_name}' is not allowed.",
                         type(self),
                     )
 
