@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -42,7 +42,7 @@ def run_lint(code: str) -> list[dict]:
             }]
 
         # Step 2: Run checker
-        checker = RestrictedPythonChecker(tree=tree, filename=filename)
+        checker = RestrictedPythonChecker(tree=tree, filename=filename, always_check=True)
         for lineno, col_offset, message, _ in checker.run():
             issues.append({
                 "line": lineno,
@@ -87,6 +87,8 @@ async def upload(
     """
     Uploads editor content after linting passes.
     """
+    code = code.replace("\r\n", "\n").replace("\r", "\n")
+
     issues = run_lint(code)
 
     response = RedirectResponse("/", status_code=303)

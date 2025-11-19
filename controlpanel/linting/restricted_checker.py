@@ -6,13 +6,14 @@ class RestrictedPythonChecker:
     name = "restrictedpython-checker"
     version = "0.1.0"
 
-    def __init__(self, tree, filename):
+    def __init__(self, tree, filename, always_check = False):
         self.tree = tree
         self.filename = filename
+        self.always_check = always_check
 
     def run(self):
-        # if not self._in_userscripts_dir():
-        #     return
+        if not self.always_check and not self._in_userscripts_dir():
+            return
 
         for node in ast.walk(self.tree):
 
