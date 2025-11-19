@@ -1,14 +1,19 @@
 import RestrictedPython.Eval
 from RestrictedPython import safe_builtins, utility_builtins, limited_builtins
 from typing import Any
-import controlpanel
+import types
+import controlpanel.api as api
+
+
+controlpanel_fake = types.SimpleNamespace(api=api)  # Fake controlpanel namespace that only allows access to API
 
 
 ALLOWED_MODULES = {
     'math': __import__('math'),
     'random': __import__('random'),
     'enum': __import__('enum'),
-    'controlpanel': controlpanel,
+    'controlpanel': controlpanel_fake,
+    'controlpanel.api': api,
 }
 
 
@@ -16,8 +21,8 @@ def safe_import(name: str, globals=None, locals=None, fromlist=(), level=0):
     if name in ALLOWED_MODULES:
         return ALLOWED_MODULES[name]
 
-    if f"userscripts.{name}" in controlpanel.api.services.loaded_scripts:
-        return controlpanel.api.services.loaded_scripts[f"userscripts.{name}"]
+    if f"userscripts.{name}" in api.services.loaded_scripts:
+        return api.services.loaded_scripts[f"userscripts.{name}"]
 
     from .load_scripts import load_script
     try:
