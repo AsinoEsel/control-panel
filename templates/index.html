@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>PY UPLOAD</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+    <!-- Ace Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.15.0/ace.js"></script>
+</head>
+<body>
+
+<div id="float-msg" class="float-message {{ message_class }}">{{ message }}</div>
+
+<div class="crt-overlay"></div>
+
+<div class="container">
+
+    <!-- SELECT FILE -->
+    <label class="upload-btn">
+        SELECT .PY FILE
+        <input type="file" id="fileInput" accept=".py">
+    </label>
+
+    <!-- ADDON NAME -->
+    <div class="addon-row">
+        <label class="left-label">Addon name:</label>
+        <input type="text" id="filenameField" class="filename-input">
+    </div>
+
+    <!-- EDITOR -->
+    <div id="editor" class="editor-box"># Write or load Python code here</div>
+
+    <!-- LINT BUTTON -->
+    <button id="lintBtn" class="action-btn">LINT CODE</button>
+
+    <!-- UPLOAD BUTTON -->
+    <form id="uploadForm" action="/upload" method="post">
+        <input type="hidden" name="filename" id="filenameHidden">
+        <input type="hidden" name="code" id="codeHidden">
+        <button id="submitBtn" class="submit-btn disabled" type="submit" disabled>UPLOAD</button>
+    </form>
+
+</div>
+
+<script>
+    const editor = ace.edit("editor");
+    editor.session.setMode("ace/mode/python");
+    editor.setTheme("ace/theme/monokai");
+    editor.setOptions({
+        fontSize: "14px",
+        showPrintMargin: false,
+    });
+
+    const fileInput = document.getElementById("fileInput");
+    const filenameField = document.getElementById("filenameField");
+    const filenameHidden = document.getElementById("filenameHidden");
+    const codeHidden = document.getElementById("codeHidden");
+    const lintBtn = document.getElementById("lintBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+    let lintOK = false;
+
+    function updateSubmitState() {
+        lintOK = editor.session.getAnnotations().length === 0;
+
+        const hasName = filenameField.value.trim().length > 0;
+
+        if (lintOK && hasName) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove("disabled");
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.classList.add("disabled");
+        }
+    }
+
+    // Load file into editor
+    fileInput.addEventListener("change", async () => {
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const text = await file.text();
+            editor.setValue(text, -1);
+
+            // Autofill addon name
+            let name = file.name.toLowerCase().endsWith(".py")
+                ? file.name.slice(0, -3)
+                : file.name;
+            filenameField.value = name;
+
+            // Automatically lint
+            lintBtn.click();
+        }
+    });
+
+    // Manual lint trigger
+    lintBtn.addEventListener("click", async () => {
+        const code = editor.getValue();
+        const formData = new FormData();
+        formData.append("code", code);
+
+        const res = await fetch("/lint", { method: "POST", body: formData });
+        const data = await res.json();
+
+        const annotations = data.results.map(r => ({
+            row: r.line - 1,
+            column: r.column,
+            text: r.message,
+            type: "error"
+        }));
+
+        editor.session.setAnnotations(annotations);
+        updateSubmitState();
+    });
+
+    // Upload
+    document.getElementById("uploadForm").addEventListener("submit", () => {
+        filenameHidden.value = filenameField.value.trim();
+        codeHidden.value = editor.getValue();
+    });
+
+    // Float message animation
+    window.addEventListener("load", () => {
+        const box = document.getElementById("float-msg");
+        if (box.textContent.trim().length > 0) {
+            box.classList.add("visible");
+            setTimeout(() => box.classList.remove("visible"), 4500);
+        }
+    });
+
+    filenameField.addEventListener("input", updateSubmitState);
+</script>
+
+</body>
+</html>
