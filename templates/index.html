@@ -129,6 +129,41 @@
     });
 
     filenameField.addEventListener("input", updateSubmitState);
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "upload-tooltip";
+    document.body.appendChild(tooltip);
+
+    submitBtn.addEventListener("mousemove", (e) => {
+        if (!submitBtn.disabled) {
+            tooltip.classList.remove("visible");
+            return;
+        }
+
+        // Determine reason
+        let reason = "";
+        if (editor.session.getAnnotations().length > 0) {
+            reason = "Linting errors present";
+        } else if (!filenameField.value.trim()) {
+            reason = "No name supplied";
+        } else {
+            reason = ""; // safety fallback
+        }
+
+        if (reason) {
+            tooltip.textContent = reason;
+            tooltip.style.left = e.pageX + 12 + "px";
+            tooltip.style.top = e.pageY + 12 + "px";
+            tooltip.classList.add("visible");
+        } else {
+            tooltip.classList.remove("visible");
+        }
+    });
+
+    submitBtn.addEventListener("mouseleave", () => {
+        tooltip.classList.remove("visible");
+    });
+
 </script>
 
 </body>
