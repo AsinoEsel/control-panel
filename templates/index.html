@@ -2,13 +2,15 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>PY UPLOAD</title>
+    <title>Control Panel Addon Upload Tool</title>
     <link rel="stylesheet" href="/static/style.css">
 
     <!-- Ace Editor -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.15.0/ace.js"></script>
 </head>
 <body>
+
+<h1 class="page-title">CONTROL PANEL ADDON UPLOAD TOOL</h1>
 
 <div id="float-msg" class="float-message {{ message_class }}">{{ message }}</div>
 
@@ -29,7 +31,7 @@
     </div>
 
     <!-- EDITOR -->
-    <div id="editor" class="editor-box"># Write or load Python code here</div>
+    <div id="editor" class="editor-box"></div>
 
     <!-- LINT BUTTON -->
     <button id="lintBtn" class="action-btn">LINT CODE</button>
@@ -44,6 +46,9 @@
 </div>
 
 <script>
+    // -----------------------------
+    // ACE EDITOR SETUP
+    // -----------------------------
     const editor = ace.edit("editor");
     editor.session.setMode("ace/mode/python");
     editor.setTheme("ace/theme/monokai");
@@ -52,6 +57,21 @@
         showPrintMargin: false,
     });
 
+    editor.setValue(
+`# Load existing code here or write your own!
+
+from controlpanel import api
+
+@api.callback(source="BigRedButton",action="ButtonPressed")
+def button_pressed(event):
+    color = (255, 0, 0) if event.value else (0, 0, 0)
+    api.get_device("StatusLED").set_pixel(0, color)
+`, -1);
+
+
+    // -----------------------------
+    // DOM ELEMENTS
+    // -----------------------------
     const fileInput = document.getElementById("fileInput");
     const filenameField = document.getElementById("filenameField");
     const filenameHidden = document.getElementById("filenameHidden");
@@ -59,43 +79,83 @@
     const lintBtn = document.getElementById("lintBtn");
     const submitBtn = document.getElementById("submitBtn");
 
-    let lintOK = false;
 
-    function updateSubmitState() {
-        lintOK = editor.session.getAnnotations().length === 0;
+    // -----------------------------
+    // STATE
+    // -----------------------------
+    let lintUpToDate = false;
 
-        const hasName = filenameField.value.trim().length > 0;
 
-        if (lintOK && hasName) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove("disabled");
-        } else {
-            submitBtn.disabled = true;
-            submitBtn.classList.add("disabled");
-        }
+    // -----------------------------
+    // HELPERS
+    // -----------------------------
+    function disableUpload(reason) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add("disabled");
+        submitBtn.dataset.reason = reason;
     }
 
-    // Load file into editor
+    function enableUpload() {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("disabled");
+        submitBtn.dataset.reason = "";
+    }
+
+    function updateSubmitState() {
+        const annotations = editor.session.getAnnotations();
+        const hasErrors = annotations.length > 0;
+        const hasName = filenameField.value.trim().length > 0;
+
+        if (!lintUpToDate) {
+            disableUpload("Linting required before upload");
+            return;
+        }
+
+        if (hasErrors) {
+            disableUpload("Linting errors present");
+            return;
+        }
+
+        if (!hasName) {
+            disableUpload("No name supplied");
+            return;
+        }
+
+        enableUpload();
+    }
+
+
+    // -----------------------------
+    // LOAD FILE INTO EDITOR
+    // -----------------------------
     fileInput.addEventListener("change", async () => {
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
             const text = await file.text();
+
             editor.setValue(text, -1);
 
             // Autofill addon name
-            let name = file.name.toLowerCase().endsWith(".py")
+            let stem = file.name.endsWith(".py")
                 ? file.name.slice(0, -3)
                 : file.name;
-            filenameField.value = name;
+            filenameField.value = stem;
 
-            // Automatically lint
+            // If user loads a file → lint is no longer up-to-date
+            lintUpToDate = false;
+
+            // Auto-lint
             lintBtn.click();
         }
     });
 
-    // Manual lint trigger
+
+    // -----------------------------
+    // LINTING
+    // -----------------------------
     lintBtn.addEventListener("click", async () => {
         const code = editor.getValue();
+
         const formData = new FormData();
         formData.append("code", code);
 
@@ -110,16 +170,36 @@
         }));
 
         editor.session.setAnnotations(annotations);
+
+        lintUpToDate = true;
         updateSubmitState();
     });
 
-    // Upload
+
+    // -----------------------------
+    // EDITOR CHANGES (FOR REQUIRING RELINT)
+    // -----------------------------
+    editor.session.on("change", () => {
+        lintUpToDate = false;
+        disableUpload("Linting required before upload");
+    });
+
+
+    // -----------------------------
+    // UPLOAD
+    // -----------------------------
     document.getElementById("uploadForm").addEventListener("submit", () => {
         filenameHidden.value = filenameField.value.trim();
         codeHidden.value = editor.getValue();
+        // Editor content NOT cleared — by request
     });
 
-    // Float message animation
+    filenameField.addEventListener("input", updateSubmitState);
+
+
+    // -----------------------------
+    // FLOAT MESSAGE
+    // -----------------------------
     window.addEventListener("load", () => {
         const box = document.getElementById("float-msg");
         if (box.textContent.trim().length > 0) {
@@ -128,8 +208,10 @@
         }
     });
 
-    filenameField.addEventListener("input", updateSubmitState);
 
+    // -----------------------------
+    // UPLOAD TOOLTIP
+    // -----------------------------
     const tooltip = document.createElement("div");
     tooltip.className = "upload-tooltip";
     document.body.appendChild(tooltip);
@@ -140,24 +222,12 @@
             return;
         }
 
-        // Determine reason
-        let reason = "";
-        if (editor.session.getAnnotations().length > 0) {
-            reason = "Linting errors present";
-        } else if (!filenameField.value.trim()) {
-            reason = "No name supplied";
-        } else {
-            reason = ""; // safety fallback
-        }
+        const reason = submitBtn.dataset.reason || "Upload unavailable";
 
-        if (reason) {
-            tooltip.textContent = reason;
-            tooltip.style.left = e.pageX + 12 + "px";
-            tooltip.style.top = e.pageY + 12 + "px";
-            tooltip.classList.add("visible");
-        } else {
-            tooltip.classList.remove("visible");
-        }
+        tooltip.textContent = reason;
+        tooltip.style.left = e.pageX + 12 + "px";
+        tooltip.style.top = e.pageY + 12 + "px";
+        tooltip.classList.add("visible");
     });
 
     submitBtn.addEventListener("mouseleave", () => {

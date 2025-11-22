@@ -144,3 +144,17 @@ body {
 .upload-tooltip.visible {
     opacity: 1;
 }
+
+/* Gutter background */
+.ace_gutter {
+    background: rgb(30, 25, 20) !important;
+}
+
+/* Gutter text */
+.ace_gutter-cell {
+    color: #666 !important;
+}
+
+/* Active Line */
+.ace_editor .ace_marker-layer .ace_active-line {
+    background: rgba(200, 180, 100, 0.10) !important;
